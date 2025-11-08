@@ -1,0 +1,29 @@
+{
+    "name": "nwidart/elearning",
+    "description": "E-Learning Module for School Management System",
+    "authors": [
+        {
+            "name": "School Management System",
+            "email": "admin@school.local"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\ELearning\\": "app/",
+            "Modules\\ELearning\\Database\\Factories\\": "database/factories/",
+            "Modules\\ELearning\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\ELearning\\Tests\\": "tests/"
+        }
+    }
+}
+
