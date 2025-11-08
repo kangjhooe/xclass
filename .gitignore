@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# File dokumentasi yang berisi informasi sensitif
+DATA_LOGIN.md
+*.md.backup
