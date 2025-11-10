@@ -1,0 +1,326 @@
+'use client';
+
+import { useAuthStore } from '@/lib/store/auth';
+import { useRouter, useParams, usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { cn } from '@/lib/utils/cn';
+
+interface TenantLayoutProps {
+  children: React.ReactNode;
+}
+
+interface MenuItem {
+  label: string;
+  href?: string;
+  icon?: string;
+  children?: MenuItem[];
+  section?: string;
+}
+
+export default function TenantLayout({ children }: TenantLayoutProps) {
+  const { user, isAuthenticated, logout } = useAuthStore();
+  const router = useRouter();
+  const params = useParams();
+  const pathname = usePathname();
+  const tenantId = params?.tenant as string;
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, router]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  const toggleMenu = (key: string) => {
+    setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const menuItems: MenuItem[] = [
+    {
+      label: 'Dashboard',
+      href: `/${tenantId}/dashboard`,
+      icon: '📊',
+    },
+    {
+      section: 'DATA POKOK',
+      label: 'Data Pokok',
+      children: [
+        { label: 'Siswa', href: `/${tenantId}/students`, icon: '👨‍🎓' },
+        { label: 'Guru', href: `/${tenantId}/teachers`, icon: '👨‍🏫' },
+        { label: 'Kelas', href: `/${tenantId}/classes`, icon: '🚪' },
+        { label: 'Data Pokok', href: `/${tenantId}/data-pokok`, icon: '📋' },
+      ],
+    },
+    {
+      section: 'AKADEMIK',
+      label: 'Akademik',
+      children: [
+        { label: 'Tahun Pelajaran', href: `/${tenantId}/academic-years`, icon: '📅' },
+        { label: 'Mata Pelajaran', href: `/${tenantId}/subjects`, icon: '📚' },
+        { label: 'Jadwal Pelajaran', href: `/${tenantId}/schedules`, icon: '📆' },
+        { label: 'Nilai Siswa', href: `/${tenantId}/grades`, icon: '📈' },
+        { label: 'Bobot Nilai', href: `/${tenantId}/grade-weight`, icon: '⚖️' },
+        { label: 'Absensi', href: `/${tenantId}/attendance`, icon: '✅' },
+        { label: 'Ujian Online', href: `/${tenantId}/exams`, icon: '📝' },
+        { label: 'E-Learning', href: `/${tenantId}/elearning`, icon: '💻' },
+        { label: 'Laporan Akademik', href: `/${tenantId}/academic-reports`, icon: '📊' },
+        { label: 'Kenaikan Kelas', href: `/${tenantId}/promotion`, icon: '⬆️' },
+        { label: 'Kelulusan', href: `/${tenantId}/graduation`, icon: '🎓' },
+      ],
+    },
+    {
+      section: 'SUMBER DAYA',
+      label: 'Sumber Daya',
+      children: [
+        { label: 'Perpustakaan', href: `/${tenantId}/library`, icon: '📖' },
+        { label: 'SPP / Keuangan', href: `/${tenantId}/finance`, icon: '💰' },
+        { label: 'HR / SDM', href: `/${tenantId}/hr`, icon: '👥' },
+        { label: 'Transportasi', href: `/${tenantId}/transportation`, icon: '🚌' },
+        { label: 'Kafetaria', href: `/${tenantId}/cafeteria`, icon: '🍽️' },
+        { label: 'Fasilitas', href: `/${tenantId}/facility`, icon: '🏗️' },
+        { label: 'Inventori', href: `/${tenantId}/inventory`, icon: '📦' },
+      ],
+    },
+    {
+      section: 'KEGIATAN',
+      label: 'Kegiatan',
+      children: [
+        { label: 'Event / Agenda', href: `/${tenantId}/events`, icon: '📅' },
+        { label: 'Alumni', href: `/${tenantId}/alumni`, icon: '🎓' },
+        { label: 'PPDB / SPMB', href: `/${tenantId}/ppdb`, icon: '📋' },
+        { label: 'Buku Tamu', href: `/${tenantId}/guest-book`, icon: '📝' },
+      ],
+    },
+    {
+      section: 'BIDANG KHUSUS',
+      label: 'Bidang Khusus',
+      children: [
+        { label: 'Kedisiplinan', href: `/${tenantId}/discipline`, icon: '⚖️' },
+        { label: 'Bimbingan Konseling', href: `/${tenantId}/counseling`, icon: '💬' },
+        { label: 'Kesehatan', href: `/${tenantId}/health`, icon: '🏥' },
+        { label: 'Ekstrakurikuler', href: `/${tenantId}/extracurricular`, icon: '🏃' },
+      ],
+    },
+    {
+      section: 'KOMUNIKASI',
+      label: 'Komunikasi',
+      children: [
+        { label: 'Pengumuman', href: `/${tenantId}/announcement`, icon: '📢' },
+        { label: 'Pesan', href: `/${tenantId}/message`, icon: '💬' },
+        { label: 'Notifikasi', href: `/${tenantId}/notifications`, icon: '🔔' },
+        { label: 'Korespondensi', href: `/${tenantId}/correspondence`, icon: '📨' },
+      ],
+    },
+    {
+      section: 'UTILITAS',
+      label: 'Utilitas',
+      children: [
+        { label: 'Ekspor/Impor', href: `/${tenantId}/export-import`, icon: '📤' },
+        { label: 'Generator Laporan', href: `/${tenantId}/report-generator`, icon: '📄' },
+        { label: 'Manajemen Kartu', href: `/${tenantId}/card-management`, icon: '💳' },
+        { label: 'Transfer Siswa', href: `/${tenantId}/student-transfer`, icon: '🔄' },
+        { label: 'Log Aktivitas', href: `/${tenantId}/activity-logs`, icon: '📋' },
+        { label: 'Storage', href: `/${tenantId}/storage`, icon: '💾' },
+      ],
+    },
+    {
+      section: 'PENGATURAN',
+      label: 'Pengaturan',
+      children: [
+        { label: 'Profil Instansi', href: `/${tenantId}/settings`, icon: '🏢' },
+        { label: 'Perubahan NPSN', href: `/${tenantId}/settings/npsn-change`, icon: '🔄' },
+      ],
+    },
+  ];
+
+  const isActive = (href?: string) => {
+    if (!href) return false;
+    return pathname === href || pathname?.startsWith(href + '/');
+  };
+
+  return (
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-r border-slate-700/50 transition-all duration-300 ease-in-out shadow-2xl flex-shrink-0',
+          sidebarOpen ? 'w-64' : 'w-20'
+        )}
+      >
+        <div className="flex flex-col h-full">
+          {/* Logo */}
+          <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-sm flex-shrink-0">
+            {sidebarOpen && (
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                CLASS
+              </h1>
+            )}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg hover:bg-slate-700/50 transition-all duration-200 text-slate-300 hover:text-white hover:scale-110"
+            >
+              {sidebarOpen ? '←' : '→'}
+            </button>
+          </div>
+
+          {/* Menu */}
+          <nav className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+            {menuItems.map((item, index) => (
+              <div key={index}>
+                {item.section && sidebarOpen && (
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 mt-6 px-3 py-1 bg-slate-800/50 rounded-md border-l-2 border-blue-500/50">
+                    {item.section}
+                  </div>
+                )}
+                {item.href ? (
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      'flex items-center space-x-3 px-3 py-2.5 rounded-xl mb-2 transition-all duration-200 group relative overflow-hidden',
+                      isActive(item.href)
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium shadow-lg shadow-blue-500/30 scale-105'
+                        : 'text-slate-300 hover:bg-slate-700/50 hover:text-white hover:scale-105 hover:shadow-md'
+                    )}
+                  >
+                    <div className={cn(
+                      'absolute inset-0 bg-gradient-to-r from-blue-600/0 to-purple-600/0 transition-opacity duration-200',
+                      isActive(item.href) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    )} />
+                    {item.icon && (
+                      <span className={cn(
+                        'text-lg relative z-10 transition-transform duration-200',
+                        isActive(item.href) ? 'scale-110' : 'group-hover:scale-110'
+                      )}>
+                        {item.icon}
+                      </span>
+                    )}
+                    {sidebarOpen && (
+                      <span className="relative z-10">{item.label}</span>
+                    )}
+                    {isActive(item.href) && (
+                      <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                    )}
+                  </Link>
+                ) : item.children ? (
+                  <div>
+                    <button
+                      onClick={() => toggleMenu(`menu-${index}`)}
+                      className={cn(
+                        'flex items-center justify-between w-full px-3 py-2.5 rounded-xl mb-2 transition-all duration-200 group',
+                        'text-slate-300 hover:bg-slate-700/50 hover:text-white hover:scale-105'
+                      )}
+                    >
+                      <div className="flex items-center space-x-3">
+                        {item.icon && (
+                          <span className="text-lg transition-transform duration-200 group-hover:scale-110">
+                            {item.icon}
+                          </span>
+                        )}
+                        {sidebarOpen && <span>{item.label}</span>}
+                      </div>
+                      {sidebarOpen && (
+                        <span className={cn(
+                          'transition-transform duration-300 text-slate-400',
+                          openMenus[`menu-${index}`] ? 'rotate-90 text-white' : ''
+                        )}>
+                          ▶
+                        </span>
+                      )}
+                    </button>
+                    {sidebarOpen && openMenus[`menu-${index}`] && (
+                      <div className="ml-6 mt-1 space-y-1 animate-slide-in-from-top">
+                        {item.children.map((child, childIndex) => (
+                          <Link
+                            key={childIndex}
+                            href={child.href || '#'}
+                            className={cn(
+                              'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all duration-200 group relative',
+                              isActive(child.href)
+                                ? 'bg-gradient-to-r from-blue-600/80 to-purple-600/80 text-white font-medium shadow-md shadow-blue-500/20 scale-105'
+                                : 'text-slate-400 hover:bg-slate-700/50 hover:text-white hover:scale-105'
+                            )}
+                          >
+                            {child.icon && (
+                              <span className="transition-transform duration-200 group-hover:scale-110">
+                                {child.icon}
+                              </span>
+                            )}
+                            <span>{child.label}</span>
+                            {isActive(child.href) && (
+                              <div className="absolute right-2 w-1 h-1 bg-white rounded-full animate-pulse" />
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </nav>
+
+          {/* User Info */}
+          <div className="p-4 border-t border-slate-700/50 bg-gradient-to-t from-slate-800/50 to-transparent flex-shrink-0">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/50">
+                {user?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              {sidebarOpen && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">
+                    {user?.name || 'User'}
+                  </p>
+                  <p className="text-xs text-slate-400 truncate">
+                    {user?.email || ''}
+                  </p>
+                </div>
+              )}
+            </div>
+            {sidebarOpen && (
+              <button
+                onClick={() => {
+                  logout();
+                  router.push('/login');
+                }}
+                className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-lg transition-all duration-200 border border-red-500/30 hover:border-red-500/50 hover:scale-105"
+              >
+                Keluar
+              </button>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Top Bar */}
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-800">
+              {menuItems
+                .flatMap((item) => [
+                  item,
+                  ...(item.children || []),
+                ])
+                .find((item) => isActive(item.href))?.label || 'Dashboard'}
+            </h2>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">{user?.name}</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}

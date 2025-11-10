@@ -1,0 +1,42 @@
+import {
+  IsNumber,
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
+import { RegistrationStatus } from '../entities/event-registration.entity';
+
+export class CreateEventRegistrationDto {
+  @IsNumber()
+  eventId: number;
+
+  @IsNumber()
+  @IsOptional()
+  studentId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  parentId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  teacherId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  staffId?: number;
+
+  @IsEnum(RegistrationStatus)
+  @IsOptional()
+  status?: RegistrationStatus;
+
+  @IsNumber()
+  @IsOptional()
+  paymentAmount?: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+

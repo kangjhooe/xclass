@@ -1,0 +1,53 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { AttendanceService } from './attendance.service';
+import { CreateAttendanceDto } from './dto/create-attendance.dto';
+import { UpdateAttendanceDto } from './dto/update-attendance.dto';
+import { TenantId } from '../../common/decorators/tenant.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../common/guards/tenant.guard';
+
+@Controller('attendance')
+@UseGuards(JwtAuthGuard, TenantGuard)
+export class AttendanceController {
+  constructor(private readonly attendanceService: AttendanceService) {}
+
+  @Post()
+  create(@Body() createAttendanceDto: CreateAttendanceDto, @TenantId() instansiId: number) {
+    return this.attendanceService.create(createAttendanceDto, instansiId);
+  }
+
+  @Get()
+  findAll(
+    @TenantId() instansiId: number,
+    @Query('studentId') studentId?: number,
+    @Query('scheduleId') scheduleId?: number,
+    @Query('date') date?: string,
+  ) {
+    return this.attendanceService.findAll({ studentId, scheduleId, date, instansiId });
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.attendanceService.findOne(+id, instansiId);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateAttendanceDto: UpdateAttendanceDto, @TenantId() instansiId: number) {
+    return this.attendanceService.update(+id, updateAttendanceDto, instansiId);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.attendanceService.remove(+id, instansiId);
+  }
+}

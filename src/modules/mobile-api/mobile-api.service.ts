@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/co
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { Student } from '../students/entities/student.entity';
 import { StudentGrade } from '../grades/entities/student-grade.entity';
 import { Attendance } from '../attendance/entities/attendance.entity';
@@ -9,6 +10,7 @@ import { Schedule } from '../schedules/entities/schedule.entity';
 import { Announcement } from '../announcement/entities/announcement.entity';
 import { Exam } from '../exams/entities/exam.entity';
 import { Tenant } from '../tenant/entities/tenant.entity';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class MobileApiService {
@@ -27,6 +29,8 @@ export class MobileApiService {
     private examRepository: Repository<Exam>,
     @InjectRepository(Tenant)
     private tenantRepository: Repository<Tenant>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private jwtService: JwtService,
   ) {}
 
@@ -39,25 +43,48 @@ export class MobileApiService {
       throw new NotFoundException('Tenant tidak ditemukan');
     }
 
-    // TODO: Implement actual user authentication
-    // For now, return mock response
+    // Find user by email and tenant
+    const user = await this.userRepository.findOne({
+      where: { email, instansiId: tenant.id },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Email atau password salah');
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Email atau password salah');
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      throw new UnauthorizedException('Akun Anda tidak aktif');
+    }
+
+    // Update last login
+    await this.userRepository.update(user.id, { lastLoginAt: new Date() });
+
     const payload = {
-      sub: 1,
-      email,
-      role: 'student',
+      sub: user.id,
+      email: user.email,
+      role: user.role,
       instansiId: tenant.id,
     };
 
     const token = this.jwtService.sign(payload);
 
+    const { password: _, rememberToken, ...userWithoutPassword } = user;
+
     return {
       success: true,
       token,
       user: {
-        id: payload.sub,
-        name: 'Student',
-        email: payload.email,
-        role: payload.role,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
       },
       tenant: {
         npsn: tenant.npsn,
@@ -87,9 +114,9 @@ export class MobileApiService {
       averageGrade: await this.calculateAverageGrade(student.id),
     };
 
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
     const todaySchedules = await this.scheduleRepository.find({
-      where: { classId: student.classId, day: today },
+      where: { classId: student.classId, dayOfWeek: today },
       relations: ['subject', 'teacher', 'classRoom'],
       order: { startTime: 'ASC' },
     });
@@ -97,7 +124,7 @@ export class MobileApiService {
     const announcements = await this.announcementRepository.find({
       where: {
         instansiId,
-        isActive: true,
+        status: 'published',
       },
       order: { createdAt: 'DESC' },
       take: 5,
@@ -155,12 +182,6 @@ export class MobileApiService {
       });
     }
 
-    if (filters?.semester) {
-      query.andWhere('grade.semester = :semester', {
-        semester: filters.semester,
-      });
-    }
-
     const grades = await query.orderBy('grade.createdAt', 'DESC').getMany();
 
     return {
@@ -170,20 +191,19 @@ export class MobileApiService {
         subject: g.subject?.name || null,
         teacher: g.teacher?.name || null,
         score: g.score,
-        type: g.type,
-        semester: g.semester,
+        type: g.assignmentType || null,
         date: g.createdAt.toLocaleDateString('id-ID'),
       })),
     };
   }
 
   async getStudentAttendance(
-    userId: number,
+    userEmail: string,
     instansiId: number,
     filters?: { startDate?: Date; endDate?: Date },
   ) {
     const student = await this.studentRepository.findOne({
-      where: { userId, instansiId },
+      where: { email: userEmail, instansiId },
     });
 
     if (!student) {
@@ -232,16 +252,16 @@ export class MobileApiService {
           id: a.id,
           date: a.date.toLocaleDateString('id-ID'),
           status: a.status,
-          note: a.note,
+          note: a.notes || null,
         })),
         stats,
       },
     };
   }
 
-  async getStudentSchedule(userId: number, instansiId: number) {
+  async getStudentSchedule(userEmail: string, instansiId: number) {
     const student = await this.studentRepository.findOne({
-      where: { userId, instansiId },
+      where: { email: userEmail, instansiId },
     });
 
     if (!student) {
@@ -251,14 +271,16 @@ export class MobileApiService {
     const schedules = await this.scheduleRepository.find({
       where: { classId: student.classId },
       relations: ['subject', 'teacher', 'classRoom'],
-      order: { day: 'ASC', startTime: 'ASC' },
+      order: { dayOfWeek: 'ASC', startTime: 'ASC' },
     });
 
+    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const grouped = schedules.reduce((acc, schedule) => {
-      if (!acc[schedule.day]) {
-        acc[schedule.day] = [];
+      const dayName = dayNames[schedule.dayOfWeek] || `Hari ${schedule.dayOfWeek}`;
+      if (!acc[dayName]) {
+        acc[dayName] = [];
       }
-      acc[schedule.day].push({
+      acc[dayName].push({
         id: schedule.id,
         subject: schedule.subject?.name || null,
         teacher: schedule.teacher?.name || null,
@@ -274,9 +296,9 @@ export class MobileApiService {
     };
   }
 
-  async getAnnouncements(userId: number, instansiId: number) {
+  async getAnnouncements(userEmail: string, instansiId: number) {
     const student = await this.studentRepository.findOne({
-      where: { userId, instansiId },
+      where: { email: userEmail, instansiId },
     });
 
     if (!student) {
@@ -286,7 +308,7 @@ export class MobileApiService {
     const announcements = await this.announcementRepository.find({
       where: {
         instansiId,
-        isActive: true,
+        status: 'published',
       },
       order: { createdAt: 'DESC' },
     });

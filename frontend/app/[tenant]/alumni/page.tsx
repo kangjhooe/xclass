@@ -1,0 +1,403 @@
+'use client';
+
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
+import TenantLayout from '@/components/layouts/TenantLayout';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
+import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
+import { Pagination } from '@/components/ui/Pagination';
+import { ExportButton } from '@/components/ui/ExportButton';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { alumniApi, Alumni, AlumniCreateData } from '@/lib/api/alumni';
+import { useToastStore } from '@/lib/store/toast';
+import { formatDate } from '@/lib/utils/date';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+export default function AlumniPage() {
+  const params = useParams();
+  const tenantId = parseInt(params.tenant as string);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedAlumni, setSelectedAlumni] = useState<Alumni | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterYear, setFilterYear] = useState<number | undefined>(undefined);
+  const [formData, setFormData] = useState<AlumniCreateData>({
+    name: '',
+    graduationYear: new Date().getFullYear(),
+    email: '',
+    phone: '',
+    address: '',
+    occupation: '',
+    company: '',
+    status: 'active',
+    notes: '',
+  });
+  const { success, error: showError } = useToastStore();
+
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['alumni', tenantId, currentPage, searchQuery, filterYear],
+    queryFn: () => alumniApi.getAll(tenantId, { 
+      page: currentPage, 
+      limit: itemsPerPage,
+      search: searchQuery || undefined,
+      graduationYear: filterYear,
+    }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: AlumniCreateData) => alumniApi.create(tenantId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alumni', tenantId] });
+      setIsModalOpen(false);
+      resetForm();
+      success('Alumni berhasil ditambahkan');
+    },
+    onError: () => {
+      showError('Gagal menambahkan alumni');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<AlumniCreateData> }) =>
+      alumniApi.update(tenantId, id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alumni', tenantId] });
+      setIsModalOpen(false);
+      setSelectedAlumni(null);
+      resetForm();
+      success('Alumni berhasil diupdate');
+    },
+    onError: () => {
+      showError('Gagal mengupdate alumni');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => alumniApi.delete(tenantId, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alumni', tenantId] });
+      success('Alumni berhasil dihapus');
+    },
+    onError: () => {
+      showError('Gagal menghapus alumni');
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      graduationYear: new Date().getFullYear(),
+      email: '',
+      phone: '',
+      address: '',
+      occupation: '',
+      company: '',
+      status: 'active',
+      notes: '',
+    });
+    setSelectedAlumni(null);
+  };
+
+  const handleEdit = (alumni: Alumni) => {
+    setSelectedAlumni(alumni);
+    setFormData({
+      name: alumni.name,
+      graduationYear: alumni.graduationYear,
+      email: alumni.email || '',
+      phone: alumni.phone || '',
+      address: alumni.address || '',
+      occupation: alumni.occupation || '',
+      company: alumni.company || '',
+      status: alumni.status || 'active',
+      notes: alumni.notes || '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedAlumni) {
+      updateMutation.mutate({ id: selectedAlumni.id, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm('Apakah Anda yakin ingin menghapus alumni ini?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const handleExport = async (format: 'excel' | 'pdf' | 'csv') => {
+    console.log(`Exporting to ${format}...`);
+    success(`Fitur ekspor ${format.toUpperCase()} akan segera tersedia.`);
+  };
+
+  const totalPages = data ? Math.ceil((data.total || 0) / itemsPerPage) : 1;
+  const paginatedData = data?.data?.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  ) || [];
+
+  return (
+    <TenantLayout>
+      <div>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Alumni</h1>
+          <div className="flex space-x-2">
+            <ExportButton onExport={handleExport} filename="alumni" />
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsModalOpen(true);
+              }}
+            >
+              Tambah Alumni
+            </Button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <SearchInput
+                onSearch={setSearchQuery}
+                placeholder="Cari alumni..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Lulus</label>
+              <input
+                type="number"
+                value={filterYear || ''}
+                onChange={(e) => setFilterYear(e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder="Filter tahun lulus"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-8">Memuat data...</div>
+        ) : (
+          <>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Tahun Lulus</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Telepon</TableHead>
+                    <TableHead>Pekerjaan</TableHead>
+                    <TableHead>Perusahaan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedData.map((alumni) => (
+                    <TableRow key={alumni.id}>
+                      <TableCell className="font-medium">{alumni.name}</TableCell>
+                      <TableCell>{alumni.graduationYear}</TableCell>
+                      <TableCell>{alumni.email || '-'}</TableCell>
+                      <TableCell>{alumni.phone || '-'}</TableCell>
+                      <TableCell>{alumni.occupation || '-'}</TableCell>
+                      <TableCell>{alumni.company || '-'}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          alumni.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {alumni.status === 'active' ? 'Aktif' : 'Tidak Aktif'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(alumni)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleDelete(alumni.id)}
+                          >
+                            Hapus
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {paginatedData.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        Tidak ada data alumni
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {data && data.total > itemsPerPage && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={data.total || 0}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+              />
+            )}
+          </>
+        )}
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            resetForm();
+          }}
+          title={selectedAlumni ? 'Edit Alumni' : 'Tambah Alumni'}
+          size="lg"
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nama <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tahun Lulus <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.graduationYear}
+                    onChange={(e) => setFormData({ ...formData, graduationYear: parseInt(e.target.value) || new Date().getFullYear() })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="active">Aktif</option>
+                    <option value="inactive">Tidak Aktif</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pekerjaan</label>
+                  <input
+                    type="text"
+                    value={formData.occupation}
+                    onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Perusahaan</label>
+                  <input
+                    type="text"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+                <textarea
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  resetForm();
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                loading={createMutation.isPending || updateMutation.isPending}
+              >
+                {selectedAlumni ? 'Update' : 'Simpan'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      </div>
+    </TenantLayout>
+  );
+}
+

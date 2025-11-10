@@ -15,7 +15,7 @@ import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { CreatePositionDto } from './dto/create-position.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
 import { CreatePerformanceReviewDto } from './dto/create-performance-review.dto';
-// import { PayrollItem } from './entities/payroll-item.entity';
+import { PayrollItem } from './entities/payroll-item.entity';
 
 @Injectable()
 export class HrService {
@@ -30,8 +30,8 @@ export class HrService {
     private positionRepository: Repository<Position>,
     @InjectRepository(PerformanceReview)
     private performanceReviewRepository: Repository<PerformanceReview>,
-    // @InjectRepository(PayrollItem)
-    // private payrollItemRepository: Repository<PayrollItem>,
+    @InjectRepository(PayrollItem)
+    private payrollItemRepository: Repository<PayrollItem>,
   ) {}
 
   // Employee CRUD
@@ -76,7 +76,7 @@ export class HrService {
   async findOneEmployee(id: number, instansiId: number): Promise<Employee> {
     const employee = await this.employeeRepository.findOne({
       where: { id, instansiId },
-      relations: ['position', 'department', 'payrolls', 'performanceReviews'],
+      relations: ['position', 'department', 'payrolls'],
     });
 
     if (!employee) {
@@ -117,35 +117,35 @@ export class HrService {
 
     const savedPayroll = await this.payrollRepository.save(payroll);
 
-    // TODO: Create payroll items when PayrollItem entity is ready
-    // const items: PayrollItem[] = [];
-    // for (const item of allowances) {
-    //   items.push(
-    //     this.payrollItemRepository.create({
-    //       payrollId: savedPayroll.id,
-    //       name: item.name,
-    //       amount: item.amount,
-    //       type: 'allowance',
-    //     }),
-    //   );
-    // }
-    // for (const item of deductions) {
-    //   items.push(
-    //     this.payrollItemRepository.create({
-    //       payrollId: savedPayroll.id,
-    //       name: item.name,
-    //       amount: item.amount,
-    //       type: 'deduction',
-    //     }),
-    //   );
-    // }
-    // if (items.length > 0) {
-    //   await this.payrollItemRepository.save(items);
-    // }
+    // Create payroll items
+    const items: PayrollItem[] = [];
+    for (const item of allowances) {
+      items.push(
+        this.payrollItemRepository.create({
+          payrollId: savedPayroll.id,
+          name: item.name,
+          amount: item.amount,
+          type: 'allowance',
+        }),
+      );
+    }
+    for (const item of deductions) {
+      items.push(
+        this.payrollItemRepository.create({
+          payrollId: savedPayroll.id,
+          name: item.name,
+          amount: item.amount,
+          type: 'deduction',
+        }),
+      );
+    }
+    if (items.length > 0) {
+      await this.payrollItemRepository.save(items);
+    }
 
     return await this.payrollRepository.findOne({
       where: { id: (savedPayroll as any).id },
-      relations: ['employee'],
+      relations: ['employee', 'items'],
     });
   }
 
@@ -154,7 +154,7 @@ export class HrService {
       .createQueryBuilder('payroll')
       .where('payroll.instansiId = :instansiId', { instansiId })
       .leftJoinAndSelect('payroll.employee', 'employee')
-      // .leftJoinAndSelect('payroll.items', 'items');
+      .leftJoinAndSelect('payroll.items', 'items');
 
     if (filters?.employeeId) {
       query.andWhere('payroll.employeeId = :employeeId', { employeeId: filters.employeeId });
@@ -174,7 +174,7 @@ export class HrService {
   async findOnePayroll(id: number, instansiId: number): Promise<Payroll> {
     const payroll = await this.payrollRepository.findOne({
       where: { id, instansiId },
-      relations: ['employee'],
+      relations: ['employee', 'items'],
     });
 
     if (!payroll) {
@@ -284,7 +284,6 @@ export class HrService {
   ): Promise<PerformanceReview> {
     const review = this.performanceReviewRepository.create({
       ...createReviewDto,
-      createdBy: userId,
     });
     return await this.performanceReviewRepository.save(review);
   }

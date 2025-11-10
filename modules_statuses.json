@@ -1,3 +1,10 @@
 {
-    "PublicPage": true
+    "PublicPage": true,
+    "Students": true,
+    "Teachers": true,
+    "Classes": true,
+    "Subjects": true,
+    "Schedules": true,
+    "Attendance": true,
+    "Grades": true
 }
