@@ -1,61 +1,275 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CLASS - School Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi manajemen sekolah berbasis NestJS (backend) dan Next.js (frontend).
 
-## About Laravel
+## 🚀 Tech Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Backend
+- **Framework**: NestJS (Node.js, TypeScript)
+- **ORM**: TypeORM
+- **Database**: MySQL
+- **Authentication**: JWT (Passport)
+- **Validation**: class-validator, class-transformer
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **UI Library**: React 18
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **API Client**: Axios
+- **Data Fetching**: React Query (TanStack Query)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 📋 Prerequisites
 
-## Learning Laravel
+- Node.js 18+ 
+- MySQL 8.0+
+- npm atau yarn
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 🛠️ Installation
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 1. Clone Repository
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+git clone <repository-url>
+cd class
+```
 
-## Laravel Sponsors
+### 2. Install Dependencies
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+# Backend dependencies
+npm install
 
-### Premium Partners
+# Frontend dependencies
+cd frontend
+npm install
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 3. Setup Environment
 
-## Contributing
+Buat file `.env` di root directory:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=
+DB_DATABASE=class
+JWT_SECRET=your-secret-key-change-this-in-production
+JWT_EXPIRES_IN=24h
+NODE_ENV=development
+```
 
-## Code of Conduct
+Buat file `frontend/.env.local`:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+```
 
-## Security Vulnerabilities
+### 4. Database Setup
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Pastikan database MySQL sudah dibuat dan dikonfigurasi. TypeORM akan auto-sync entities jika `NODE_ENV=development`.
 
-## License
+## 🚀 Running the Application
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Development Mode
+
+**Terminal 1 - Backend (NestJS):**
+```bash
+npm run start:dev
+```
+Backend akan berjalan di http://localhost:3000
+
+**Terminal 2 - Frontend (Next.js):**
+```bash
+cd frontend
+npm run dev
+```
+Frontend akan berjalan di http://localhost:3001 (atau port yang ditentukan Next.js)
+
+### Production Mode
+
+**Build Backend:**
+```bash
+npm run build
+npm run start:prod
+```
+
+**Build Frontend:**
+```bash
+cd frontend
+npm run build
+npm run start
+```
+
+## 📁 Project Structure
+
+```
+class/
+├── src/                    # NestJS backend source
+│   ├── modules/           # Feature modules
+│   │   ├── auth/          # Authentication
+│   │   ├── admin/          # Super admin
+│   │   ├── users/          # User management
+│   │   ├── students/       # Student management
+│   │   ├── teachers/       # Teacher management
+│   │   └── ...            # Other modules
+│   ├── common/             # Shared utilities
+│   │   ├── decorators/     # Custom decorators
+│   │   ├── guards/         # Auth guards
+│   │   └── middleware/     # Custom middleware
+│   └── main.ts             # Application entry point
+├── frontend/               # Next.js frontend
+│   ├── app/                # Next.js App Router
+│   │   ├── admin/          # Admin pages
+│   │   ├── [tenant]/       # Tenant pages
+│   │   └── login/          # Auth pages
+│   ├── components/         # React components
+│   ├── lib/                # Utilities
+│   │   ├── api/            # API client
+│   │   └── store/           # State management
+│   └── public/             # Static files
+├── database/               # Database files
+│   ├── sql/                # SQL migration scripts
+│   └── database.sqlite     # SQLite database (optional)
+└── storage/                # File storage
+    └── app/                # Uploaded files
+```
+
+## 🔐 Authentication
+
+Aplikasi menggunakan JWT authentication. Setelah login, token akan disimpan dan digunakan untuk semua API requests.
+
+### Login
+
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "password"
+}
+```
+
+Response:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "role": "super_admin",
+    "instansiId": 1
+  }
+}
+```
+
+### Using Token
+
+```bash
+GET /api/users
+Authorization: Bearer YOUR_TOKEN
+```
+
+## 📚 API Documentation
+
+### Admin Endpoints (Super Admin Only)
+
+- `GET /api/admin/dashboard` - Dashboard statistics
+- `GET /api/admin/tenants` - List all tenants
+- `POST /api/admin/tenants` - Create tenant
+- `GET /api/admin/tenants/:id` - Get tenant details
+- `PUT /api/admin/tenants/:id` - Update tenant
+- `POST /api/admin/tenants/:id/activate` - Activate tenant
+- `POST /api/admin/tenants/:id/deactivate` - Deactivate tenant
+- `DELETE /api/admin/tenants/:id` - Delete tenant
+- `GET /api/admin/users` - List all users
+- `GET /api/admin/users/:id` - Get user details
+- `POST /api/admin/users/:id/activate` - Activate user
+- `POST /api/admin/users/:id/deactivate` - Deactivate user
+
+### Public Page Endpoints
+
+- `GET /api/public/home` - Home statistics
+- `GET /api/public/news` - List news
+- `GET /api/public/news/featured` - Featured news
+- `GET /api/public/news/latest` - Latest news
+- `GET /api/public/news/:slug` - Get news by slug
+- `GET /api/public/galleries` - List galleries
+- `GET /api/public/galleries/:id` - Get gallery by id
+- `GET /api/public/menus` - Get active menus
+- `GET /api/public/profile` - Get tenant profile
+
+### Other Modules
+
+Semua modul lain memiliki endpoints standar:
+- `GET /api/{module}` - List items
+- `GET /api/{module}/:id` - Get item details
+- `POST /api/{module}` - Create item
+- `PUT /api/{module}/:id` - Update item
+- `DELETE /api/{module}/:id` - Delete item
+
+## 🧪 Testing
+
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## 📝 Available Scripts
+
+### Backend
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run start:dev` - Start development server with watch mode
+- `npm run start:debug` - Start with debug mode
+- `npm run lint` - Lint code
+- `npm run format` - Format code
+
+### Frontend
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Lint code
+
+## 🔒 Security
+
+- JWT tokens dengan expiration
+- Password hashing dengan bcrypt
+- Role-based access control (RBAC)
+- Input validation dengan class-validator
+- SQL injection protection dengan TypeORM
+
+## 📖 Documentation
+
+- `TEKNOLOGI_STACK.md` - Detail stack teknologi
+- `MIGRASI_FRONTEND.md` - Panduan migrasi frontend
+- `MIGRASI_SELESAI.md` - Dokumentasi sejarah migrasi
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+Untuk bantuan dan pertanyaan, silakan buat issue di repository ini.
+
+---
+
+**Note**: Aplikasi ini menggunakan stack modern NestJS (backend) dan Next.js (frontend). Semua fitur inti sudah tersedia dan siap digunakan.
