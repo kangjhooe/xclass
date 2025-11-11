@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,16 +8,16 @@ import { Modal } from '@/components/ui/Modal';
 import { studentTransferApi, StudentTransfer, StudentTransferCreateData } from '@/lib/api/student-transfer';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function StudentTransferPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<StudentTransfer | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [formData, setFormData] = useState<StudentTransferCreateData>({
     student_id: 0,
-    from_instansi_id: tenantId,
+    from_instansi_id: tenantId ?? 0,
     to_instansi_id: 0,
     transfer_date: new Date().toISOString().split('T')[0],
     reason: '',
@@ -29,11 +28,17 @@ export default function StudentTransferPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['student-transfers', tenantId],
-    queryFn: () => studentTransferApi.getAll(tenantId),
+    queryFn: () => studentTransferApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: StudentTransferCreateData) => studentTransferApi.create(tenantId, data),
+    mutationFn: (data: StudentTransferCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return studentTransferApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-transfers', tenantId] });
       setIsModalOpen(false);
@@ -42,28 +47,48 @@ export default function StudentTransferPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: number) => studentTransferApi.approve(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return studentTransferApi.approve(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-transfers', tenantId] });
     },
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason?: string }) => studentTransferApi.reject(tenantId, id, reason),
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return studentTransferApi.reject(tenantId, id, reason);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-transfers', tenantId] });
     },
   });
 
   const completeMutation = useMutation({
-    mutationFn: (id: number) => studentTransferApi.complete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return studentTransferApi.complete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-transfers', tenantId] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => studentTransferApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return studentTransferApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-transfers', tenantId] });
     },
@@ -72,7 +97,7 @@ export default function StudentTransferPage() {
   const resetForm = () => {
     setFormData({
       student_id: 0,
-      from_instansi_id: tenantId,
+      from_instansi_id: tenantId ?? 0,
       to_instansi_id: 0,
       transfer_date: new Date().toISOString().split('T')[0],
       reason: '',
@@ -310,7 +335,14 @@ export default function StudentTransferPage() {
         >
           <form onSubmit={(e) => {
             e.preventDefault();
-            createMutation.mutate(formData);
+            if (!tenantId) {
+              alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+              return;
+            }
+            createMutation.mutate({
+              ...formData,
+              from_instansi_id: tenantId,
+            });
           }} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +11,7 @@ import { financeApi, SPP, SPPCreateData } from '@/lib/api/finance';
 import { studentsApi } from '@/lib/api/students';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 const MONTHS = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -19,8 +19,8 @@ const MONTHS = [
 ];
 
 export default function FinancePage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
+  const resolvedTenantId = tenantId ?? undefined;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSPP, setSelectedSPP] = useState<SPP | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,29 +37,40 @@ export default function FinancePage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['spp', tenantId, currentPage],
-    queryFn: () => financeApi.getAllSPP(tenantId),
+    queryKey: ['spp', resolvedTenantId, currentPage],
+    queryFn: () => financeApi.getAllSPP(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const { data: studentsData } = useQuery({
-    queryKey: ['students', tenantId],
-    queryFn: () => studentsApi.getAll(tenantId),
+    queryKey: ['students', resolvedTenantId],
+    queryFn: () => studentsApi.getAll(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: SPPCreateData) => financeApi.createSPP(tenantId, data),
+    mutationFn: (data: SPPCreateData) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return financeApi.createSPP(resolvedTenantId, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['spp', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['spp', resolvedTenantId] });
       setIsModalOpen(false);
       resetForm();
     },
   });
 
   const payMutation = useMutation({
-    mutationFn: ({ id, paidDate }: { id: number; paidDate: string }) =>
-      financeApi.paySPP(tenantId, id, paidDate),
+    mutationFn: ({ id, paidDate }: { id: number; paidDate: string }) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return financeApi.paySPP(resolvedTenantId, id, paidDate);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['spp', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['spp', resolvedTenantId] });
     },
   });
 
@@ -90,10 +101,18 @@ export default function FinancePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!resolvedTenantId) {
+      alert('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     createMutation.mutate(formData);
   };
 
   const handlePay = (id: number) => {
+    if (!resolvedTenantId) {
+      alert('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     const paidDate = prompt('Masukkan tanggal pembayaran (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
     if (paidDate) {
       payMutation.mutate({ id, paidDate });
@@ -101,6 +120,10 @@ export default function FinancePage() {
   };
 
   const handleExport = async (format: 'excel' | 'pdf' | 'csv') => {
+    if (!resolvedTenantId) {
+      alert('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     console.log(`Exporting to ${format}...`);
     alert(`Fitur ekspor ${format.toUpperCase()} akan segera tersedia.`);
   };

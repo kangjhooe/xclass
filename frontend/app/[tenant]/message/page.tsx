@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { messageApi, Message, MessageCreateData } from '@/lib/api/message';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function MessagePage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
@@ -29,18 +28,23 @@ export default function MessagePage() {
 
   const { data: inboxData, isLoading: inboxLoading } = useQuery({
     queryKey: ['messages', 'inbox', tenantId],
-    queryFn: () => messageApi.getInbox(tenantId),
-    enabled: activeTab === 'inbox',
+    queryFn: () => messageApi.getInbox(tenantId!),
+    enabled: activeTab === 'inbox' && !!tenantId,
   });
 
   const { data: sentData, isLoading: sentLoading } = useQuery({
     queryKey: ['messages', 'sent', tenantId],
-    queryFn: () => messageApi.getSent(tenantId),
-    enabled: activeTab === 'sent',
+    queryFn: () => messageApi.getSent(tenantId!),
+    enabled: activeTab === 'sent' && !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: MessageCreateData) => messageApi.create(tenantId, data),
+    mutationFn: (data: MessageCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return messageApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', tenantId] });
       setIsModalOpen(false);
@@ -49,14 +53,24 @@ export default function MessagePage() {
   });
 
   const markAsReadMutation = useMutation({
-    mutationFn: (id: number) => messageApi.markAsRead(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return messageApi.markAsRead(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', tenantId] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => messageApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return messageApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', tenantId] });
     },
@@ -76,13 +90,19 @@ export default function MessagePage() {
   const handleView = (message: Message) => {
     setSelectedMessage(message);
     if (message.status === 'unread') {
-      markAsReadMutation.mutate(message.id);
+      if (tenantId) {
+        markAsReadMutation.mutate(message.id);
+      }
     }
     setIsViewModalOpen(true);
   };
 
   const handleDelete = (id: number) => {
     if (confirm('Apakah Anda yakin ingin menghapus pesan ini?')) {
+      if (!tenantId) {
+        alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+        return;
+      }
       deleteMutation.mutate(id);
     }
   };
@@ -322,6 +342,10 @@ export default function MessagePage() {
         >
           <form onSubmit={(e) => {
             e.preventDefault();
+            if (!tenantId) {
+              alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+              return;
+            }
             createMutation.mutate(formData);
           }} className="space-y-4">
             <div>

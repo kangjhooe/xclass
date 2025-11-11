@@ -319,6 +319,62 @@ export class NotificationsService {
     return await query.orderBy('notification.createdAt', 'DESC').getMany();
   }
 
+  async getUserNotifications(
+    userId: number,
+    options?: { status?: 'unread' | 'read' | NotificationStatus; limit?: number },
+  ) {
+    const query = this.notificationRepository
+      .createQueryBuilder('notification')
+      .where('notification.userId = :userId', { userId });
+
+    if (options?.status) {
+      if (options.status === 'unread') {
+        query.andWhere('notification.readAt IS NULL');
+      } else if (options.status === 'read') {
+        query.andWhere('notification.readAt IS NOT NULL');
+      } else {
+        query.andWhere('notification.status = :status', { status: options.status });
+      }
+    }
+
+    query.orderBy('notification.createdAt', 'DESC');
+
+    if (options?.limit) {
+      query.take(options.limit);
+    }
+
+    return await query.getMany();
+  }
+
+  async markAsRead(notificationId: number, userId: number) {
+    const notification = await this.notificationRepository.findOne({
+      where: { id: notificationId, userId },
+    });
+
+    if (!notification) {
+      throw new Error('Notification not found');
+    }
+
+    if (!notification.readAt) {
+      notification.readAt = new Date();
+      await this.notificationRepository.save(notification);
+    }
+
+    return notification;
+  }
+
+  async markAllAsRead(userId: number) {
+    await this.notificationRepository
+      .createQueryBuilder()
+      .update(Notification)
+      .set({ readAt: new Date() })
+      .where('userId = :userId', { userId })
+      .andWhere('readAt IS NULL')
+      .execute();
+
+    return { success: true };
+  }
+
   async createTemplate(
     instansiId: number,
     name: string,

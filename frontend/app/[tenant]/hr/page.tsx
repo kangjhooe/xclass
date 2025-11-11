@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { hrApi, Employee, EmployeeCreateData, Attendance, AttendanceCreateData } from '@/lib/api/hr';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function HrPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [activeTab, setActiveTab] = useState<'employees' | 'attendance'>('employees');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
@@ -45,18 +44,23 @@ export default function HrPage() {
 
   const { data: employeesData, isLoading: employeesLoading } = useQuery({
     queryKey: ['hr-employees', tenantId],
-    queryFn: () => hrApi.getAllEmployees(tenantId),
-    enabled: activeTab === 'employees',
+    queryFn: () => hrApi.getAllEmployees(tenantId!),
+    enabled: activeTab === 'employees' && !!tenantId,
   });
 
   const { data: attendanceDataQuery, isLoading: attendanceLoading } = useQuery({
     queryKey: ['hr-attendance', tenantId],
-    queryFn: () => hrApi.getAllAttendance(tenantId),
-    enabled: activeTab === 'attendance',
+    queryFn: () => hrApi.getAllAttendance(tenantId!),
+    enabled: activeTab === 'attendance' && !!tenantId,
   });
 
   const createEmployeeMutation = useMutation({
-    mutationFn: (data: EmployeeCreateData) => hrApi.createEmployee(tenantId, data),
+    mutationFn: (data: EmployeeCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.createEmployee(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-employees', tenantId] });
       setIsModalOpen(false);
@@ -65,8 +69,12 @@ export default function HrPage() {
   });
 
   const updateEmployeeMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<EmployeeCreateData> }) =>
-      hrApi.updateEmployee(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<EmployeeCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.updateEmployee(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-employees', tenantId] });
       setIsModalOpen(false);
@@ -76,14 +84,24 @@ export default function HrPage() {
   });
 
   const deleteEmployeeMutation = useMutation({
-    mutationFn: (id: number) => hrApi.deleteEmployee(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.deleteEmployee(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-employees', tenantId] });
     },
   });
 
   const createAttendanceMutation = useMutation({
-    mutationFn: (data: AttendanceCreateData) => hrApi.createAttendance(tenantId, data),
+    mutationFn: (data: AttendanceCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.createAttendance(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-attendance', tenantId] });
       setIsAttendanceModalOpen(false);
@@ -142,6 +160,10 @@ export default function HrPage() {
 
   const handleSubmitEmployee = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (selectedEmployee) {
       updateEmployeeMutation.mutate({ id: selectedEmployee.id, data: formData });
     } else {
@@ -240,8 +262,8 @@ export default function HrPage() {
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 mb-6">
           <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('employees')}
+                <button
+                  onClick={() => setActiveTab('employees')}
               className={`flex-1 px-6 py-4 text-center font-semibold transition-all duration-200 ${
                 activeTab === 'employees'
                   ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-b-2 border-blue-600'
@@ -593,6 +615,10 @@ export default function HrPage() {
             >
               <form onSubmit={(e) => {
                 e.preventDefault();
+                if (!tenantId) {
+                  alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+                  return;
+                }
                 createAttendanceMutation.mutate(attendanceData);
               }} className="space-y-4">
                 <div>

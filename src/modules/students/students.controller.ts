@@ -25,7 +25,7 @@ import { ExportImportService } from '../export-import/export-import.service';
 
 @ApiTags('students')
 @ApiBearerAuth()
-@Controller('students')
+@Controller({ path: ['students', 'tenants/:tenant/students'] })
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class StudentsController {
   constructor(
@@ -115,7 +115,7 @@ export class StudentsController {
         data: students.data || [],
         columns,
       },
-      res!,
+      res,
     );
   }
 
@@ -149,7 +149,7 @@ export class StudentsController {
         data: students.data || [],
         columns,
       },
-      res!,
+      res,
     );
   }
 
@@ -180,7 +180,7 @@ export class StudentsController {
         data: students.data || [],
         columns,
       },
-      res!,
+      res,
     );
   }
 

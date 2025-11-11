@@ -11,7 +11,7 @@ import {
 import { Teacher } from '../../teachers/entities/teacher.entity';
 import { Student } from '../../students/entities/student.entity';
 import { Schedule } from '../../schedules/entities/schedule.entity';
-import { Room } from './room.entity';
+import { Room } from '../../infrastructure/entities/room.entity';
 
 @Entity('class_rooms')
 export class ClassRoom {
@@ -61,7 +61,7 @@ export class ClassRoom {
   @OneToMany(() => Schedule, (schedule) => schedule.classRoom)
   schedules: Schedule[];
 
-  @ManyToOne(() => Room, (room) => room.classRooms, { nullable: true })
+  @ManyToOne(() => Room, { nullable: true })
   @JoinColumn({ name: 'room_id' })
   room: Room;
 }

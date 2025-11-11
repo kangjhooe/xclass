@@ -5,6 +5,15 @@ export interface ClassRoom {
   name: string;
   level?: string;
   roomNumber?: string;
+  roomId?: number;
+  room?: {
+    id: number;
+    name: string;
+    building?: {
+      id: number;
+      name: string;
+    };
+  };
   capacity?: number;
   homeroomTeacherId?: number;
   homeroomTeacher?: {
@@ -21,6 +30,7 @@ export interface ClassRoomCreateData {
   name: string;
   level?: string;
   roomNumber?: string;
+  roomId?: number;
   capacity?: number;
   homeroomTeacherId?: number;
   academicYear?: string;

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -13,10 +12,11 @@ import { ppdbApi, PpdbApplication, PpdbApplicationCreateData } from '@/lib/api/p
 import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function PPDBPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
+  const resolvedTenantId = tenantId ?? undefined;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<PpdbApplication | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,19 +41,25 @@ export default function PPDBPage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['ppdb', tenantId, currentPage, searchQuery, filterStatus],
-    queryFn: () => ppdbApi.getAll(tenantId, { 
+    queryKey: ['ppdb', resolvedTenantId, currentPage, searchQuery, filterStatus],
+    queryFn: () => ppdbApi.getAll(resolvedTenantId!, { 
       page: currentPage, 
       limit: itemsPerPage,
       search: searchQuery || undefined,
       status: filterStatus || undefined,
     }),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: PpdbApplicationCreateData) => ppdbApi.create(tenantId, data),
+    mutationFn: (data: PpdbApplicationCreateData) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return ppdbApi.create(resolvedTenantId, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ppdb', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['ppdb', resolvedTenantId] });
       setIsModalOpen(false);
       resetForm();
       success('Pendaftaran berhasil ditambahkan');
@@ -64,10 +70,14 @@ export default function PPDBPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<PpdbApplicationCreateData> }) =>
-      ppdbApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<PpdbApplicationCreateData> }) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return ppdbApi.update(resolvedTenantId, id, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ppdb', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['ppdb', resolvedTenantId] });
       setIsModalOpen(false);
       setSelectedApplication(null);
       resetForm();
@@ -79,9 +89,14 @@ export default function PPDBPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: number) => ppdbApi.approve(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return ppdbApi.approve(resolvedTenantId, id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ppdb', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['ppdb', resolvedTenantId] });
       success('Pendaftaran berhasil disetujui');
     },
     onError: () => {
@@ -90,9 +105,14 @@ export default function PPDBPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason?: string }) => ppdbApi.reject(tenantId, id, reason),
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return ppdbApi.reject(resolvedTenantId, id, reason);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ppdb', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['ppdb', resolvedTenantId] });
       success('Pendaftaran berhasil ditolak');
     },
     onError: () => {
@@ -101,9 +121,14 @@ export default function PPDBPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => ppdbApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return ppdbApi.delete(resolvedTenantId, id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ppdb', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['ppdb', resolvedTenantId] });
       success('Pendaftaran berhasil dihapus');
     },
     onError: () => {
@@ -148,6 +173,10 @@ export default function PPDBPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!resolvedTenantId) {
+      showError('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     if (selectedApplication) {
       updateMutation.mutate({ id: selectedApplication.id, data: formData });
     } else {
@@ -156,12 +185,20 @@ export default function PPDBPage() {
   };
 
   const handleApprove = (id: number) => {
+    if (!resolvedTenantId) {
+      showError('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     if (confirm('Apakah Anda yakin ingin menyetujui pendaftaran ini?')) {
       approveMutation.mutate(id);
     }
   };
 
   const handleReject = (id: number) => {
+    if (!resolvedTenantId) {
+      showError('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     const reason = prompt('Alasan penolakan (opsional):');
     if (confirm('Apakah Anda yakin ingin menolak pendaftaran ini?')) {
       rejectMutation.mutate({ id, reason: reason || undefined });
@@ -169,12 +206,20 @@ export default function PPDBPage() {
   };
 
   const handleDelete = (id: number) => {
+    if (!resolvedTenantId) {
+      showError('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     if (confirm('Apakah Anda yakin ingin menghapus pendaftaran ini?')) {
       deleteMutation.mutate(id);
     }
   };
 
   const handleExport = async (format: 'excel' | 'pdf' | 'csv') => {
+    if (!resolvedTenantId) {
+      showError('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     console.log(`Exporting to ${format}...`);
     success(`Fitur ekspor ${format.toUpperCase()} akan segera tersedia.`);
   };

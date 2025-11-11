@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,11 @@ import { Modal } from '@/components/ui/Modal';
 import { inventoryApi, Inventory, InventoryCreateData } from '@/lib/api/inventory';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function InventoryPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
+  const resolvedTenantId = tenantId ?? undefined;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState<Inventory | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -32,24 +32,34 @@ export default function InventoryPage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['inventory', tenantId],
-    queryFn: () => inventoryApi.getAll(tenantId),
+    queryKey: ['inventory', resolvedTenantId],
+    queryFn: () => inventoryApi.getAll(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: InventoryCreateData) => inventoryApi.create(tenantId, data),
+    mutationFn: (data: InventoryCreateData) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return inventoryApi.create(resolvedTenantId, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', resolvedTenantId] });
       setIsModalOpen(false);
       resetForm();
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<InventoryCreateData> }) =>
-      inventoryApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<InventoryCreateData> }) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return inventoryApi.update(resolvedTenantId, id, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', resolvedTenantId] });
       setIsModalOpen(false);
       setSelectedInventory(null);
       resetForm();
@@ -57,9 +67,14 @@ export default function InventoryPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => inventoryApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return inventoryApi.delete(resolvedTenantId, id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', resolvedTenantId] });
     },
   });
 
@@ -98,6 +113,10 @@ export default function InventoryPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (selectedInventory) {
       updateMutation.mutate({ id: selectedInventory.id, data: formData });
     } else {
@@ -106,6 +125,10 @@ export default function InventoryPage() {
   };
 
   const handleDelete = (id: number) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (confirm('Apakah Anda yakin ingin menghapus item ini?')) {
       deleteMutation.mutate(id);
     }

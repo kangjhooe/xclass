@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Textarea } from '@/components/ui/Textarea';
 import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
+import { tenantAccessApi, TenantAccessRecord } from '@/lib/api/tenantAccess';
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -32,10 +33,24 @@ export default function TenantsPage() {
     total: 0,
     totalPages: 0,
   });
+  const [accessRequests, setAccessRequests] = useState<TenantAccessRecord[]>([]);
+  const [activeGrants, setActiveGrants] = useState<TenantAccessRecord[]>([]);
+  const [accessModalOpen, setAccessModalOpen] = useState(false);
+  const [accessSubmitting, setAccessSubmitting] = useState(false);
+  const [accessError, setAccessError] = useState('');
+  const [accessForm, setAccessForm] = useState<{ reason: string; expiresAt: string }>({
+    reason: '',
+    expiresAt: '',
+  });
+  const [targetTenant, setTargetTenant] = useState<Tenant | null>(null);
 
   useEffect(() => {
     loadTenants();
   }, [pagination.page]);
+
+  useEffect(() => {
+    loadAccessData();
+  }, []);
 
   // Filter dan sort tenants
   const filteredAndSortedTenants = useMemo(() => {
@@ -99,6 +114,31 @@ export default function TenantsPage() {
     setTenants(paginatedTenants);
   }, [paginatedTenants]);
 
+  const tenantAccessMap = useMemo(() => {
+    const map: Record<number, { grant?: TenantAccessRecord; pending?: TenantAccessRecord; lastResponse?: TenantAccessRecord }> = {};
+
+    activeGrants.forEach((grant) => {
+      map[grant.tenantId] = {
+        ...(map[grant.tenantId] || {}),
+        grant,
+      };
+    });
+
+    accessRequests.forEach((request) => {
+      const entry = map[request.tenantId] || {};
+      if (request.status === 'pending') {
+        entry.pending = request;
+      } else if (['rejected', 'revoked', 'expired', 'cancelled'].includes(request.status)) {
+        if (!entry.lastResponse || new Date(request.updatedAt) > new Date(entry.lastResponse.updatedAt)) {
+          entry.lastResponse = request;
+        }
+      }
+      map[request.tenantId] = entry;
+    });
+
+    return map;
+  }, [accessRequests, activeGrants]);
+
   const loadTenants = async () => {
     try {
       setLoading(true);
@@ -118,6 +158,20 @@ export default function TenantsPage() {
       showError(err?.response?.data?.message || 'Gagal memuat data tenants');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAccessData = async () => {
+    try {
+      const [requests, grants] = await Promise.all([
+        tenantAccessApi.getSuperAdminRequests(),
+        tenantAccessApi.getSuperAdminGrants(),
+      ]);
+      setAccessRequests(requests);
+      setActiveGrants(grants);
+    } catch (err: any) {
+      console.error('Error loading tenant access data:', err);
+      showError(err?.response?.data?.message || 'Gagal memuat data akses tenant');
     }
   };
 
@@ -244,6 +298,74 @@ export default function TenantsPage() {
     }
   };
 
+  const handleOpenAccessModal = (tenant: Tenant) => {
+    setTargetTenant(tenant);
+    setAccessForm({
+      reason: '',
+      expiresAt: '',
+    });
+    setAccessError('');
+    setAccessModalOpen(true);
+  };
+
+  const handleSubmitAccessRequest = async () => {
+    if (!targetTenant) return;
+    if (!accessForm.reason.trim()) {
+      setAccessError('Alasan permintaan wajib diisi');
+      return;
+    }
+
+    try {
+      setAccessSubmitting(true);
+      await tenantAccessApi.createAccessRequest({
+        tenantId: targetTenant.id,
+        reason: accessForm.reason.trim(),
+        expiresAt: accessForm.expiresAt ? new Date(accessForm.expiresAt).toISOString() : undefined,
+      });
+      success('Permintaan akses dikirim ke admin tenant');
+      setAccessModalOpen(false);
+      loadAccessData();
+    } catch (err: any) {
+      console.error('Error submitting access request:', err);
+      showError(err?.response?.data?.message || 'Gagal mengirim permintaan akses');
+    } finally {
+      setAccessSubmitting(false);
+    }
+  };
+
+  const handleCancelAccessRequest = async (requestId: number) => {
+    if (!confirm('Batalkan permintaan akses ini?')) return;
+    try {
+      await tenantAccessApi.cancelAccessRequest(requestId);
+      success('Permintaan akses dibatalkan');
+      loadAccessData();
+    } catch (err: any) {
+      console.error('Error cancelling access request:', err);
+      showError(err?.response?.data?.message || 'Gagal membatalkan permintaan akses');
+    }
+  };
+
+  const handleEnterTenant = (tenant: Tenant, grant: TenantAccessRecord) => {
+    const identifier = tenant.npsn || tenant.id?.toString();
+    if (!identifier) {
+      showError('Tenant tidak memiliki identifier yang valid');
+      return;
+    }
+
+    const params = new URLSearchParams({
+      delegated: '1',
+      tenantId: tenant.id.toString(),
+    });
+    if (tenant.name) {
+      params.set('tenantName', tenant.name);
+    }
+    if (grant.expiresAt) {
+      params.set('expiresAt', grant.expiresAt);
+    }
+    const url = `/${identifier}/dashboard?${params.toString()}`;
+    window.open(url, '_blank', 'noopener');
+  };
+
   const handleSort = (key: string) => {
     let direction: SortDirection = 'asc';
     if (sortConfig?.key === key && sortConfig.direction === 'asc') {
@@ -352,13 +474,21 @@ export default function TenantsPage() {
                       Tanggal Dibuat
                     </SortableTableHead>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Akses Super Admin
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Aksi
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {tenants.map((tenant) => (
-                    <tr key={tenant.id} className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-200">
+                  {tenants.map((tenant) => {
+                    const accessInfo = tenantAccessMap[tenant.id] || {};
+                    const grant = accessInfo.grant;
+                    const pending = accessInfo.pending;
+                    const lastResponse = accessInfo.lastResponse;
+                    return (
+                      <tr key={tenant.id} className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-200">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {tenant.npsn}
                       </td>
@@ -384,6 +514,58 @@ export default function TenantsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(tenant.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {grant ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-green-600 font-semibold">Akses Aktif</span>
+                            {grant.expiresAt ? (
+                              <span className="text-xs text-gray-500">
+                                Berlaku sampai {formatDate(grant.expiresAt)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-500">Tanpa batas kedaluwarsa</span>
+                            )}
+                            <Button
+                              size="sm"
+                              onClick={() => handleEnterTenant(tenant, grant)}
+                              className="mt-1"
+                            >
+                              Masuk sebagai Tenant
+                            </Button>
+                          </div>
+                        ) : pending ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-amber-600 font-semibold">Menunggu Persetujuan</span>
+                            <span className="text-xs text-gray-500">
+                              Diajukan {formatDate(pending.requestedAt)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCancelAccessRequest(pending.id)}
+                            >
+                              Batalkan Permintaan
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <Button size="sm" variant="outline" onClick={() => handleOpenAccessModal(tenant)}>
+                              Ajukan Akses
+                            </Button>
+                            {lastResponse && lastResponse.status === 'rejected' && (
+                              <span className="text-xs text-red-500">
+                                Ditolak: {lastResponse.rejectionReason || 'Tidak ada alasan'}
+                              </span>
+                            )}
+                            {lastResponse && ['revoked', 'expired'].includes(lastResponse.status) && (
+                              <span className="text-xs text-gray-500">
+                                {lastResponse.status === 'revoked' ? 'Akses dicabut' : 'Akses kedaluwarsa'} pada{' '}
+                                {formatDate(lastResponse.updatedAt)}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex gap-2">
@@ -421,7 +603,8 @@ export default function TenantsPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </>
@@ -564,6 +747,55 @@ export default function TenantsPage() {
               </Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? 'Menyimpan...' : 'Simpan'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={accessModalOpen}
+          onClose={() => !accessSubmitting && setAccessModalOpen(false)}
+          title={targetTenant ? `Ajukan Akses ke ${targetTenant.name}` : 'Ajukan Akses Tenant'}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Permintaan akses akan dikirim ke admin tenant terkait untuk disetujui. Sertakan alasan dan, jika perlu, batas waktu akses.
+            </p>
+            <Textarea
+              label="Alasan Permintaan"
+              value={accessForm.reason}
+              onChange={(e) => {
+                setAccessForm({ ...accessForm, reason: e.target.value });
+                setAccessError('');
+              }}
+              placeholder="Contoh: Perlu membantu konfigurasi modul pembayaran"
+              rows={4}
+              required
+              error={accessError}
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Batas Waktu Akses (opsional)
+              </label>
+              <Input
+                type="datetime-local"
+                value={accessForm.expiresAt}
+                onChange={(e) => setAccessForm({ ...accessForm, expiresAt: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Biarkan kosong jika akses tidak memiliki batas waktu otomatis.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setAccessModalOpen(false)}
+                disabled={accessSubmitting}
+              >
+                Batal
+              </Button>
+              <Button onClick={handleSubmitAccessRequest} disabled={accessSubmitting}>
+                {accessSubmitting ? 'Mengirim...' : 'Kirim Permintaan'}
               </Button>
             </div>
           </div>

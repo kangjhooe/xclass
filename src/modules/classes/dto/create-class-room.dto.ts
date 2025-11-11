@@ -14,6 +14,10 @@ export class CreateClassRoomDto {
 
   @IsNumber()
   @IsOptional()
+  roomId?: number;
+
+  @IsNumber()
+  @IsOptional()
   capacity?: number;
 
   @IsNumber()

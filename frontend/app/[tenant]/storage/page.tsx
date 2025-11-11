@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { storageApi, StorageFile, StorageFileCreateData } from '@/lib/api/storage';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function StoragePage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<StorageFile | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -27,12 +26,17 @@ export default function StoragePage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['storage', tenantId],
-    queryFn: () => storageApi.getAll(tenantId),
+    queryFn: () => storageApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async ({ file, data }: { file: File; data?: StorageFileCreateData }) =>
-      storageApi.upload(tenantId, file, data),
+    mutationFn: async ({ file, data }: { file: File; data?: StorageFileCreateData }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return storageApi.upload(tenantId, file, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['storage', tenantId] });
       setIsModalOpen(false);
@@ -42,8 +46,12 @@ export default function StoragePage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<StorageFileCreateData> }) =>
-      storageApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<StorageFileCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return storageApi.update(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['storage', tenantId] });
       setIsModalOpen(false);
@@ -52,7 +60,12 @@ export default function StoragePage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => storageApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return storageApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['storage', tenantId] });
     },
@@ -61,6 +74,10 @@ export default function StoragePage() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!tenantId) {
+        alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+        return;
+      }
       uploadMutation.mutate({ file, data: uploadData });
     }
   };

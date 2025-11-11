@@ -54,18 +54,34 @@ export class DataPokokService {
   async update(updateDataPokokDto: UpdateDataPokokDto, instansiId: number) {
     const dataPokok = await this.findOne(instansiId);
 
-    Object.assign(dataPokok, {
-      ...updateDataPokokDto,
-      accreditationDate: updateDataPokokDto.accreditationDate
+    // Prepare update data, handling null values properly
+    const updateData: any = { ...updateDataPokokDto };
+
+    // Handle date fields - only update if provided, set to null if explicitly null
+    if (updateDataPokokDto.accreditationDate !== undefined) {
+      updateData.accreditationDate = updateDataPokokDto.accreditationDate
         ? new Date(updateDataPokokDto.accreditationDate)
-        : dataPokok.accreditationDate,
-      licenseDate: updateDataPokokDto.licenseDate
+        : null;
+    }
+    if (updateDataPokokDto.licenseDate !== undefined) {
+      updateData.licenseDate = updateDataPokokDto.licenseDate
         ? new Date(updateDataPokokDto.licenseDate)
-        : dataPokok.licenseDate,
-      establishedDate: updateDataPokokDto.establishedDate
+        : null;
+    }
+    if (updateDataPokokDto.establishedDate !== undefined) {
+      updateData.establishedDate = updateDataPokokDto.establishedDate
         ? new Date(updateDataPokokDto.establishedDate)
-        : dataPokok.establishedDate,
+        : null;
+    }
+
+    // Remove undefined values to avoid overwriting with undefined
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
     });
+
+    Object.assign(dataPokok, updateData);
 
     return await this.dataPokokRepository.save(dataPokok);
   }

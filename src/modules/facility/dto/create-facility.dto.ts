@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsBoolean,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateFacilityDto {
   @IsString()
@@ -13,12 +14,14 @@ export class CreateFacilityDto {
   @IsEnum(['building', 'room', 'land', 'equipment'])
   type: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   description?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   location?: string;
 
   @IsNumber()

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -13,10 +12,11 @@ import { alumniApi, Alumni, AlumniCreateData } from '@/lib/api/alumni';
 import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function AlumniPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
+  const resolvedTenantId = tenantId ?? undefined;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAlumni, setSelectedAlumni] = useState<Alumni | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,19 +39,25 @@ export default function AlumniPage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['alumni', tenantId, currentPage, searchQuery, filterYear],
-    queryFn: () => alumniApi.getAll(tenantId, { 
+    queryKey: ['alumni', resolvedTenantId, currentPage, searchQuery, filterYear],
+    queryFn: () => alumniApi.getAll(resolvedTenantId!, { 
       page: currentPage, 
       limit: itemsPerPage,
       search: searchQuery || undefined,
       graduationYear: filterYear,
     }),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: AlumniCreateData) => alumniApi.create(tenantId, data),
+    mutationFn: (data: AlumniCreateData) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return alumniApi.create(resolvedTenantId, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alumni', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['alumni', resolvedTenantId] });
       setIsModalOpen(false);
       resetForm();
       success('Alumni berhasil ditambahkan');
@@ -62,10 +68,14 @@ export default function AlumniPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<AlumniCreateData> }) =>
-      alumniApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<AlumniCreateData> }) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return alumniApi.update(resolvedTenantId, id, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alumni', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['alumni', resolvedTenantId] });
       setIsModalOpen(false);
       setSelectedAlumni(null);
       resetForm();
@@ -77,9 +87,14 @@ export default function AlumniPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => alumniApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return alumniApi.delete(resolvedTenantId, id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alumni', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['alumni', resolvedTenantId] });
       success('Alumni berhasil dihapus');
     },
     onError: () => {
@@ -120,6 +135,10 @@ export default function AlumniPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!resolvedTenantId) {
+      showError('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     if (selectedAlumni) {
       updateMutation.mutate({ id: selectedAlumni.id, data: formData });
     } else {
@@ -128,12 +147,20 @@ export default function AlumniPage() {
   };
 
   const handleDelete = (id: number) => {
+    if (!resolvedTenantId) {
+      showError('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     if (confirm('Apakah Anda yakin ingin menghapus alumni ini?')) {
       deleteMutation.mutate(id);
     }
   };
 
   const handleExport = async (format: 'excel' | 'pdf' | 'csv') => {
+    if (!resolvedTenantId) {
+      showError('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
     console.log(`Exporting to ${format}...`);
     success(`Fitur ekspor ${format.toUpperCase()} akan segera tersedia.`);
   };

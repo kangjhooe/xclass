@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { facilityApi, Facility, FacilityCreateData } from '@/lib/api/facility';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '@/lib/store/toast';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function FacilityPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
   const [formData, setFormData] = useState<FacilityCreateData>({
@@ -30,11 +29,17 @@ export default function FacilityPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['facilities', tenantId],
-    queryFn: () => facilityApi.getAll(tenantId),
+    queryFn: () => facilityApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: FacilityCreateData) => facilityApi.create(tenantId, data),
+    mutationFn: (data: FacilityCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return facilityApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['facilities', tenantId] });
       setIsModalOpen(false);
@@ -47,8 +52,12 @@ export default function FacilityPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<FacilityCreateData> }) =>
-      facilityApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<FacilityCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return facilityApi.update(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['facilities', tenantId] });
       setIsModalOpen(false);
@@ -62,7 +71,12 @@ export default function FacilityPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => facilityApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return facilityApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['facilities', tenantId] });
       success('Fasilitas berhasil dihapus');
@@ -100,6 +114,11 @@ export default function FacilityPage() {
   };
 
   const handleDelete = (id: number) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (confirm('Apakah Anda yakin ingin menghapus fasilitas ini?')) {
       deleteMutation.mutate(id);
     }
@@ -107,6 +126,11 @@ export default function FacilityPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (selectedFacility) {
       updateMutation.mutate({ id: selectedFacility.id, data: formData });
     } else {
@@ -176,7 +200,7 @@ export default function FacilityPage() {
                             Edit
                           </Button>
                           <Button
-                            variant="destructive"
+                            variant="danger"
                             size="sm"
                             onClick={() => handleDelete(facility.id)}
                           >

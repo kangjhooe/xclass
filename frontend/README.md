@@ -12,6 +12,7 @@ frontend/
 │   ├── [tenant]/          # Dynamic route untuk tenant
 │   │   ├── dashboard/      # Dashboard tenant
 │   │   └── students/     # Halaman siswa
+│   ├── tenant-selection/  # Halaman pemilihan tenant pasca login
 │   ├── login/             # Halaman login
 │   ├── register/          # Halaman register
 │   ├── layout.tsx         # Root layout
@@ -32,12 +33,14 @@ frontend/
 │       ├── Loading.tsx
 │       └── EmptyState.tsx
 ├── lib/                   # Utilities dan helpers
-│   ├── api/              # API client
+│   ├── api/              # API client & modul per fitur
 │   │   ├── client.ts     # Axios client
+│   │   ├── auth.ts       # Login/Register/Profile API
 │   │   └── students.ts   # Students API
 │   ├── store/            # State management (Zustand)
 │   │   └── auth.ts       # Auth store
 │   ├── utils/            # Utility functions
+│   │   ├── tenant.ts     # Helper resolusi tenant ID/NPSN
 │   │   ├── date.ts       # Date formatting
 │   │   └── cn.ts         # Class name utility
 │   └── hooks/            # Custom hooks
@@ -86,6 +89,7 @@ Aplikasi akan berjalan di `http://localhost:3001`
 ### ✅ Halaman
 - Home page
 - Login & Register
+- Tenant Selection (pilih tenant via NPSN/ID atau akses delegasi)
 - Admin Dashboard
 - Tenant Dashboard
 - Students (CRUD lengkap)
@@ -100,8 +104,33 @@ Aplikasi akan berjalan di `http://localhost:3001`
 ### ✅ Utilities
 - API Client dengan interceptors
 - Auth Store (Zustand)
+- Tenant utilities untuk resolusi NPSN → ID & sebaliknya
 - Date formatting (format Indonesia)
 - Class name utility (cn)
+
+## Autentikasi & Pemilihan Tenant
+
+- **Login** menggunakan `authApi.login` dan React Query mutation. Token & data user disimpan di `useAuthStore` (localStorage) agar sesi bertahan.
+- **Redirect pasca login**:
+  - `super_admin` → `/admin/dashboard`.
+  - Pengguna tenant → otomatis resolve NPSN berdasarkan `instansiId` dan diarahkan ke `/{npsn}/dashboard`.
+  - Jika resolusi gagal atau user tidak punya tenant, diarahkan ke `/tenant-selection` untuk memilih manual.
+- **Tenant Selection** menyediakan daftar tenant yang tersedia berdasarkan role:
+  - Super Admin menampilkan daftar grant aktif (`tenantAccessApi.getSuperAdminGrants`) berikut masa berlaku dan menyetel sesi delegasi (`sessionStorage`).
+  - Admin tenant langsung melihat tenant tunggalnya.
+  - Fitur pencarian manual (NPSN/ID) memanfaatkan `tenantApi.getByIdentifier`.
+- **Register** menggunakan `authApi.register` dengan validasi client-side dua langkah (data instansi & data PIC).
+
+## Testing
+
+Frontend kini memiliki pengujian unit menggunakan **Vitest**.
+
+```bash
+npm run test        # Menjalankan seluruh test sekali
+npm run test:watch  # Mode watch saat pengembangan
+```
+
+Pengujian awal mencakup utilitas `tenant.ts` untuk memastikan resolusi tenant ID/NPSN berjalan benar dan aman terhadap kegagalan API.
 
 ## Integrasi dengan Backend
 

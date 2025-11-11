@@ -41,11 +41,11 @@ export class StorageController {
     };
   }
 
-  @Get('*')
-  async getFile(@Req() req: Request, @Res() res: Response) {
+  @Get('*path')
+  async getFile(@Param('path') path: string, @Req() req: Request, @Res() res: Response) {
     try {
       // Extract path from request (remove /api/storage prefix)
-      const filePath = req.params['0'] || req.url.replace('/api/storage/', '');
+      const filePath = path || req.url.replace('/api/storage/', '');
       const file = await this.storageService.getFile(filePath);
       res.setHeader('Content-Type', 'application/octet-stream');
       res.send(file);
@@ -54,10 +54,10 @@ export class StorageController {
     }
   }
 
-  @Delete('*')
-  async deleteFile(@Req() req: Request) {
+  @Delete('*path')
+  async deleteFile(@Param('path') path: string, @Req() req: Request) {
     // Extract path from request (remove /api/storage prefix)
-    const filePath = req.params['0'] || req.url.replace('/api/storage/', '');
+    const filePath = path || req.url.replace('/api/storage/', '');
     await this.storageService.deleteFile(filePath);
     return {
       success: true,

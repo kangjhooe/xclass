@@ -180,3 +180,61 @@ CREATE TABLE IF NOT EXISTS `subscription_billing_history` (
   CONSTRAINT `subscription_billing_history_tenant_id_foreign` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================
+-- 8. INFRASTRUCTURE TABLES (LANDS, BUILDINGS, ROOMS)
+-- ============================================
+CREATE TABLE IF NOT EXISTS `lands` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `instansiId` bigint(20) unsigned NOT NULL,
+  `name` varchar(150) NOT NULL,
+  `areaM2` decimal(12,2) NOT NULL,
+  `ownershipStatus` enum('milik_sendiri','sewa','hibah','lainnya') NOT NULL,
+  `ownershipDocumentPath` varchar(255) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `createdAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `lands_instansiId_index` (`instansiId`),
+  CONSTRAINT `lands_instansiId_foreign` FOREIGN KEY (`instansiId`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `buildings` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `instansiId` bigint(20) unsigned NOT NULL,
+  `landId` bigint(20) unsigned NOT NULL,
+  `name` varchar(150) NOT NULL,
+  `floorCount` int(11) NOT NULL,
+  `lengthM` decimal(10,2) NOT NULL,
+  `widthM` decimal(10,2) NOT NULL,
+  `builtYear` int(11) NOT NULL,
+  `notes` text DEFAULT NULL,
+  `createdAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `buildings_instansiId_index` (`instansiId`),
+  KEY `buildings_landId_index` (`landId`),
+  CONSTRAINT `buildings_instansiId_foreign` FOREIGN KEY (`instansiId`) REFERENCES `tenants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `buildings_landId_foreign` FOREIGN KEY (`landId`) REFERENCES `lands` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `rooms` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `instansiId` bigint(20) unsigned NOT NULL,
+  `buildingId` bigint(20) unsigned NOT NULL,
+  `name` varchar(150) NOT NULL,
+  `usageType` enum('ruang_kelas','kantor','laboratorium','perpustakaan','gudang','aula','lainnya') NOT NULL,
+  `areaM2` decimal(10,2) NOT NULL,
+  `condition` enum('baik','rusak_ringan','rusak_sedang','rusak_berat','rusak_total') NOT NULL,
+  `floorNumber` int(11) NOT NULL,
+  `capacity` int(11) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `createdAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `rooms_instansiId_index` (`instansiId`),
+  KEY `rooms_buildingId_index` (`buildingId`),
+  CONSTRAINT `rooms_instansiId_foreign` FOREIGN KEY (`instansiId`) REFERENCES `tenants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `rooms_buildingId_foreign` FOREIGN KEY (`buildingId`) REFERENCES `buildings` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

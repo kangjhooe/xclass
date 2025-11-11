@@ -58,6 +58,9 @@ export class Notification {
   @Column({ type: 'timestamp', nullable: true })
   deliveredAt: Date;
 
+  @Column({ type: 'timestamp', nullable: true })
+  readAt: Date;
+
   @Column({ type: 'text', nullable: true })
   errorMessage: string;
 

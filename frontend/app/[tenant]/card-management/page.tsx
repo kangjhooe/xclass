@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { cardManagementApi, Card, CardCreateData } from '@/lib/api/card-management';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function CardManagementPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
@@ -33,11 +32,17 @@ export default function CardManagementPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['cards', tenantId],
-    queryFn: () => cardManagementApi.getAll(tenantId),
+    queryFn: () => cardManagementApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: CardCreateData) => cardManagementApi.create(tenantId, data),
+    mutationFn: (data: CardCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cardManagementApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
       setIsModalOpen(false);
@@ -46,8 +51,12 @@ export default function CardManagementPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CardCreateData> }) =>
-      cardManagementApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<CardCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cardManagementApi.update(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
       setIsModalOpen(false);
@@ -57,21 +66,36 @@ export default function CardManagementPage() {
   });
 
   const blockMutation = useMutation({
-    mutationFn: (id: number) => cardManagementApi.block(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cardManagementApi.block(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
     },
   });
 
   const unblockMutation = useMutation({
-    mutationFn: (id: number) => cardManagementApi.unblock(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cardManagementApi.unblock(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => cardManagementApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cardManagementApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
     },
@@ -110,6 +134,11 @@ export default function CardManagementPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (selectedCard) {
       updateMutation.mutate({ id: selectedCard.id, data: formData });
     } else {

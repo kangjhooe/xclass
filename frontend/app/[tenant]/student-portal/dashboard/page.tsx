@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import apiClient from '@/lib/api/client';
 
@@ -37,11 +38,9 @@ interface DashboardData {
   }>;
 }
 
-export default function StudentPortalDashboard({
-  params,
-}: {
-  params: { tenant: string };
-}) {
+export default function StudentPortalDashboard() {
+  const params = useParams();
+  const tenantId = params.tenant as string;
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +54,7 @@ export default function StudentPortalDashboard({
         // Use mobile API endpoint for student dashboard
         const response = await apiClient.get('/mobile/dashboard', {
           headers: {
-            'X-Tenant-NPSN': params.tenant,
+            'X-Tenant-NPSN': tenantId,
           },
         });
 
@@ -80,7 +79,7 @@ export default function StudentPortalDashboard({
     };
 
     fetchData();
-  }, [params.tenant]);
+  }, [tenantId]);
 
   if (loading) {
     return (

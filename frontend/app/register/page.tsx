@@ -1,30 +1,146 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import apiClient from '@/lib/api/client';
+import { useMutation } from '@tanstack/react-query';
+import { authApi, RegisterPayload } from '@/lib/api/auth';
+
+type VisibilityMap = Record<string, boolean>;
+
+type StepKey = 1 | 2;
+
+const heroHighlights = [
+  {
+    title: 'Blueprint Digitalisasi',
+    description: 'Kurasi modul sesuai kebutuhan sekolah dengan arsitektur multi-tenant.',
+  },
+  {
+    title: 'Implementasi Kilat',
+    description: 'Aktifkan sistem dalam 14 hari dengan migrasi data cerdas.',
+  },
+  {
+    title: 'Pendampingan 24/7',
+    description: 'Tim success siap membantu onboarding dan pengembangan lanjutan.',
+  },
+];
+
+const statShowcase = [
+  { label: 'Tenant aktif', value: '120+' },
+  { label: 'Modul premium', value: '24+' },
+  { label: 'Rating kepuasan', value: '4.9/5' },
+];
+
+const stepTitles: Record<StepKey, string> = {
+  1: 'Data Instansi',
+  2: 'Kontak & Akun',
+};
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
+  const [currentStep, setCurrentStep] = useState<StepKey>(1);
+  const [formData, setFormData] = useState<RegisterPayload>({
     npsn: '',
-    name: '', // Nama Instansi
-    jenisInstansi: '', // Jenis Instansi: Sekolah Umum/Madrasah
-    jenjang: '', // Jenjang: SD/MI/MTs/SMP/SMA/MA/SMK/MAK
-    status: '', // Status: Negeri/Swasta
+    name: '',
+    jenisInstansi: '',
+    jenjang: '',
+    status: '',
     email: '',
     password: '',
     password_confirmation: '',
-    picName: '', // Nama PIC
-    picWhatsapp: '', // No WA PIC
+    picName: '',
+    picWhatsapp: '',
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isMounted, setIsMounted] = useState(false);
+  const [visibleSections, setVisibleSections] = useState<VisibilityMap>({ hero: true });
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 80);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const markVisible = (key: string) => {
+      setVisibleSections((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+    };
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const animatedNodes = document.querySelectorAll<HTMLElement>('[data-animate-on-view]');
+
+    if (!('IntersectionObserver' in window)) {
+      animatedNodes.forEach((node) => {
+        const key = node.dataset.animateOnView;
+        if (key) {
+          markVisible(key);
+        }
+      });
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const key = entry.target.getAttribute('data-animate-on-view');
+            if (key) {
+              markVisible(key);
+            }
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.25, rootMargin: '0px 0px -10%' },
+    );
+
+    animatedNodes.forEach((node) => observer.observe(node));
+
+    return () => observer.disconnect();
+  }, []);
+
+  const sectionVisible = (key: string) => visibleSections[key];
+
+  const registerMutation = useMutation({
+    mutationFn: (payload: RegisterPayload) => authApi.register(payload),
+    onSuccess: () => {
+      router.push('/login?registered=true');
+    },
+    onError: (err: any) => {
+      console.error('Register error details:', {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status,
+      });
+
+      let errorMessage = 'Registrasi gagal. Silakan coba lagi.';
+      const responseData = err?.response?.data;
+
+      if (responseData?.errors) {
+        const backendErrors: Record<string, string> = {};
+        Object.keys(responseData.errors).forEach((key) => {
+          backendErrors[key] = Array.isArray(responseData.errors[key])
+            ? responseData.errors[key][0]
+            : responseData.errors[key];
+        });
+        setErrors(backendErrors);
+        errorMessage = 'Terdapat kesalahan pada form. Silakan periksa kembali.';
+      } else if (responseData?.message || responseData?.error) {
+        errorMessage = responseData.message || responseData.error;
+      } else if (err?.request) {
+        errorMessage = 'Tidak dapat terhubung ke server. Pastikan backend berjalan.';
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+    },
+  });
 
   const validateStep1 = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -103,12 +219,22 @@ export default function RegisterPage() {
     if (validateStep1()) {
       setCurrentStep(2);
       setErrors({});
+      setError('');
     }
   };
 
   const handleBack = () => {
     setCurrentStep(1);
     setErrors({});
+    setError('');
+  };
+
+  const handleChange = (key: keyof RegisterPayload) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) {
+      setErrors((prev) => ({ ...prev, [key]: '' }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,815 +246,659 @@ export default function RegisterPage() {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      await apiClient.post('/auth/register', formData);
-      router.push('/login?registered=true');
-    } catch (err: any) {
-      console.error('Register error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-      });
-
-      let errorMessage = 'Registrasi gagal. Silakan coba lagi.';
-
-      if (err.response) {
-        // Server responded with error
-        const responseData = err.response.data;
-
-        // Handle validation errors from backend
-        if (responseData?.errors) {
-          const backendErrors: Record<string, string> = {};
-          Object.keys(responseData.errors).forEach((key) => {
-            backendErrors[key] = Array.isArray(responseData.errors[key])
-              ? responseData.errors[key][0]
-              : responseData.errors[key];
-          });
-          setErrors(backendErrors);
-          errorMessage = 'Terdapat kesalahan pada form. Silakan periksa kembali.';
-        } else {
-          errorMessage =
-            responseData?.message ||
-            responseData?.error ||
-            `Error ${err.response.status}: ${err.response.statusText}`;
-        }
-      } else if (err.request) {
-        // Request was made but no response received
-        errorMessage = 'Tidak dapat terhubung ke server. Pastikan backend berjalan.';
-      } else {
-        // Something else happened
-        errorMessage = err.message || errorMessage;
-      }
-
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    await registerMutation.mutateAsync(formData);
   };
 
+  const loading = registerMutation.isPending;
+
+  const animatedHeroHighlights = useMemo(
+    () =>
+      heroHighlights.map((highlight, index) => ({
+        ...highlight,
+        delay: `${index * 0.15 + 0.1}s`,
+      })),
+    [],
+  );
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-white opacity-10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white opacity-10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white opacity-5 rounded-full blur-3xl"></div>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-blue-50 via-white to-slate-50 text-slate-900">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -left-36 -top-40 h-[26rem] w-[26rem] rounded-full bg-gradient-to-br from-blue-200 via-indigo-200 to-purple-200 opacity-60 blur-3xl animate-orb" />
+        <div className="absolute -right-32 top-1/4 h-[28rem] w-[28rem] rounded-full bg-gradient-to-br from-purple-200 via-rose-200 to-orange-200 opacity-50 blur-3xl animate-orb-delayed" />
+        <div className="absolute left-1/2 bottom-[-6rem] h-[24rem] w-[24rem] -translate-x-1/2 rounded-full bg-gradient-to-br from-sky-200 via-cyan-200 to-emerald-200 opacity-40 blur-3xl animate-orb-alt" />
+        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-blue-100/50 via-blue-50/30 to-transparent blur-3xl animate-gradient" />
       </div>
 
-      <div className="max-w-md w-full mx-4 relative z-10">
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 md:p-10 border border-white/20">
-          {/* Logo Section */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-4 transform hover:scale-105 transition-transform duration-300">
-              <svg
-                className="w-12 h-12 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                />
-              </svg>
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-16 md:flex-row md:items-center md:gap-16">
+        <section
+          data-animate-on-view="hero"
+          className={`md:w-1/2 ${sectionVisible('hero') ? 'animate-section opacity-100' : 'translate-y-8 opacity-0'}`}
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-2xl font-bold text-white shadow-lg shadow-blue-500/40 animate-float-slow">
+              C
             </div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">CLASS</h1>
-            <p className="text-sm text-gray-600">Sistem Manajemen Sekolah</p>
-          </div>
-
-          <h2 className="text-2xl font-semibold text-center text-gray-800 mb-2">
-            Daftar Akun Baru
-          </h2>
-
-          {/* Step Indicator */}
-          <div className="flex items-center justify-center mb-6">
-            <div className="flex items-center">
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                currentStep >= 1 ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-gray-400'
-              }`}>
-                <span className="font-semibold">1</span>
-              </div>
-              <div className={`w-16 h-1 mx-2 ${
-                currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-300'
-              }`}></div>
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                currentStep >= 2 ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-gray-400'
-              }`}>
-                <span className="font-semibold">2</span>
-              </div>
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.4em] text-blue-600">CLASS PLATFORM</p>
+              <p className="text-lg font-semibold text-slate-900">Comprehensive Learning & School System</p>
             </div>
           </div>
-          <p className="text-center text-sm text-gray-600 mb-6">
-            Langkah {currentStep} dari 2
+
+          <h1
+            className={`mt-10 text-4xl font-semibold leading-tight text-slate-900 md:text-5xl ${
+              isMounted ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
+            } transition duration-700`}
+          >
+            Daftarkan sekolah Anda dan hadirkan pengalaman digital yang modern.
+          </h1>
+          <p
+            className={`mt-6 text-base text-slate-600 md:text-lg ${
+              isMounted ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
+            } transition duration-700 delay-100`}
+          >
+            Mulai dari data instansi hingga aktivasi akun PIC, hanya dua langkah untuk bergabung ke ekosistem CLASS.
           </p>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg animate-fade-in">
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className="text-sm font-medium">{error}</span>
+          <div className="mt-10 space-y-4">
+            {animatedHeroHighlights.map((highlight) => (
+              <div
+                key={highlight.title}
+                style={{ transitionDelay: highlight.delay }}
+                className={`rounded-2xl border border-slate-200 bg-white p-5 backdrop-blur-sm shadow-lg shadow-blue-500/5 transition duration-700 ${
+                  isMounted ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
+                } animate-float-slower`}
+              >
+                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">
+                  {highlight.title}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">{highlight.description}</p>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
 
-          <form onSubmit={currentStep === 1 ? handleNext : handleSubmit} className="space-y-5">
-            {/* Step 1: Data Instansi */}
-            {currentStep === 1 && (
-              <>
-                <div>
-                  <label
-                    htmlFor="npsn"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    NPSN <span className="text-red-500">*</span>
-                  </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+          <div className="mt-12 grid gap-4 sm:grid-cols-3">
+            {statShowcase.map((stat, idx) => (
+              <div
+                key={stat.label}
+                style={{ transitionDelay: `${idx * 0.12 + 0.2}s` }}
+                className={`rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-inner shadow-blue-500/5 transition duration-700 ${
+                  isMounted ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
+                } animate-float-slow`}
+              >
+                <p className="text-2xl font-semibold text-slate-900">{stat.value}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.3em] text-blue-600">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section
+          data-animate-on-view="form"
+          className={`md:w-1/2 ${sectionVisible('form') ? 'animate-section opacity-100' : 'translate-y-8 opacity-0'}`}
+        >
+          <div className="relative overflow-hidden rounded-[2.25rem] border border-white/15 bg-white/95 shadow-[0_45px_80px_-40px_rgba(59,130,246,0.45)] backdrop-blur">
+            <div className="absolute -top-16 -right-24 h-44 w-44 rounded-full bg-blue-500/15 blur-3xl" />
+            <div className="absolute -bottom-16 -left-24 h-48 w-48 rounded-full bg-purple-500/15 blur-3xl" />
+
+            <div className="relative px-8 py-10 sm:px-10">
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30 animate-float-slow">
+                  <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                      d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
                     />
                   </svg>
                 </div>
-                <input
-                  type="text"
-                  id="npsn"
-                  value={formData.npsn}
-                  onChange={(e) => {
-                    setFormData({ ...formData, npsn: e.target.value });
-                    if (errors.npsn) setErrors({ ...errors, npsn: '' });
-                  }}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                    errors.npsn
-                      ? 'border-red-300 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                  placeholder="Masukkan NPSN (minimal 8 karakter)"
-                  required
-                />
+                <div className="text-center">
+                  <p className="text-sm font-medium text-blue-600">Langkah {currentStep} dari 2</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">{stepTitles[currentStep]}</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Lengkapi informasi untuk mengaktifkan tenant sekolah Anda.
+                  </p>
+                </div>
               </div>
-              {errors.npsn && (
-                <p className="mt-1 text-sm text-red-600">{errors.npsn}</p>
-              )}
-            </div>
 
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Nama Instansi <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                        />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => {
-                        setFormData({ ...formData, name: e.target.value });
-                        if (errors.name) setErrors({ ...errors, name: '' });
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        errors.name
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      placeholder="Masukkan nama instansi"
-                      required
-                    />
-                  </div>
-                  {errors.name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="jenisInstansi"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Jenis Instansi <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                    </div>
-                    <select
-                      id="jenisInstansi"
-                      value={formData.jenisInstansi}
-                      onChange={(e) => {
-                        setFormData({ ...formData, jenisInstansi: e.target.value, jenjang: '' });
-                        if (errors.jenisInstansi) setErrors({ ...errors, jenisInstansi: '' });
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 appearance-none bg-white ${
-                        errors.jenisInstansi
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      required
-                    >
-                      <option value="">Pilih Jenis Instansi</option>
-                      <option value="Sekolah Umum">Sekolah Umum</option>
-                      <option value="Madrasah">Madrasah</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  {errors.jenisInstansi && (
-                    <p className="mt-1 text-sm text-red-600">{errors.jenisInstansi}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="jenjang"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Jenjang <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                        />
-                      </svg>
-                    </div>
-                    <select
-                      id="jenjang"
-                      value={formData.jenjang}
-                      onChange={(e) => {
-                        setFormData({ ...formData, jenjang: e.target.value });
-                        if (errors.jenjang) setErrors({ ...errors, jenjang: '' });
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 appearance-none bg-white ${
-                        errors.jenjang
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      required
-                      disabled={!formData.jenisInstansi}
-                    >
-                      <option value="">Pilih Jenjang</option>
-                      {formData.jenisInstansi === 'Sekolah Umum' && (
-                        <>
-                          <option value="SD">SD</option>
-                          <option value="SMP">SMP</option>
-                          <option value="SMA">SMA</option>
-                          <option value="SMK">SMK</option>
-                        </>
-                      )}
-                      {formData.jenisInstansi === 'Madrasah' && (
-                        <>
-                          <option value="MI">MI</option>
-                          <option value="MTs">MTs</option>
-                          <option value="MA">MA</option>
-                          <option value="MAK">MAK</option>
-                        </>
-                      )}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  {errors.jenjang && (
-                    <p className="mt-1 text-sm text-red-600">{errors.jenjang}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="status"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Status <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    </div>
-                    <select
-                      id="status"
-                      value={formData.status}
-                      onChange={(e) => {
-                        setFormData({ ...formData, status: e.target.value });
-                        if (errors.status) setErrors({ ...errors, status: '' });
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 appearance-none bg-white ${
-                        errors.status
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      required
-                    >
-                      <option value="">Pilih Status</option>
-                      <option value="Negeri">Negeri</option>
-                      <option value="Swasta">Swasta</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  {errors.status && (
-                    <p className="mt-1 text-sm text-red-600">{errors.status}</p>
-                  )}
-                </div>
-
-                {/* Button Next untuk Step 1 */}
-                <button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              <div className="mt-6 flex justify-center">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 transition hover:border-blue-400 hover:text-blue-600"
                 >
-                  Selanjutnya
-                </button>
-              </>
-            )}
+                  ← Kembali ke Beranda
+                </Link>
+              </div>
 
-            {/* Step 2: Data PIC */}
-            {currentStep === 2 && (
-              <>
-                <div>
-                  <label
-                    htmlFor="picName"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Nama PIC <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      id="picName"
-                      value={formData.picName}
-                      onChange={(e) => {
-                        setFormData({ ...formData, picName: e.target.value });
-                        if (errors.picName) setErrors({ ...errors, picName: '' });
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        errors.picName
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      placeholder="Masukkan nama PIC"
-                      required
-                    />
+              {error && (
+                <div className="mt-8 rounded-2xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-600 shadow-inner animate-section">
+                  <div className="flex items-start gap-3">
+                    <svg className="mt-0.5 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span className="font-medium leading-relaxed">{error}</span>
                   </div>
-                  {errors.picName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.picName}</p>
-                  )}
                 </div>
+              )}
 
-                <div>
-                  <label
-                    htmlFor="picWhatsapp"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    No WA PIC <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              <form onSubmit={currentStep === 1 ? handleNext : handleSubmit} className="mt-8 space-y-6">
+                {currentStep === 1 && (
+                  <div className="space-y-5">
+                    <div>
+                      <label htmlFor="npsn" className="block text-sm font-semibold text-slate-700">
+                        NPSN <span className="text-red-500">*</span>
+                      </label>
+                      <div className="group relative mt-2">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          id="npsn"
+                          value={formData.npsn}
+                          onChange={handleChange('npsn')}
+                          className={`w-full rounded-2xl border bg-white/90 py-3 pl-11 pr-4 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                            errors.npsn ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-slate-200'
+                          }`}
+                          placeholder="Masukkan NPSN (minimal 8 karakter)"
+                          required
                         />
-                      </svg>
+                      </div>
+                      {errors.npsn && <p className="mt-2 text-xs font-medium text-red-500">{errors.npsn}</p>}
                     </div>
-                    <input
-                      type="tel"
-                      id="picWhatsapp"
-                      value={formData.picWhatsapp}
-                      onChange={(e) => {
-                        setFormData({ ...formData, picWhatsapp: e.target.value });
-                        if (errors.picWhatsapp) setErrors({ ...errors, picWhatsapp: '' });
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        errors.picWhatsapp
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      placeholder="Contoh: 081234567890 atau +6281234567890"
-                      required
-                    />
+
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-semibold text-slate-700">
+                        Nama Instansi <span className="text-red-500">*</span>
+                      </label>
+                      <div className="group relative mt-2">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          id="name"
+                          value={formData.name}
+                          onChange={handleChange('name')}
+                          className={`w-full rounded-2xl border bg-white/90 py-3 pl-11 pr-4 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                            errors.name ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-slate-200'
+                          }`}
+                          placeholder="Masukkan nama instansi"
+                          required
+                        />
+                      </div>
+                      {errors.name && <p className="mt-2 text-xs font-medium text-red-500">{errors.name}</p>}
+                    </div>
+
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="jenisInstansi" className="block text-sm font-semibold text-slate-700">
+                          Jenis Instansi <span className="text-red-500">*</span>
+                        </label>
+                        <div className="group relative mt-2">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                          </div>
+                          <select
+                            id="jenisInstansi"
+                            value={formData.jenisInstansi}
+                            onChange={(e) => {
+                              handleChange('jenisInstansi')(e);
+                              setFormData((prev) => ({ ...prev, jenjang: '' }));
+                            }}
+                            className={`w-full appearance-none rounded-2xl border bg-white/90 py-3 pl-11 pr-10 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                              errors.jenisInstansi
+                                ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20'
+                                : 'border-slate-200'
+                            }`}
+                            required
+                          >
+                            <option value="">Pilih Jenis Instansi</option>
+                            <option value="Sekolah Umum">Sekolah Umum</option>
+                            <option value="Madrasah">Madrasah</option>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                        {errors.jenisInstansi && <p className="mt-2 text-xs font-medium text-red-500">{errors.jenisInstansi}</p>}
+                      </div>
+
+                      <div>
+                        <label htmlFor="jenjang" className="block text-sm font-semibold text-slate-700">
+                          Jenjang <span className="text-red-500">*</span>
+                        </label>
+                        <div className="group relative mt-2">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M3 7l9-4 9 4-9 4-9-4zm0 6l9 4 9-4m-9 4v7"
+                              />
+                            </svg>
+                          </div>
+                          <select
+                            id="jenjang"
+                            value={formData.jenjang}
+                            onChange={handleChange('jenjang')}
+                            className={`w-full appearance-none rounded-2xl border bg-white/90 py-3 pl-11 pr-10 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                              errors.jenjang ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-slate-200'
+                            }`}
+                            required
+                          >
+                            <option value="">Pilih Jenjang</option>
+                            <option value="SD">SD</option>
+                            <option value="MI">MI</option>
+                            <option value="SMP">SMP</option>
+                            <option value="MTs">MTs</option>
+                            <option value="SMA">SMA</option>
+                            <option value="MA">MA</option>
+                            <option value="SMK">SMK</option>
+                            <option value="MAK">MAK</option>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                        {errors.jenjang && <p className="mt-2 text-xs font-medium text-red-500">{errors.jenjang}</p>}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="status" className="block text-sm font-semibold text-slate-700">
+                        Status <span className="text-red-500">*</span>
+                      </label>
+                      <div className="group relative mt-2">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8c1.657 0 3-1.567 3-3.5S13.657 1 12 1 9 2.567 9 4.5 10.343 8 12 8zM5 22a7 7 0 0114 0H5z"
+                            />
+                          </svg>
+                        </div>
+                        <select
+                          id="status"
+                          value={formData.status}
+                          onChange={handleChange('status')}
+                          className={`w-full appearance-none rounded-2xl border bg-white/90 py-3 pl-11 pr-10 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                            errors.status ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-slate-200'
+                          }`}
+                          required
+                        >
+                          <option value="">Pilih Status</option>
+                          <option value="Negeri">Negeri</option>
+                          <option value="Swasta">Swasta</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                      {errors.status && <p className="mt-2 text-xs font-medium text-red-500">{errors.status}</p>}
+                    </div>
                   </div>
-                  {errors.picWhatsapp && (
-                    <p className="mt-1 text-sm text-red-600">{errors.picWhatsapp}</p>
-                  )}
-                </div>
+                )}
 
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Email Instansi <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                {currentStep === 2 && (
+                  <div className="space-y-5">
+                    <div>
+                      <label htmlFor="picName" className="block text-sm font-semibold text-slate-700">
+                        Nama PIC <span className="text-red-500">*</span>
+                      </label>
+                      <div className="group relative mt-2">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A9 9 0 1112 21a9 9 0 01-6.879-3.196z" />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          id="picName"
+                          value={formData.picName}
+                          onChange={handleChange('picName')}
+                          className={`w-full rounded-2xl border bg-white/90 py-3 pl-11 pr-4 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                            errors.picName ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-slate-200'
+                          }`}
+                          placeholder="Nama lengkap PIC"
+                          required
                         />
-                      </svg>
+                      </div>
+                      {errors.picName && <p className="mt-2 text-xs font-medium text-red-500">{errors.picName}</p>}
                     </div>
-                    <input
-                      type="email"
-                      id="email"
-                      value={formData.email}
-                      onChange={(e) => {
-                        setFormData({ ...formData, email: e.target.value });
-                        if (errors.email) setErrors({ ...errors, email: '' });
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        errors.email
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      placeholder="email@instansi.com"
-                      required
-                    />
+
+                    <div>
+                      <label htmlFor="picWhatsapp" className="block text-sm font-semibold text-slate-700">
+                        No WhatsApp PIC <span className="text-red-500">*</span>
+                      </label>
+                      <div className="group relative mt-2">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.213l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.213-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          id="picWhatsapp"
+                          value={formData.picWhatsapp}
+                          onChange={handleChange('picWhatsapp')}
+                          className={`w-full rounded-2xl border bg-white/90 py-3 pl-11 pr-4 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                            errors.picWhatsapp
+                              ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20'
+                              : 'border-slate-200'
+                          }`}
+                          placeholder="Contoh: 0812xxxx"
+                          required
+                        />
+                      </div>
+                      {errors.picWhatsapp && <p className="mt-2 text-xs font-medium text-red-500">{errors.picWhatsapp}</p>}
+                    </div>
+
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-semibold text-slate-700">
+                        Email Instansi <span className="text-red-500">*</span>
+                      </label>
+                      <div className="group relative mt-2">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="email"
+                          id="email"
+                          value={formData.email}
+                          onChange={handleChange('email')}
+                          className={`w-full rounded-2xl border bg-white/90 py-3 pl-11 pr-4 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                            errors.email ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-slate-200'
+                          }`}
+                          placeholder="nama@instansi.sch.id"
+                          required
+                        />
+                      </div>
+                      {errors.email && <p className="mt-2 text-xs font-medium text-red-500">{errors.email}</p>}
+                    </div>
+
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
+                          Password <span className="text-red-500">*</span>
+                        </label>
+                        <div className="group relative mt-2">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                              />
+                            </svg>
+                          </div>
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            id="password"
+                            value={formData.password}
+                            onChange={handleChange('password')}
+                            className={`w-full rounded-2xl border bg-white/90 py-3 pl-11 pr-12 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                              errors.password ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-slate-200'
+                            }`}
+                            placeholder="Minimal 8 karakter"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition hover:text-slate-600"
+                            aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                          >
+                            {showPassword ? (
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m13.42 13.42l-3.29-3.29M3 3l18 18"
+                                />
+                              </svg>
+                            ) : (
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                        {errors.password && <p className="mt-2 text-xs font-medium text-red-500">{errors.password}</p>}
+                      </div>
+
+                      <div>
+                        <label htmlFor="password_confirmation" className="block text-sm font-semibold text-slate-700">
+                          Konfirmasi Password <span className="text-red-500">*</span>
+                        </label>
+                        <div className="group relative mt-2">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                              />
+                            </svg>
+                          </div>
+                          <input
+                            type={showPasswordConfirmation ? 'text' : 'password'}
+                            id="password_confirmation"
+                            value={formData.password_confirmation}
+                            onChange={handleChange('password_confirmation')}
+                            className={`w-full rounded-2xl border bg-white/90 py-3 pl-11 pr-12 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 ${
+                              errors.password_confirmation
+                                ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20'
+                                : 'border-slate-200'
+                            }`}
+                            placeholder="Ulangi password"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPasswordConfirmation((prev) => !prev)}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition hover:text-slate-600"
+                            aria-label={showPasswordConfirmation ? 'Sembunyikan konfirmasi password' : 'Tampilkan konfirmasi password'}
+                          >
+                            {showPasswordConfirmation ? (
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m13.42 13.42l-3.29-3.29M3 3l18 18"
+                                />
+                              </svg>
+                            ) : (
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                        {errors.password_confirmation && (
+                          <p className="mt-2 text-xs font-medium text-red-500">{errors.password_confirmation}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <button
+                        type="button"
+                        onClick={handleBack}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:border-blue-400 hover:text-blue-600"
+                      >
+                        ← Kembali
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/40 transition hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/60 disabled:opacity-60"
+                      >
+                        {loading ? 'Memproses...' : 'Daftar Sekarang'}
+                      </button>
+                    </div>
                   </div>
-                  {errors.email && (
-                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                  )}
-                </div>
+                )}
 
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                        />
-                      </svg>
-                    </div>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      id="password"
-                      value={formData.password}
-                      onChange={(e) => {
-                        setFormData({ ...formData, password: e.target.value });
-                        if (errors.password) setErrors({ ...errors, password: '' });
-                      }}
-                      className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        errors.password
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      placeholder="Minimal 8 karakter"
-                      required
-                    />
+                {currentStep === 1 && (
+                  <div className="flex justify-end">
                     <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      type="submit"
+                      className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/40 transition hover:from-blue-500 hover:to-purple-500"
                     >
-                      {showPassword ? (
-                        <svg
-                          className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m13.42 13.42l-3.29-3.29M3 3l18 18"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      )}
+                      Lanjutkan →
                     </button>
                   </div>
-                  {errors.password && (
-                    <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="password_confirmation"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Konfirmasi Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                        />
-                      </svg>
-                    </div>
-                    <input
-                      type={showPasswordConfirmation ? 'text' : 'password'}
-                      id="password_confirmation"
-                      value={formData.password_confirmation}
-                      onChange={(e) => {
-                        setFormData({ ...formData, password_confirmation: e.target.value });
-                        if (errors.password_confirmation)
-                          setErrors({ ...errors, password_confirmation: '' });
-                      }}
-                      className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        errors.password_confirmation
-                          ? 'border-red-300 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                      }`}
-                      placeholder="Ulangi password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    >
-                      {showPasswordConfirmation ? (
-                        <svg
-                          className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m13.42 13.42l-3.29-3.29M3 3l18 18"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                  {errors.password_confirmation && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.password_confirmation}
-                    </p>
-                  )}
-                </div>
-
-                {/* Button Back dan Submit untuk Step 2 */}
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-all duration-200"
-                  >
-                    Kembali
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                  >
-                    {loading ? (
-                      <span className="flex items-center justify-center">
-                        <svg
-                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Memproses...
-                      </span>
-                    ) : (
-                      'Daftar'
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Sudah punya akun?{' '}
-              <Link
-                href="/login"
-                className="font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
-              >
-                Masuk di sini
-              </Link>
-            </p>
+                )}
+              </form>
+            </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <p className="text-center text-white/80 text-sm mt-6">
-          © 2024 CLASS. All rights reserved.
-        </p>
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Sudah punya akun?{' '}
+            <Link href="/login" className="font-semibold text-blue-600 transition hover:text-blue-700">
+              Masuk di sini
+            </Link>
+          </p>
+        </section>
       </div>
+
+      <style jsx>{`
+        @keyframes float {
+          0%,
+          100% {
+            transform: translateY(0) scale(1);
+          }
+          50% {
+            transform: translateY(-10px) scale(1.02);
+          }
+        }
+        @keyframes orbPulse {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+          40% {
+            transform: translate3d(20px, -35px, 0) scale(1.05);
+          }
+          70% {
+            transform: translate3d(-28px, 40px, 0) scale(0.96);
+          }
+        }
+        @keyframes gradientShift {
+          0% {
+            transform: translateX(-10%);
+            opacity: 0.75;
+          }
+          50% {
+            transform: translateX(12%);
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(-10%);
+            opacity: 0.75;
+          }
+        }
+        @keyframes sectionReveal {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, 32px, 0) scale(0.98);
+          }
+          60% {
+            opacity: 1;
+            transform: translate3d(0, -4px, 0) scale(1.01);
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+        }
+        .animate-float-slow {
+          animation: float 12s ease-in-out infinite;
+        }
+        .animate-float-slower {
+          animation: float 16s ease-in-out infinite;
+        }
+        .animate-orb {
+          animation: orbPulse 18s ease-in-out infinite;
+        }
+        .animate-orb-delayed {
+          animation: orbPulse 24s ease-in-out infinite;
+          animation-delay: 3.2s;
+        }
+        .animate-orb-alt {
+          animation: orbPulse 22s ease-in-out infinite;
+          animation-delay: 5s;
+        }
+        .animate-gradient {
+          animation: gradientShift 18s ease-in-out infinite;
+        }
+        .animate-section {
+          animation: sectionReveal 0.9s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+        }
+      `}</style>
     </div>
   );
 }

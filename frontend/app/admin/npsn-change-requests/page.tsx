@@ -231,7 +231,7 @@ export default function NpsnChangeRequestsPage() {
                         {request.status === NpsnChangeRequestStatus.PENDING && (
                           <>
                             <Button
-                              variant="success"
+                              variant="primary"
                               size="sm"
                               onClick={() => openApproveModal(request)}
                             >
@@ -316,7 +316,7 @@ export default function NpsnChangeRequestsPage() {
             Batal
           </Button>
           <Button
-            variant="success"
+            variant="primary"
             onClick={handleApprove}
             disabled={processing}
           >

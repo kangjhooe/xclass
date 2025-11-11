@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +10,7 @@ import { classesApi } from '@/lib/api/classes';
 import { subjectsApi } from '@/lib/api/subjects';
 import { teachersApi } from '@/lib/api/teachers';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Minggu' },
@@ -23,8 +23,8 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function SchedulesPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
+  const resolvedTenantId = tenantId ?? undefined;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [filterClassId, setFilterClassId] = useState<number | undefined>(undefined);
@@ -42,39 +42,52 @@ export default function SchedulesPage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['schedules', tenantId, filterClassId],
-    queryFn: () => schedulesApi.getAll(tenantId, { classId: filterClassId }),
+    queryKey: ['schedules', resolvedTenantId, filterClassId],
+    queryFn: () => schedulesApi.getAll(resolvedTenantId!, { classId: filterClassId }),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const { data: classesData } = useQuery({
-    queryKey: ['classes', tenantId],
-    queryFn: () => classesApi.getAll(tenantId),
+    queryKey: ['classes', resolvedTenantId],
+    queryFn: () => classesApi.getAll(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const { data: subjectsData } = useQuery({
-    queryKey: ['subjects', tenantId],
-    queryFn: () => subjectsApi.getAll(tenantId),
+    queryKey: ['subjects', resolvedTenantId],
+    queryFn: () => subjectsApi.getAll(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const { data: teachersData } = useQuery({
-    queryKey: ['teachers', tenantId],
-    queryFn: () => teachersApi.getAll(tenantId),
+    queryKey: ['teachers', resolvedTenantId],
+    queryFn: () => teachersApi.getAll(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: ScheduleCreateData) => schedulesApi.create(tenantId, data),
+    mutationFn: (data: ScheduleCreateData) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return schedulesApi.create(resolvedTenantId, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['schedules', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['schedules', resolvedTenantId] });
       setIsModalOpen(false);
       resetForm();
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<ScheduleCreateData> }) =>
-      schedulesApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<ScheduleCreateData> }) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+        }
+      return schedulesApi.update(resolvedTenantId, id, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['schedules', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['schedules', resolvedTenantId] });
       setIsModalOpen(false);
       setSelectedSchedule(null);
       resetForm();
@@ -82,9 +95,14 @@ export default function SchedulesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => schedulesApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return schedulesApi.delete(resolvedTenantId, id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['schedules', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['schedules', resolvedTenantId] });
     },
   });
 
@@ -119,6 +137,10 @@ export default function SchedulesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!resolvedTenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (selectedSchedule) {
       updateMutation.mutate({ id: selectedSchedule.id, data: formData });
     } else {
@@ -127,6 +149,10 @@ export default function SchedulesPage() {
   };
 
   const handleDelete = (id: number) => {
+    if (!resolvedTenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (confirm('Apakah Anda yakin ingin menghapus jadwal ini?')) {
       deleteMutation.mutate(id);
     }

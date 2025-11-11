@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { transportationApi, Vehicle, VehicleCreateData, Route, RouteCreateData } from '@/lib/api/transportation';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function TransportationPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [activeTab, setActiveTab] = useState<'vehicles' | 'routes'>('vehicles');
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
   const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
@@ -42,18 +41,23 @@ export default function TransportationPage() {
 
   const { data: vehiclesData, isLoading: vehiclesLoading } = useQuery({
     queryKey: ['transportation-vehicles', tenantId],
-    queryFn: () => transportationApi.getAllVehicles(tenantId),
-    enabled: activeTab === 'vehicles',
+    queryFn: () => transportationApi.getAllVehicles(tenantId!),
+    enabled: activeTab === 'vehicles' && !!tenantId,
   });
 
   const { data: routesData, isLoading: routesLoading } = useQuery({
     queryKey: ['transportation-routes', tenantId],
-    queryFn: () => transportationApi.getAllRoutes(tenantId),
-    enabled: activeTab === 'routes',
+    queryFn: () => transportationApi.getAllRoutes(tenantId!),
+    enabled: activeTab === 'routes' && !!tenantId,
   });
 
   const createVehicleMutation = useMutation({
-    mutationFn: (data: VehicleCreateData) => transportationApi.createVehicle(tenantId, data),
+    mutationFn: (data: VehicleCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return transportationApi.createVehicle(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transportation-vehicles', tenantId] });
       setIsVehicleModalOpen(false);
@@ -62,8 +66,12 @@ export default function TransportationPage() {
   });
 
   const updateVehicleMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<VehicleCreateData> }) =>
-      transportationApi.updateVehicle(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<VehicleCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return transportationApi.updateVehicle(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transportation-vehicles', tenantId] });
       setIsVehicleModalOpen(false);
@@ -73,14 +81,24 @@ export default function TransportationPage() {
   });
 
   const deleteVehicleMutation = useMutation({
-    mutationFn: (id: number) => transportationApi.deleteVehicle(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return transportationApi.deleteVehicle(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transportation-vehicles', tenantId] });
     },
   });
 
   const createRouteMutation = useMutation({
-    mutationFn: (data: RouteCreateData) => transportationApi.createRoute(tenantId, data),
+    mutationFn: (data: RouteCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return transportationApi.createRoute(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transportation-routes', tenantId] });
       setIsRouteModalOpen(false);
@@ -89,8 +107,12 @@ export default function TransportationPage() {
   });
 
   const updateRouteMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<RouteCreateData> }) =>
-      transportationApi.updateRoute(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<RouteCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return transportationApi.updateRoute(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transportation-routes', tenantId] });
       setIsRouteModalOpen(false);
@@ -100,7 +122,12 @@ export default function TransportationPage() {
   });
 
   const deleteRouteMutation = useMutation({
-    mutationFn: (id: number) => transportationApi.deleteRoute(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return transportationApi.deleteRoute(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transportation-routes', tenantId] });
     },
@@ -378,6 +405,10 @@ export default function TransportationPage() {
             >
               <form onSubmit={(e) => {
                 e.preventDefault();
+                if (!tenantId) {
+                  alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+                  return;
+                }
                 if (selectedVehicle) {
                   updateVehicleMutation.mutate({ id: selectedVehicle.id, data: vehicleFormData });
                 } else {
@@ -585,6 +616,10 @@ export default function TransportationPage() {
             >
               <form onSubmit={(e) => {
                 e.preventDefault();
+                if (!tenantId) {
+                  alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+                  return;
+                }
                 if (selectedRoute) {
                   updateRouteMutation.mutate({ id: selectedRoute.id, data: routeFormData });
                 } else {

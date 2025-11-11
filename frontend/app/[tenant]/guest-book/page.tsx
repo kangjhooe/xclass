@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { guestBookApi, GuestBook, GuestBookCreateData } from '@/lib/api/guest-book';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function GuestBookPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<GuestBook | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -31,11 +30,17 @@ export default function GuestBookPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['guest-books', tenantId],
-    queryFn: () => guestBookApi.getAll(tenantId),
+    queryFn: () => guestBookApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: GuestBookCreateData) => guestBookApi.create(tenantId, data),
+    mutationFn: (data: GuestBookCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return guestBookApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['guest-books', tenantId] });
       setIsModalOpen(false);
@@ -44,14 +49,24 @@ export default function GuestBookPage() {
   });
 
   const checkOutMutation = useMutation({
-    mutationFn: (id: number) => guestBookApi.checkOut(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return guestBookApi.checkOut(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['guest-books', tenantId] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => guestBookApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return guestBookApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['guest-books', tenantId] });
     },
@@ -72,12 +87,20 @@ export default function GuestBookPage() {
   };
 
   const handleCheckOut = (id: number) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (confirm('Apakah Anda yakin ingin melakukan checkout tamu ini?')) {
       checkOutMutation.mutate(id);
     }
   };
 
   const handleDelete = (id: number) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (confirm('Apakah Anda yakin ingin menghapus data tamu ini?')) {
       deleteMutation.mutate(id);
     }

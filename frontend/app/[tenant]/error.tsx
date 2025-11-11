@@ -13,7 +13,7 @@ export default function TenantError({
 }) {
   const params = useParams();
   const router = useRouter();
-  const tenantId = params?.tenant;
+  const tenantNpsn = params?.tenant; // NPSN from URL
 
   useEffect(() => {
     // Log error ke console untuk debugging
@@ -88,9 +88,9 @@ export default function TenantError({
               />
             </svg>
           </button>
-          {tenantId && (
+          {tenantNpsn && (
             <Link
-              href={`/${tenantId}/dashboard`}
+              href={`/${tenantNpsn}/dashboard`}
               className="bg-white text-gray-800 px-8 py-3 rounded-xl hover:bg-gray-50 transition-all duration-300 font-semibold text-lg border-2 border-gray-200 hover:border-blue-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center space-x-2"
             >
               <svg

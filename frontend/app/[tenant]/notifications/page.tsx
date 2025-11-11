@@ -1,16 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Button } from '@/components/ui/Button';
 import { notificationApi, Notification } from '@/lib/api/notification';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function NotificationsPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
@@ -18,25 +17,41 @@ export default function NotificationsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['notifications', tenantId],
-    queryFn: () => notificationApi.getAll(tenantId),
+    queryFn: () => notificationApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const markAsReadMutation = useMutation({
-    mutationFn: (id: number) => notificationApi.markAsRead(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return notificationApi.markAsRead(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', tenantId] });
     },
   });
 
   const markAllAsReadMutation = useMutation({
-    mutationFn: () => notificationApi.markAllAsRead(tenantId),
+    mutationFn: () => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return notificationApi.markAllAsRead(tenantId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', tenantId] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => notificationApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return notificationApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', tenantId] });
     },
@@ -91,7 +106,13 @@ export default function NotificationsPage() {
             </div>
             {unreadCount > 0 && (
               <Button
-                onClick={() => markAllAsReadMutation.mutate()}
+                onClick={() => {
+                  if (!tenantId) {
+                    alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+                    return;
+                  }
+                  markAllAsReadMutation.mutate();
+                }}
                 variant="outline"
                 className="hover:bg-blue-50 transition-colors"
                 loading={markAllAsReadMutation.isPending}
@@ -223,7 +244,13 @@ export default function NotificationsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => markAsReadMutation.mutate(notification.id)}
+                          onClick={() => {
+                            if (!tenantId) {
+                              alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+                              return;
+                            }
+                            markAsReadMutation.mutate(notification.id);
+                          }}
                           className="hover:bg-green-50 hover:border-green-300 transition-colors"
                           loading={markAsReadMutation.isPending}
                         >
@@ -235,6 +262,10 @@ export default function NotificationsPage() {
                         size="sm"
                         onClick={() => {
                           if (confirm('Apakah Anda yakin ingin menghapus notifikasi ini?')) {
+                            if (!tenantId) {
+                              alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+                              return;
+                            }
                             deleteMutation.mutate(notification.id);
                           }
                         }}

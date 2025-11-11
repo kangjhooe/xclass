@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { elearningApi, Material, MaterialCreateData, Assignment, AssignmentCreateData } from '@/lib/api/elearning';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function ELearningPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [activeTab, setActiveTab] = useState<'materials' | 'assignments'>('materials');
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
@@ -42,18 +41,23 @@ export default function ELearningPage() {
 
   const { data: materialsData, isLoading: materialsLoading } = useQuery({
     queryKey: ['elearning-materials', tenantId],
-    queryFn: () => elearningApi.getAllMaterials(tenantId),
-    enabled: activeTab === 'materials',
+    queryFn: () => elearningApi.getAllMaterials(tenantId!),
+    enabled: activeTab === 'materials' && !!tenantId,
   });
 
   const { data: assignmentsData, isLoading: assignmentsLoading } = useQuery({
     queryKey: ['elearning-assignments', tenantId],
-    queryFn: () => elearningApi.getAllAssignments(tenantId),
-    enabled: activeTab === 'assignments',
+    queryFn: () => elearningApi.getAllAssignments(tenantId!),
+    enabled: activeTab === 'assignments' && !!tenantId,
   });
 
   const createMaterialMutation = useMutation({
-    mutationFn: (data: MaterialCreateData) => elearningApi.createMaterial(tenantId, data),
+    mutationFn: (data: MaterialCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return elearningApi.createMaterial(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['elearning-materials', tenantId] });
       setIsMaterialModalOpen(false);
@@ -62,8 +66,12 @@ export default function ELearningPage() {
   });
 
   const updateMaterialMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<MaterialCreateData> }) =>
-      elearningApi.updateMaterial(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<MaterialCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return elearningApi.updateMaterial(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['elearning-materials', tenantId] });
       setIsMaterialModalOpen(false);
@@ -73,14 +81,24 @@ export default function ELearningPage() {
   });
 
   const deleteMaterialMutation = useMutation({
-    mutationFn: (id: number) => elearningApi.deleteMaterial(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return elearningApi.deleteMaterial(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['elearning-materials', tenantId] });
     },
   });
 
   const createAssignmentMutation = useMutation({
-    mutationFn: (data: AssignmentCreateData) => elearningApi.createAssignment(tenantId, data),
+    mutationFn: (data: AssignmentCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return elearningApi.createAssignment(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['elearning-assignments', tenantId] });
       setIsAssignmentModalOpen(false);
@@ -89,8 +107,12 @@ export default function ELearningPage() {
   });
 
   const updateAssignmentMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<AssignmentCreateData> }) =>
-      elearningApi.updateAssignment(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<AssignmentCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return elearningApi.updateAssignment(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['elearning-assignments', tenantId] });
       setIsAssignmentModalOpen(false);
@@ -100,7 +122,12 @@ export default function ELearningPage() {
   });
 
   const deleteAssignmentMutation = useMutation({
-    mutationFn: (id: number) => elearningApi.deleteAssignment(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return elearningApi.deleteAssignment(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['elearning-assignments', tenantId] });
     },
@@ -390,6 +417,10 @@ export default function ELearningPage() {
             >
               <form onSubmit={(e) => {
                 e.preventDefault();
+                if (!tenantId) {
+                  alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+                  return;
+                }
                 if (selectedMaterial) {
                   updateMaterialMutation.mutate({ id: selectedMaterial.id, data: materialFormData });
                 } else {
@@ -587,14 +618,18 @@ export default function ELearningPage() {
               title={selectedAssignment ? 'Edit Tugas' : 'Tambah Tugas'}
               size="lg"
             >
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (selectedAssignment) {
-                  updateAssignmentMutation.mutate({ id: selectedAssignment.id, data: assignmentFormData });
-                } else {
-                  createAssignmentMutation.mutate(assignmentFormData);
-                }
-              }} className="space-y-4">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (!tenantId) {
+              alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+              return;
+            }
+            if (selectedAssignment) {
+              updateAssignmentMutation.mutate({ id: selectedAssignment.id, data: assignmentFormData });
+            } else {
+              createAssignmentMutation.mutate(assignmentFormData);
+            }
+          }} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Judul <span className="text-red-500">*</span>

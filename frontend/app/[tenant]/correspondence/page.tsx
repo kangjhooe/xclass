@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { correspondenceApi, Correspondence, CorrespondenceCreateData } from '@/lib/api/correspondence';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function CorrespondencePage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCorrespondence, setSelectedCorrespondence] = useState<Correspondence | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
@@ -33,11 +32,17 @@ export default function CorrespondencePage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['correspondence', tenantId],
-    queryFn: () => correspondenceApi.getAll(tenantId),
+    queryFn: () => correspondenceApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: CorrespondenceCreateData) => correspondenceApi.create(tenantId, data),
+    mutationFn: (data: CorrespondenceCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return correspondenceApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['correspondence', tenantId] });
       setIsModalOpen(false);
@@ -46,8 +51,12 @@ export default function CorrespondencePage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CorrespondenceCreateData> }) =>
-      correspondenceApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<CorrespondenceCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return correspondenceApi.update(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['correspondence', tenantId] });
       setIsModalOpen(false);
@@ -57,7 +66,12 @@ export default function CorrespondencePage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => correspondenceApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return correspondenceApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['correspondence', tenantId] });
     },
@@ -96,6 +110,11 @@ export default function CorrespondencePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (selectedCorrespondence) {
       updateMutation.mutate({ id: selectedCorrespondence.id, data: formData });
     } else {
@@ -104,6 +123,11 @@ export default function CorrespondencePage() {
   };
 
   const handleDelete = (id: number) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (confirm('Apakah Anda yakin ingin menghapus surat ini?')) {
       deleteMutation.mutate(id);
     }
@@ -148,7 +172,7 @@ export default function CorrespondencePage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                Korespondensi
+                Persuratan
               </h1>
               <p className="text-gray-600">Manajemen surat masuk dan surat keluar</p>
             </div>
@@ -333,7 +357,7 @@ export default function CorrespondencePage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                           </div>
-                          <p className="text-gray-500 font-medium">Belum ada data korespondensi</p>
+                          <p className="text-gray-500 font-medium">Belum ada data persuratan</p>
                         </div>
                       </TableCell>
                     </TableRow>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { graduationApi, Graduation, GraduationCreateData } from '@/lib/api/graduation';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function GraduationPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGraduation, setSelectedGraduation] = useState<Graduation | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -29,11 +28,17 @@ export default function GraduationPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['graduations', tenantId],
-    queryFn: () => graduationApi.getAll(tenantId),
+    queryFn: () => graduationApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: GraduationCreateData) => graduationApi.create(tenantId, data),
+    mutationFn: (data: GraduationCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return graduationApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['graduations', tenantId] });
       setIsModalOpen(false);
@@ -42,14 +47,24 @@ export default function GraduationPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: number) => graduationApi.approve(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return graduationApi.approve(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['graduations', tenantId] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => graduationApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return graduationApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['graduations', tenantId] });
     },
@@ -268,6 +283,10 @@ export default function GraduationPage() {
         >
           <form onSubmit={(e) => {
             e.preventDefault();
+            if (!tenantId) {
+              alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+              return;
+            }
             createMutation.mutate(formData);
           }} className="space-y-4">
             <div>

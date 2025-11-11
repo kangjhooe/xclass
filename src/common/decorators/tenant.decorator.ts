@@ -12,7 +12,7 @@ export const TenantId = createParamDecorator(
     const request = ctx.switchToHttp().getRequest();
     
     // Coba ambil dari berbagai sumber (prioritas: user > tenant object > tenantId > header > params)
-    let tenantId: number | string | undefined = 
+    const tenantId: number | string | undefined = 
       request.user?.instansiId ||  // Dari JWT user yang sudah login
       request.tenant?.id ||         // Dari tenant object (jika di-set oleh middleware)
       request.tenantId ||           // Dari middleware

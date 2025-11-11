@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { reportGeneratorApi, ReportTemplate, ReportTemplateCreateData } from '@/lib/api/report-generator';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function ReportGeneratorPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
@@ -30,11 +29,17 @@ export default function ReportGeneratorPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['report-templates', tenantId],
-    queryFn: () => reportGeneratorApi.getAllTemplates(tenantId),
+    queryFn: () => reportGeneratorApi.getAllTemplates(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: ReportTemplateCreateData) => reportGeneratorApi.createTemplate(tenantId, data),
+    mutationFn: (data: ReportTemplateCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return reportGeneratorApi.createTemplate(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['report-templates', tenantId] });
       setIsModalOpen(false);
@@ -43,8 +48,12 @@ export default function ReportGeneratorPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<ReportTemplateCreateData> }) =>
-      reportGeneratorApi.updateTemplate(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<ReportTemplateCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return reportGeneratorApi.updateTemplate(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['report-templates', tenantId] });
       setIsModalOpen(false);
@@ -54,14 +63,24 @@ export default function ReportGeneratorPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => reportGeneratorApi.deleteTemplate(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return reportGeneratorApi.deleteTemplate(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['report-templates', tenantId] });
     },
   });
 
   const generateMutation = useMutation({
-    mutationFn: (templateId: number) => reportGeneratorApi.generate(tenantId, templateId),
+    mutationFn: (templateId: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return reportGeneratorApi.generate(tenantId, templateId);
+    },
     onSuccess: () => {
       setIsGenerateModalOpen(false);
       setSelectedTemplateForGenerate(null);
@@ -96,6 +115,11 @@ export default function ReportGeneratorPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (selectedTemplate) {
       updateMutation.mutate({ id: selectedTemplate.id, data: formData });
     } else {

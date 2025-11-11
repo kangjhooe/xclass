@@ -26,6 +26,12 @@ export class DataPokok {
   @Column({ nullable: true })
   jenjang: string; // 'SD', 'SMP', 'SMA', 'SMK'
 
+  @Column({ nullable: true })
+  kurikulum: string; // 'K13', 'Merdeka', 'Mandiri'
+
+  @Column({ nullable: true })
+  tahunPelajaranAktif: string; // '2024/2025', '2025/2026', '2026/2027'
+
   @Column({ type: 'text', nullable: true })
   address: string;
 

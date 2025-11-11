@@ -239,7 +239,7 @@ export class ExportImportService {
       return dataRows.map((row: any[]) => {
         const mapped: any = {};
         headers.forEach((header, index) => {
-          const fieldName = options.mapping![header];
+          const fieldName = options.mapping[header];
           if (fieldName) {
             mapped[fieldName] = row[index];
           } else {
@@ -304,7 +304,7 @@ export class ExportImportService {
       return dataRows.map((row) => {
         const mapped: any = {};
         headers.forEach((header, index) => {
-          const fieldName = options.mapping![header];
+          const fieldName = options.mapping[header];
           if (fieldName) {
             mapped[fieldName] = row[index];
           } else {

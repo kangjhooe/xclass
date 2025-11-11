@@ -3,21 +3,34 @@
 import { Button } from './Button';
 import { useState, useRef } from 'react';
 
-interface ImportButtonProps {
+export interface ImportButtonProps {
   onImport: (file: File, format: 'excel' | 'csv') => Promise<void>;
   accept?: string;
   disabled?: boolean;
+  label?: string;
+  loadingLabel?: string;
+  isLoading?: boolean;
 }
 
-export function ImportButton({ onImport, accept, disabled }: ImportButtonProps) {
+export function ImportButton({
+  onImport,
+  accept,
+  disabled,
+  label = 'Impor Data',
+  loadingLabel = 'Mengimpor...',
+  isLoading,
+}: ImportButtonProps) {
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isBusy = (isLoading ?? isImporting) ?? false;
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsImporting(true);
+    if (isLoading === undefined) {
+      setIsImporting(true);
+    }
     try {
       const format = file.name.endsWith('.csv') ? 'csv' : 'excel';
       await onImport(file, format);
@@ -25,7 +38,9 @@ export function ImportButton({ onImport, accept, disabled }: ImportButtonProps) 
       console.error('Import error:', error);
       alert('Gagal mengimpor data. Silakan coba lagi.');
     } finally {
-      setIsImporting(false);
+      if (isLoading === undefined) {
+        setIsImporting(false);
+      }
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -41,15 +56,15 @@ export function ImportButton({ onImport, accept, disabled }: ImportButtonProps) 
         accept={accept || '.xlsx,.xls,.csv'}
         onChange={handleFileSelect}
         className="hidden"
-        disabled={disabled || isImporting}
+        disabled={disabled || isBusy}
       />
       <Button
         variant="outline"
         onClick={() => fileInputRef.current?.click()}
-        disabled={disabled || isImporting}
-        loading={isImporting}
+        disabled={disabled || isBusy}
+        loading={isBusy}
       >
-        {isImporting ? 'Mengimpor...' : 'Impor Data'}
+        {isBusy ? loadingLabel : label}
       </Button>
     </>
   );

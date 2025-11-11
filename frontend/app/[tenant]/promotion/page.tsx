@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { promotionApi, Promotion, PromotionCreateData } from '@/lib/api/promotion';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function PromotionPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPromotion, setSelectedPromotion] = useState<Promotion | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -28,11 +27,17 @@ export default function PromotionPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['promotions', tenantId],
-    queryFn: () => promotionApi.getAll(tenantId),
+    queryFn: () => promotionApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: PromotionCreateData) => promotionApi.create(tenantId, data),
+    mutationFn: (data: PromotionCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return promotionApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['promotions', tenantId] });
       setIsModalOpen(false);
@@ -41,21 +46,36 @@ export default function PromotionPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: number) => promotionApi.approve(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return promotionApi.approve(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['promotions', tenantId] });
     },
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason?: string }) => promotionApi.reject(tenantId, id, reason),
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return promotionApi.reject(tenantId, id, reason);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['promotions', tenantId] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => promotionApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return promotionApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['promotions', tenantId] });
     },
@@ -284,6 +304,10 @@ export default function PromotionPage() {
         >
           <form onSubmit={(e) => {
             e.preventDefault();
+            if (!tenantId) {
+              alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+              return;
+            }
             createMutation.mutate(formData);
           }} className="space-y-4">
             <div>

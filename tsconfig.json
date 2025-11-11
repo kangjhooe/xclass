@@ -23,6 +23,6 @@
       "@common/*": ["src/common/*"]
     }
   },
-  "exclude": ["node_modules", "dist", "frontend", "test", "**/*spec.ts"]
+  "exclude": ["node_modules", "dist", "frontend", "dashboard", "test", "**/*spec.ts"]
 }
 

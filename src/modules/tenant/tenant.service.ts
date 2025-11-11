@@ -32,6 +32,25 @@ export class TenantService {
     });
   }
 
+  async findByIdentifier(identifier: string): Promise<Tenant> {
+    const isNumeric = /^\d+$/.test(identifier);
+
+    if (isNumeric) {
+      const id = parseInt(identifier, 10);
+      try {
+        return await this.findOne(id);
+      } catch (error) {
+        // Jika tidak ditemukan berdasarkan ID, coba sebagai NPSN
+      }
+    }
+
+    try {
+      return await this.findByNpsn(identifier);
+    } catch (error) {
+      throw new NotFoundException(`Tenant with identifier ${identifier} not found`);
+    }
+  }
+
   async update(id: number, updateData: Partial<Tenant>): Promise<Tenant> {
     const tenant = await this.findOne(id);
     Object.assign(tenant, updateData);

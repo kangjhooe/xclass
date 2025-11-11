@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -13,10 +12,10 @@ import { eventsApi, Event, EventCreateData } from '@/lib/api/events';
 import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function EventsPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,11 +37,17 @@ export default function EventsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['events', tenantId, currentPage, searchQuery],
-    queryFn: () => eventsApi.getAll(tenantId, { page: currentPage, limit: itemsPerPage }),
+    queryFn: () => eventsApi.getAll(tenantId!, { page: currentPage, limit: itemsPerPage }),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: EventCreateData) => eventsApi.create(tenantId, data),
+    mutationFn: (data: EventCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return eventsApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', tenantId] });
       setIsModalOpen(false);
@@ -55,8 +60,12 @@ export default function EventsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<EventCreateData> }) =>
-      eventsApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<EventCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return eventsApi.update(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', tenantId] });
       setIsModalOpen(false);
@@ -70,7 +79,12 @@ export default function EventsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => eventsApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return eventsApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', tenantId] });
       success('Event berhasil dihapus');
@@ -111,6 +125,10 @@ export default function EventsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (selectedEvent) {
       updateMutation.mutate({ id: selectedEvent.id, data: formData });
     } else {
@@ -119,6 +137,10 @@ export default function EventsPage() {
   };
 
   const handleDelete = (id: number) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
     if (confirm('Apakah Anda yakin ingin menghapus event ini?')) {
       deleteMutation.mutate(id);
     }

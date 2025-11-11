@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { cafeteriaApi, Menu, MenuCreateData, Order, OrderCreateData } from '@/lib/api/cafeteria';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function CafeteriaPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [activeTab, setActiveTab] = useState<'menus' | 'orders'>('menus');
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -35,18 +34,23 @@ export default function CafeteriaPage() {
 
   const { data: menusData, isLoading: menusLoading } = useQuery({
     queryKey: ['cafeteria-menus', tenantId],
-    queryFn: () => cafeteriaApi.getAllMenus(tenantId),
-    enabled: activeTab === 'menus',
+    queryFn: () => cafeteriaApi.getAllMenus(tenantId!),
+    enabled: activeTab === 'menus' && !!tenantId,
   });
 
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['cafeteria-orders', tenantId],
-    queryFn: () => cafeteriaApi.getAllOrders(tenantId),
-    enabled: activeTab === 'orders',
+    queryFn: () => cafeteriaApi.getAllOrders(tenantId!),
+    enabled: activeTab === 'orders' && !!tenantId,
   });
 
   const createMenuMutation = useMutation({
-    mutationFn: (data: MenuCreateData) => cafeteriaApi.createMenu(tenantId, data),
+    mutationFn: (data: MenuCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cafeteriaApi.createMenu(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cafeteria-menus', tenantId] });
       setIsMenuModalOpen(false);
@@ -55,8 +59,12 @@ export default function CafeteriaPage() {
   });
 
   const updateMenuMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<MenuCreateData> }) =>
-      cafeteriaApi.updateMenu(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<MenuCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cafeteriaApi.updateMenu(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cafeteria-menus', tenantId] });
       setIsMenuModalOpen(false);
@@ -66,14 +74,24 @@ export default function CafeteriaPage() {
   });
 
   const deleteMenuMutation = useMutation({
-    mutationFn: (id: number) => cafeteriaApi.deleteMenu(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cafeteriaApi.deleteMenu(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cafeteria-menus', tenantId] });
     },
   });
 
   const createOrderMutation = useMutation({
-    mutationFn: (data: OrderCreateData) => cafeteriaApi.createOrder(tenantId, data),
+    mutationFn: (data: OrderCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return cafeteriaApi.createOrder(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cafeteria-orders', tenantId] });
       setIsOrderModalOpen(false);
@@ -335,6 +353,10 @@ export default function CafeteriaPage() {
             >
               <form onSubmit={(e) => {
                 e.preventDefault();
+                if (!tenantId) {
+                  alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+                  return;
+                }
                 if (selectedMenu) {
                   updateMenuMutation.mutate({ id: selectedMenu.id, data: menuFormData });
                 } else {

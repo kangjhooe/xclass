@@ -48,8 +48,17 @@ export const tenantApi = {
     return response.data;
   },
 
+  getByIdentifier: async (identifier: string): Promise<Tenant> => {
+    const response = await apiClient.get(`/tenants/resolve/${identifier}`);
+    return response.data;
+  },
+
   update: async (id: number, data: TenantUpdateData): Promise<Tenant> => {
-    const response = await apiClient.put(`/tenants/${id}`, data);
+    const response = await apiClient.put(`/tenants/${id}`, data, {
+      headers: {
+        'x-tenant-id': id.toString(),
+      },
+    });
     return response.data;
   },
 

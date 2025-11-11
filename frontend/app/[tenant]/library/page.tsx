@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -12,10 +11,11 @@ import { libraryApi, Book, BookCreateData } from '@/lib/api/library';
 import { studentsApi } from '@/lib/api/students';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function LibraryPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
+  const resolvedTenantId = tenantId ?? undefined;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,24 +35,34 @@ export default function LibraryPage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['library-books', tenantId, currentPage],
-    queryFn: () => libraryApi.getAllBooks(tenantId),
+    queryKey: ['library-books', resolvedTenantId, currentPage],
+    queryFn: () => libraryApi.getAllBooks(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: BookCreateData) => libraryApi.createBook(tenantId, data),
+    mutationFn: (data: BookCreateData) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return libraryApi.createBook(resolvedTenantId, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['library-books', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['library-books', resolvedTenantId] });
       setIsModalOpen(false);
       resetForm();
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<BookCreateData> }) =>
-      libraryApi.updateBook(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<BookCreateData> }) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return libraryApi.updateBook(resolvedTenantId, id, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['library-books', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['library-books', resolvedTenantId] });
       setIsModalOpen(false);
       setSelectedBook(null);
       resetForm();
@@ -60,9 +70,14 @@ export default function LibraryPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => libraryApi.deleteBook(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return libraryApi.deleteBook(resolvedTenantId, id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['library-books', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['library-books', resolvedTenantId] });
     },
   });
 

@@ -31,6 +31,7 @@ import { DisciplineModule } from './modules/discipline/discipline.module';
 import { HealthModule } from './modules/health/health.module';
 import { TransportationModule } from './modules/transportation/transportation.module';
 import { FacilityModule } from './modules/facility/facility.module';
+import { InfrastructureModule } from './modules/infrastructure/infrastructure.module';
 import { GuestBookModule } from './modules/guest-book/guest-book.module';
 import { GraduationModule } from './modules/graduation/graduation.module';
 import { MessageModule } from './modules/message/message.module';
@@ -55,10 +56,16 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { ExportImportModule } from './modules/export-import/export-import.module';
 import { NpsnChangeRequestModule } from './modules/npsn-change-request/npsn-change-request.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { ReportBuilderModule } from './modules/report-builder/report-builder.module';
+import { AuditTrailModule } from './modules/audit-trail/audit-trail.module';
+import { TenantAccessModule } from './modules/tenant-access/tenant-access.module';
+import { CacheModule } from './common/cache/cache.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
 @Module({
   imports: [
+    CacheModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -75,7 +82,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
           password: configService.get<string>('DB_PASSWORD') || '',
           database: configService.get<string>('DB_DATABASE') || 'class',
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          synchronize: false, // Disabled to prevent schema sync errors
+          synchronize: true, // Disabled to prevent schema sync errors
           logging: configService.get<string>('NODE_ENV') === 'development',
           retryAttempts: 3,
           retryDelay: 3000,
@@ -114,6 +121,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     HealthModule,
     TransportationModule,
     FacilityModule,
+    InfrastructureModule,
     GuestBookModule,
     GraduationModule,
     MessageModule,
@@ -135,6 +143,10 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     StorageModule,
     ExportImportModule,
     NpsnChangeRequestModule,
+    AnalyticsModule,
+    ReportBuilderModule,
+    AuditTrailModule,
+    TenantAccessModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

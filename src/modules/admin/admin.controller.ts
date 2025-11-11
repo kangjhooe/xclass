@@ -96,6 +96,24 @@ export class AdminController {
     return this.adminService.getUserById(+id);
   }
 
+  @Post('users')
+  createSuperAdminUser(@Body() userData: { name: string; email: string; password: string; phone?: string }) {
+    return this.adminService.createSuperAdminUser(userData);
+  }
+
+  @Put('users/:id')
+  updateSuperAdminUser(
+    @Param('id') id: string,
+    @Body() userData: Partial<{ name: string; email: string; password: string; phone: string; isActive: boolean }>,
+  ) {
+    return this.adminService.updateSuperAdminUser(+id, userData);
+  }
+
+  @Delete('users/:id')
+  deleteSuperAdminUser(@Param('id') id: string) {
+    return this.adminService.deleteSuperAdminUser(+id);
+  }
+
   @Post('users/:id/activate')
   activateUser(@Param('id') id: string) {
     return this.adminService.activateUser(+id);

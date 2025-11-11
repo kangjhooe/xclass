@@ -5,113 +5,150 @@ import {
   IsEmail,
   IsNumber,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateDataPokokDto {
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   npsn?: string;
 
   @IsString()
   name: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   type?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   jenjang?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
+  kurikulum?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
+  tahunPelajaranAktif?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   address?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   village?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   subDistrict?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   district?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   city?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   province?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   postalCode?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   phone?: string;
 
-  @IsEmail()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsEmail()
   email?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   website?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   principalName?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   principalNip?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   principalPhone?: string;
 
-  @IsEmail()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsEmail()
   principalEmail?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   description?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   vision?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   mission?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   accreditation?: string;
 
-  @IsDateString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsDateString()
   accreditationDate?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   licenseNumber?: string;
 
-  @IsDateString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsDateString()
   licenseDate?: string;
 
-  @IsDateString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsDateString()
   establishedDate?: string;
 
-  @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @IsString()
   notes?: string;
 }
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { academicReportsApi, AcademicReport, AcademicReportGenerateData } from '@/lib/api/academic-reports';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function AcademicReportsPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<AcademicReportGenerateData>({
     report_type: 'student_grade',
@@ -27,11 +26,17 @@ export default function AcademicReportsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['academic-reports', tenantId],
-    queryFn: () => academicReportsApi.getAll(tenantId),
+    queryFn: () => academicReportsApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const generateMutation = useMutation({
-    mutationFn: (data: AcademicReportGenerateData) => academicReportsApi.generate(tenantId, data),
+    mutationFn: (data: AcademicReportGenerateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return academicReportsApi.generate(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academic-reports', tenantId] });
       setIsModalOpen(false);
@@ -40,7 +45,12 @@ export default function AcademicReportsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => academicReportsApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return academicReportsApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academic-reports', tenantId] });
     },
@@ -152,7 +162,7 @@ export default function AcademicReportsPage() {
                             </a>
                           )}
                           <Button
-                            variant="danger"
+                            variant="destructive"
                             size="sm"
                             onClick={() => {
                               if (confirm('Apakah Anda yakin ingin menghapus laporan ini?')) {
@@ -198,6 +208,10 @@ export default function AcademicReportsPage() {
         >
           <form onSubmit={(e) => {
             e.preventDefault();
+            if (!tenantId) {
+              alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+              return;
+            }
             generateMutation.mutate(formData);
           }} className="space-y-4">
             <div>
@@ -288,9 +302,9 @@ export default function AcademicReportsPage() {
               </Button>
               <Button
                 type="submit"
-                loading={generateMutation.isPending}
+                disabled={generateMutation.isPending}
               >
-                Generate
+                {generateMutation.isPending ? 'Memproses...' : 'Generate'}
               </Button>
             </div>
           </form>

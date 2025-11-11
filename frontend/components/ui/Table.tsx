@@ -39,17 +39,26 @@ export function TableRow({ children, className }: TableProps) {
   );
 }
 
-export function TableHead({ children, className }: TableProps) {
+interface TableHeadProps extends TableProps {
+  onClick?: () => void;
+}
+
+export function TableHead({ children, className, onClick }: TableHeadProps) {
   return (
-    <th className={cn('px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider', className)}>
+    <th onClick={onClick} className={cn('px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider', className)}>
       {children}
     </th>
   );
 }
 
-export function TableCell({ children, className }: TableProps) {
+interface TableCellProps extends TableProps {
+  colSpan?: number;
+  title?: string;
+}
+
+export function TableCell({ children, className, colSpan, title }: TableCellProps) {
   return (
-    <td className={cn('px-6 py-4 whitespace-nowrap text-sm text-gray-900', className)}>
+    <td colSpan={colSpan} title={title} className={cn('px-6 py-4 whitespace-nowrap text-sm text-gray-900', className)}>
       {children}
     </td>
   );

@@ -50,16 +50,18 @@ export class LetterActivityLog {
   @CreateDateColumn()
   createdAt: Date;
 
+  // Relasi tanpa foreign key constraint karena letter_id bisa merujuk ke incoming_letters atau outgoing_letters
+  // tergantung nilai letterType (polymorphic relationship)
   @ManyToOne(() => IncomingLetter, (letter) => letter.activityLogs, {
     nullable: true,
-    onDelete: 'CASCADE',
+    createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: 'letter_id' })
   incomingLetter: IncomingLetter;
 
   @ManyToOne(() => OutgoingLetter, (letter) => letter.activityLogs, {
     nullable: true,
-    onDelete: 'CASCADE',
+    createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: 'letter_id' })
   outgoingLetter: OutgoingLetter;

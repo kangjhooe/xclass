@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +8,10 @@ import { Modal } from '@/components/ui/Modal';
 import { academicYearsApi, AcademicYear, AcademicYearCreateData } from '@/lib/api/academic-years';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function AcademicYearsPage() {
-  const params = useParams();
-  const tenantId = parseInt(params.tenant as string);
+  const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<AcademicYear | null>(null);
   const [formData, setFormData] = useState<AcademicYearCreateData>({
@@ -27,11 +26,17 @@ export default function AcademicYearsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['academic-years', tenantId],
-    queryFn: () => academicYearsApi.getAll(tenantId),
+    queryFn: () => academicYearsApi.getAll(tenantId!),
+    enabled: !!tenantId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: AcademicYearCreateData) => academicYearsApi.create(tenantId, data),
+    mutationFn: (data: AcademicYearCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return academicYearsApi.create(tenantId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academic-years', tenantId] });
       setIsModalOpen(false);
@@ -40,8 +45,12 @@ export default function AcademicYearsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<AcademicYearCreateData> }) =>
-      academicYearsApi.update(tenantId, id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<AcademicYearCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return academicYearsApi.update(tenantId, id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academic-years', tenantId] });
       setIsModalOpen(false);
@@ -51,7 +60,12 @@ export default function AcademicYearsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => academicYearsApi.delete(tenantId, id),
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return academicYearsApi.delete(tenantId, id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academic-years', tenantId] });
     },
@@ -82,6 +96,11 @@ export default function AcademicYearsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (selectedAcademicYear) {
       updateMutation.mutate({ id: selectedAcademicYear.id, data: formData });
     } else {
@@ -90,12 +109,22 @@ export default function AcademicYearsPage() {
   };
 
   const handleDelete = (id: number) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (confirm('Apakah Anda yakin ingin menghapus tahun pelajaran ini?')) {
       deleteMutation.mutate(id);
     }
   };
 
   const handleSetActive = (id: number) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
     if (confirm('Apakah Anda yakin ingin mengaktifkan tahun pelajaran ini? Tahun pelajaran aktif lainnya akan dinonaktifkan.')) {
       updateMutation.mutate({ id, data: { isActive: true } });
     }

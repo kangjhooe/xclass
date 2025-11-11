@@ -104,9 +104,10 @@ export default function TenantFeaturesPage() {
     try {
       if (activeTab === 'features') {
         if (editingItem) {
+          const featureKey = 'featureKey' in editingItem ? editingItem.featureKey : formData.featureKey;
           await tenantFeaturesApi.updateTenantFeature(
             selectedTenantId,
-            editingItem.featureKey || formData.featureKey,
+            featureKey,
             formData,
           );
         } else {
@@ -114,9 +115,10 @@ export default function TenantFeaturesPage() {
         }
       } else {
         if (editingItem) {
+          const moduleKey = 'moduleKey' in editingItem ? editingItem.moduleKey : formData.moduleKey;
           await tenantFeaturesApi.updateTenantModule(
             selectedTenantId,
-            editingItem.moduleKey || formData.moduleKey,
+            moduleKey,
             formData,
           );
         } else {

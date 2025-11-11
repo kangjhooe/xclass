@@ -594,7 +594,7 @@ export class IntegrationApiService {
       throw new Error('NISN is required for student sync');
     }
 
-    let student = await this.studentRepository.findOne({
+    const student = await this.studentRepository.findOne({
       where: { instansiId, nisn },
     });
 
@@ -636,7 +636,7 @@ export class IntegrationApiService {
       throw new Error('NIK or NUPTK is required for teacher sync');
     }
 
-    let teacher = await this.teacherRepository.findOne({
+    const teacher = await this.teacherRepository.findOne({
       where: { instansiId, nik },
     });
 
@@ -731,7 +731,7 @@ export class IntegrationApiService {
       throw new Error('NISN is required for student sync');
     }
 
-    let student = await this.studentRepository.findOne({
+    const student = await this.studentRepository.findOne({
       where: { instansiId, nisn },
     });
 
@@ -769,7 +769,7 @@ export class IntegrationApiService {
       throw new Error('NIK or NUPTK is required for teacher sync');
     }
 
-    let teacher = await this.teacherRepository.findOne({
+    const teacher = await this.teacherRepository.findOne({
       where: { instansiId, nik },
     });
 

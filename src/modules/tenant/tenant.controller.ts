@@ -14,14 +14,19 @@ export class TenantController {
     return this.tenantService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.tenantService.findOne(+id);
-  }
-
   @Get('npsn/:npsn')
   findByNpsn(@Param('npsn') npsn: string) {
     return this.tenantService.findByNpsn(npsn);
+  }
+
+  @Get('resolve/:identifier')
+  findByIdentifier(@Param('identifier') identifier: string) {
+    return this.tenantService.findByIdentifier(identifier);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.tenantService.findOne(+id);
   }
 
   @Put(':id')
