@@ -3,26 +3,16 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Exam } from './exam.entity';
+import { Question, QuestionType, QuestionDifficulty } from './question.entity';
+import { Stimulus } from './stimulus.entity';
 
-export enum QuestionType {
-  MULTIPLE_CHOICE = 'multiple_choice',
-  TRUE_FALSE = 'true_false',
-  ESSAY = 'essay',
-  FILL_BLANK = 'fill_blank',
-  MATCHING = 'matching',
-}
-
-export enum QuestionDifficulty {
-  EASY = 'easy',
-  MEDIUM = 'medium',
-  HARD = 'hard',
-}
+// Re-export types for convenience
+export { QuestionType, QuestionDifficulty };
 
 @Entity('exam_questions')
 export class ExamQuestion {
@@ -32,6 +22,13 @@ export class ExamQuestion {
   @Column()
   examId: number;
 
+  @Column({ nullable: true })
+  questionId: number; // Reference ke Question asli (jika dari bank soal)
+
+  @Column({ nullable: true })
+  stimulusId: number; // Snapshot stimulus jika ada
+
+  // Snapshot data dari Question (untuk konsistensi)
   @Column({ type: 'text' })
   questionText: string;
 
@@ -52,23 +49,26 @@ export class ExamQuestion {
   explanation: string;
 
   @Column({ type: 'int', default: 1 })
-  points: number;
+  points: number; // Bisa override dari Question
 
   @Column({
     type: 'enum',
     enum: QuestionDifficulty,
-    default: QuestionDifficulty.MEDIUM,
+    default: QuestionDifficulty.LEVEL_3,
   })
   difficulty: QuestionDifficulty;
 
   @Column({ type: 'int', default: 0 })
-  order: number;
+  order: number; // Urutan di ujian ini
 
   @Column({ default: true })
   isActive: boolean;
 
   @Column({ type: 'json', nullable: true })
   metadata: Record<string, any>;
+
+  @Column({ default: true })
+  isSnapshot: boolean; // True jika sudah di-copy dari Question
 
   @Column()
   instansiId: number;
@@ -82,5 +82,13 @@ export class ExamQuestion {
   @ManyToOne(() => Exam, (exam) => exam.questions)
   @JoinColumn({ name: 'exam_id' })
   exam: Exam;
+
+  @ManyToOne(() => Question, { nullable: true })
+  @JoinColumn({ name: 'question_id' })
+  question: Question;
+
+  @ManyToOne(() => Stimulus, { nullable: true })
+  @JoinColumn({ name: 'stimulus_id' })
+  stimulus: Stimulus;
 }
 

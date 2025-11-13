@@ -8,7 +8,7 @@ interface TableProps {
 export function Table({ children, className }: TableProps) {
   return (
     <div className="overflow-x-auto">
-      <table className={cn('min-w-full divide-y divide-gray-200', className)}>
+      <table className={cn('min-w-full divide-y divide-border', className)}>
         {children}
       </table>
     </div>
@@ -17,7 +17,7 @@ export function Table({ children, className }: TableProps) {
 
 export function TableHeader({ children, className }: TableProps) {
   return (
-    <thead className={cn('bg-gray-50', className)}>
+    <thead className={cn('bg-muted/50', className)}>
       {children}
     </thead>
   );
@@ -25,7 +25,7 @@ export function TableHeader({ children, className }: TableProps) {
 
 export function TableBody({ children, className }: TableProps) {
   return (
-    <tbody className={cn('bg-white divide-y divide-gray-200', className)}>
+    <tbody className={cn('bg-background divide-y divide-border', className)}>
       {children}
     </tbody>
   );
@@ -33,7 +33,7 @@ export function TableBody({ children, className }: TableProps) {
 
 export function TableRow({ children, className }: TableProps) {
   return (
-    <tr className={cn('hover:bg-gray-50', className)}>
+    <tr className={cn('hover:bg-muted/50 transition-colors', className)}>
       {children}
     </tr>
   );
@@ -45,7 +45,7 @@ interface TableHeadProps extends TableProps {
 
 export function TableHead({ children, className, onClick }: TableHeadProps) {
   return (
-    <th onClick={onClick} className={cn('px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider', className)}>
+    <th onClick={onClick} className={cn('px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider', className)}>
       {children}
     </th>
   );
@@ -58,7 +58,7 @@ interface TableCellProps extends TableProps {
 
 export function TableCell({ children, className, colSpan, title }: TableCellProps) {
   return (
-    <td colSpan={colSpan} title={title} className={cn('px-6 py-4 whitespace-nowrap text-sm text-gray-900', className)}>
+    <td colSpan={colSpan} title={title} className={cn('px-6 py-4 whitespace-nowrap text-sm text-foreground', className)}>
       {children}
     </td>
   );

@@ -39,7 +39,7 @@ export function QuickFilter({
 
   if (variant === 'tabs') {
     return (
-      <div className={cn('border-b border-gray-200 dark:border-gray-700', className)}>
+      <div className={cn('border-b border-border', className)}>
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           {showAll && (
             <button
@@ -47,8 +47,8 @@ export function QuickFilter({
               className={cn(
                 'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                 (value === 'all' || value === undefined)
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               )}
             >
               {allLabel}
@@ -61,8 +61,8 @@ export function QuickFilter({
               className={cn(
                 'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
                 value === option.value
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               )}
             >
               {option.icon}
@@ -72,8 +72,8 @@ export function QuickFilter({
                   className={cn(
                     'ml-2 py-0.5 px-2 rounded-full text-xs font-semibold',
                     value === option.value
-                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-muted text-muted-foreground'
                   )}
                 >
                   {option.count}
@@ -95,8 +95,8 @@ export function QuickFilter({
             className={cn(
               'px-4 py-2 rounded-full text-sm font-medium transition-all',
               (value === 'all' || value === undefined)
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             )}
           >
             {allLabel}
@@ -109,8 +109,8 @@ export function QuickFilter({
             className={cn(
               'px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2',
               value === option.value
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             )}
           >
             {option.icon}
@@ -120,8 +120,8 @@ export function QuickFilter({
                 className={cn(
                   'ml-1 px-2 py-0.5 rounded-full text-xs font-semibold',
                   value === option.value
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300'
+                    ? 'bg-primary/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
                 )}
               >
                 {option.count}
@@ -137,7 +137,7 @@ export function QuickFilter({
   return (
     <div className={cn('space-y-2', className)}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-foreground mb-2">
           {label}
         </label>
       )}

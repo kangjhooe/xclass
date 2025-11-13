@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, BadRequestException, ConflictExcepti
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterPpdbDto } from './dto/register-ppdb.dto';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -217,5 +218,139 @@ export class AuthService {
       console.error('Register error:', error);
       throw new BadRequestException('Registrasi gagal. Silakan coba lagi.');
     }
+  }
+
+  async registerPpdb(registerDto: RegisterPpdbDto) {
+    try {
+      // Validasi password confirmation
+      if (registerDto.password !== registerDto.password_confirmation) {
+        throw new BadRequestException('Password dan konfirmasi password tidak cocok');
+      }
+
+      // Cari tenant berdasarkan NPSN
+      const tenant = await this.tenantRepository.findOne({
+        where: { npsn: registerDto.npsn },
+      });
+
+      if (!tenant) {
+        throw new BadRequestException('NPSN sekolah tidak ditemukan');
+      }
+
+      if (!tenant.isActive) {
+        throw new BadRequestException('Sekolah tidak aktif menerima pendaftaran');
+      }
+
+      // Cek apakah email sudah ada
+      const existingUser = await this.userRepository.findOne({
+        where: { email: registerDto.email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Email sudah terdaftar');
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+
+      // Buat user baru dengan role ppdb_applicant
+      const user = this.userRepository.create({
+        name: registerDto.name,
+        email: registerDto.email,
+        password: hashedPassword,
+        phone: null,
+        role: 'ppdb_applicant',
+        instansiId: tenant.id,
+        isActive: true,
+      });
+
+      const savedUser = await this.userRepository.save(user);
+
+      // Generate JWT token
+      const payload: any = {
+        sub: savedUser.id,
+        email: savedUser.email,
+        role: savedUser.role,
+        userId: savedUser.id,
+        instansiId: tenant.id,
+      };
+
+      const accessToken = this.jwtService.sign(payload);
+
+      const { password, rememberToken, ...userWithoutPassword } = savedUser;
+
+      return {
+        access_token: accessToken,
+        user: userWithoutPassword,
+        tenant: tenant,
+      };
+    } catch (error: any) {
+      if (error instanceof BadRequestException || error instanceof ConflictException) {
+        throw error;
+      }
+      console.error('Register PPDB error:', error);
+      throw new BadRequestException('Registrasi gagal. Silakan coba lagi.');
+    }
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.userRepository.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      // Untuk security, jangan reveal bahwa email tidak ditemukan
+      return {
+        message: 'Jika email terdaftar, instruksi reset password akan dikirim ke email Anda.',
+      };
+    }
+
+    // Generate reset token sederhana (untuk production, gunakan token yang lebih aman)
+    const resetToken = Math.random().toString(36).substring(2, 15) + 
+                      Math.random().toString(36).substring(2, 15);
+    
+    // Simpan token di rememberToken field (sementara)
+    user.rememberToken = resetToken;
+    await this.userRepository.save(user);
+
+    // TODO: Kirim email dengan reset token
+    // Untuk sekarang, return token (dalam production, kirim via email)
+    return {
+      message: 'Instruksi reset password telah dikirim ke email Anda.',
+      // Hanya untuk development/testing - hapus di production
+      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined,
+    };
+  }
+
+  async resetPassword(email: string, newPassword: string, confirmPassword: string, resetToken?: string) {
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('Password dan konfirmasi password tidak cocok');
+    }
+
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Password minimal 8 karakter');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Email tidak ditemukan');
+    }
+
+    // Validasi reset token jika ada
+    if (resetToken && user.rememberToken !== resetToken) {
+      throw new BadRequestException('Token reset password tidak valid atau sudah kadaluarsa');
+    }
+
+    // Hash password baru
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.rememberToken = null; // Clear reset token
+    await this.userRepository.save(user);
+
+    return {
+      message: 'Password berhasil direset. Silakan login dengan password baru.',
+    };
   }
 }

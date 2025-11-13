@@ -39,8 +39,22 @@ export class TeachersController {
   }
 
   @Get()
-  findAll(@TenantId() instansiId: number, @Query('search') search?: string) {
-    return this.teachersService.findAll({ search, instansiId });
+  findAll(
+    @TenantId() instansiId: number,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('isActive') isActive?: string,
+    @Query('gender') gender?: string,
+  ) {
+    return this.teachersService.findAll({
+      search,
+      instansiId,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      gender,
+    });
   }
 
   @Get(':id')
@@ -58,6 +72,17 @@ export class TeachersController {
     return this.teachersService.remove(+id, instansiId);
   }
 
+  @Patch(':id/subjects')
+  @ApiOperation({ summary: 'Update subjects untuk guru' })
+  @ApiResponse({ status: 200, description: 'Subjects berhasil diupdate' })
+  updateSubjects(
+    @Param('id') id: string,
+    @Body() body: { subjectIds: number[] },
+    @TenantId() instansiId: number,
+  ) {
+    return this.teachersService.updateSubjects(+id, body.subjectIds, instansiId);
+  }
+
   // Export endpoints
   @Get('export/excel')
   @ApiOperation({ summary: 'Export data guru ke Excel' })
@@ -67,6 +92,8 @@ export class TeachersController {
       search,
       instansiId: instansiId || 0,
     });
+
+    const teacherData = Array.isArray(teachers) ? teachers : teachers?.data || [];
 
     const columns = [
       { key: 'nip', header: 'NIP', width: 15 },
@@ -84,7 +111,7 @@ export class TeachersController {
       {
         filename: `teachers_${new Date().toISOString().split('T')[0]}.xlsx`,
         sheetName: 'Data Guru',
-        data: teachers || [],
+        data: teacherData,
         columns,
       },
       res,
@@ -99,6 +126,8 @@ export class TeachersController {
       search,
       instansiId: instansiId || 0,
     });
+
+    const teacherData = Array.isArray(teachers) ? teachers : teachers?.data || [];
 
     const columns = [
       { key: 'nip', header: 'NIP' },
@@ -115,7 +144,7 @@ export class TeachersController {
     await this.exportImportService.exportToCSV(
       {
         filename: `teachers_${new Date().toISOString().split('T')[0]}.csv`,
-        data: teachers || [],
+        data: teacherData,
         columns,
       },
       res,
@@ -131,6 +160,8 @@ export class TeachersController {
       instansiId: instansiId || 0,
     });
 
+    const teacherData = Array.isArray(teachers) ? teachers : teachers?.data || [];
+
     const columns = [
       { key: 'nip', header: 'NIP', width: 15 },
       { key: 'name', header: 'Nama', width: 30 },
@@ -143,7 +174,7 @@ export class TeachersController {
     await this.exportImportService.exportToPDF(
       {
         filename: `teachers_${new Date().toISOString().split('T')[0]}.pdf`,
-        data: teachers || [],
+        data: teacherData,
         columns,
       },
       res,

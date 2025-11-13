@@ -15,16 +15,16 @@ export class CounselingSession {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'instansi_id' })
   instansiId: number;
 
-  @Column()
+  @Column({ name: 'student_id' })
   studentId: number;
 
-  @Column({ nullable: true })
+  @Column({ name: 'counselor_id', nullable: true })
   counselorId: number;
 
-  @Column({ type: 'datetime' })
+  @Column({ name: 'session_date', type: 'datetime' })
   sessionDate: Date;
 
   @Column({ type: 'text' })
@@ -40,16 +40,16 @@ export class CounselingSession {
   })
   status: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'follow_up', type: 'text', nullable: true })
   followUp: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ name: 'follow_up_date', type: 'datetime', nullable: true })
   followUpDate: Date;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
   @ManyToOne(() => Student)

@@ -2,15 +2,67 @@ import apiClient from './client';
 
 export interface Student {
   id: number;
+  npsn?: string;
   nisn?: string;
-  nis?: string;
+  studentNumber?: string;
   name: string;
   email?: string;
   phone?: string;
   gender?: string;
+  birthPlace?: string;
+  birthDate?: string;
+  address?: string;
+  classId?: number;
+  classRoom?: {
+    id: number;
+    name: string;
+  };
+  isActive?: boolean;
+  nik?: string;
+  nationality?: string;
+  ethnicity?: string;
+  language?: string;
+  bloodType?: string;
+  religion?: string;
+  // Alamat lengkap
+  rt?: string;
+  rw?: string;
+  village?: string;
+  subDistrict?: string;
+  district?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+  // Data orangtua
+  fatherName?: string;
+  fatherNik?: string;
+  fatherPhone?: string;
+  fatherEmail?: string;
+  motherName?: string;
+  motherNik?: string;
+  motherPhone?: string;
+  motherEmail?: string;
+  // Data wali
+  parentName?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+  guardianName?: string;
+  guardianNik?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
+  // Data akademik
+  studentStatus?: string;
+  academicLevel?: string;
+  currentGrade?: string;
+  academicYear?: string;
+  enrollmentDate?: string;
+  // Timestamps
+  createdAt?: string;
+  updatedAt?: string;
+  // Backward compatibility
+  nis?: string;
   birth_place?: string;
   birth_date?: string;
-  address?: string;
   class_id?: number;
   class_name?: string;
   status?: string;
@@ -20,21 +72,79 @@ export interface Student {
 }
 
 export interface StudentCreateData {
+  npsn?: string;
   nisn?: string;
-  nis?: string;
+  studentNumber?: string;
   name: string;
   email?: string;
   phone?: string;
   gender?: string;
+  birthPlace?: string;
+  birthDate?: string;
+  address?: string;
+  classId?: number;
+  isActive?: boolean;
+  nik?: string;
+  nationality?: string;
+  ethnicity?: string;
+  language?: string;
+  bloodType?: string;
+  religion?: string;
+  // Alamat lengkap
+  rt?: string;
+  rw?: string;
+  village?: string;
+  subDistrict?: string;
+  district?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+  // Data orangtua
+  fatherName?: string;
+  fatherNik?: string;
+  fatherPhone?: string;
+  fatherEmail?: string;
+  motherName?: string;
+  motherNik?: string;
+  motherPhone?: string;
+  motherEmail?: string;
+  // Data wali
+  parentName?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+  guardianName?: string;
+  guardianNik?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
+  // Data akademik
+  studentStatus?: string;
+  academicLevel?: string;
+  currentGrade?: string;
+  academicYear?: string;
+  enrollmentDate?: string;
+  // Backward compatibility
+  nis?: string;
   birth_place?: string;
   birth_date?: string;
-  address?: string;
   class_id?: number;
   status?: string;
 }
 
+export interface StudentListParams {
+  search?: string;
+  classId?: number | string;
+  status?: string;
+  gender?: string;
+  page?: number;
+  limit?: number;
+  academicYear?: string;
+}
+
 export const studentsApi = {
-  getAll: async (tenantId: number, params?: any): Promise<{ data: Student[]; total: number }> => {
+  getAll: async (
+    tenantId: number,
+    params?: StudentListParams,
+  ): Promise<{ data: Student[]; total: number }> => {
     const response = await apiClient.get(`/tenants/${tenantId}/students`, { params });
     return response.data;
   },

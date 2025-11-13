@@ -59,6 +59,9 @@ export class Teacher {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ default: false })
+  isMainTenant: boolean; // true = tenant induk, false = tenant cabang
+
   @Column()
   instansiId: number;
 

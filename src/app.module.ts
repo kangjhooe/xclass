@@ -7,6 +7,7 @@ import { StudentsModule } from './modules/students/students.module';
 import { TeachersModule } from './modules/teachers/teachers.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { SubjectsModule } from './modules/subjects/subjects.module';
+import { CurriculumModule } from './modules/curriculum/curriculum.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { GradesModule } from './modules/grades/grades.module';
@@ -37,6 +38,7 @@ import { GraduationModule } from './modules/graduation/graduation.module';
 import { MessageModule } from './modules/message/message.module';
 import { ELearningModule } from './modules/elearning/elearning.module';
 import { StudentTransferModule } from './modules/student-transfer/student-transfer.module';
+import { TeacherBranchModule } from './modules/teacher-branch/teacher-branch.module';
 import { AcademicReportsModule } from './modules/academic-reports/academic-reports.module';
 import { DataPokokModule } from './modules/data-pokok/data-pokok.module';
 import { CardManagementModule } from './modules/card-management/card-management.module';
@@ -74,19 +76,37 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const port = configService.get<string>('DB_PORT');
-        return {
-          type: 'mysql',
-          host: configService.get<string>('DB_HOST') || 'localhost',
+        const host = configService.get<string>('DB_HOST') || '127.0.0.1';
+        // Convert 'localhost' to '127.0.0.1' to avoid MariaDB connection issues
+        const dbHost = host === 'localhost' ? '127.0.0.1' : host;
+        
+        const dbConfig = {
+          type: 'mysql' as const,
+          host: dbHost,
           port: port ? parseInt(port, 10) : 3306,
           username: configService.get<string>('DB_USERNAME') || 'root',
           password: configService.get<string>('DB_PASSWORD') || '',
-          database: configService.get<string>('DB_DATABASE') || 'class',
+          database: configService.get<string>('DB_DATABASE') || 'xclass',
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          synchronize: true, // Disabled to prevent schema sync errors
+          synchronize: configService.get<string>('NODE_ENV') === 'development',
           logging: configService.get<string>('NODE_ENV') === 'development',
-          retryAttempts: 3,
+          retryAttempts: 5,
           retryDelay: 3000,
+          connectTimeout: 10000,
+          acquireTimeout: 10000,
+          timeout: 10000,
         };
+
+        // Log configuration in development
+        if (configService.get<string>('NODE_ENV') === 'development') {
+          console.log('📊 Database Configuration:');
+          console.log(`   Host: ${dbConfig.host}`);
+          console.log(`   Port: ${dbConfig.port}`);
+          console.log(`   Database: ${dbConfig.database}`);
+          console.log(`   User: ${dbConfig.username}`);
+        }
+
+        return dbConfig;
       },
       inject: [ConfigService],
     }),
@@ -97,6 +117,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     TeachersModule,
     ClassesModule,
     SubjectsModule,
+    CurriculumModule,
     SchedulesModule,
     AttendanceModule,
     GradesModule,
@@ -127,6 +148,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     MessageModule,
     ELearningModule,
     StudentTransferModule,
+    TeacherBranchModule,
     AcademicReportsModule,
     DataPokokModule,
     CardManagementModule,

@@ -38,7 +38,13 @@ export interface AttendanceCreateData {
 export const attendanceApi = {
   getAll: async (
     tenantId: number,
-    params?: { studentId?: number; scheduleId?: number; date?: string }
+    params?: {
+      studentId?: number;
+      scheduleId?: number;
+      date?: string;
+      startDate?: string;
+      endDate?: string;
+    }
   ): Promise<{ data: Attendance[]; total: number }> => {
     const response = await apiClient.get(`/tenants/${tenantId}/attendance`, { params });
     return response.data;
@@ -56,6 +62,50 @@ export const attendanceApi = {
 
   update: async (tenantId: number, id: number, data: Partial<AttendanceCreateData>): Promise<Attendance> => {
     const response = await apiClient.patch(`/tenants/${tenantId}/attendance/${id}`, data);
+    return response.data;
+  },
+
+  getSummary: async (
+    tenantId: number,
+    params?: { scheduleId?: number; date?: string; startDate?: string; endDate?: string },
+  ): Promise<{ total: number; present: number; absent: number; late: number; excused: number }> => {
+    const response = await apiClient.get(`/tenants/${tenantId}/attendance/stats/summary`, { params });
+    return response.data;
+  },
+
+  getDailyStats: async (
+    tenantId: number,
+    params: { scheduleId?: number; startDate: string; endDate: string },
+  ): Promise<
+    Array<{ date: string; total: number; present: number; absent: number; late: number; excused: number }>
+  > => {
+    const response = await apiClient.get(`/tenants/${tenantId}/attendance/stats/daily`, { params });
+    return response.data;
+  },
+
+  getScheduleStats: async (
+    tenantId: number,
+    params?: { startDate?: string; endDate?: string; status?: 'present' | 'absent' | 'late' | 'excused' },
+  ): Promise<
+    Array<{
+      scheduleId: number;
+      total: number;
+      present: number;
+      absent: number;
+      late: number;
+      excused: number;
+      schedule: {
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+        isActive: boolean;
+        className: string | null;
+        subjectName: string | null;
+        teacherName: string | null;
+      };
+    }>
+  > => {
+    const response = await apiClient.get(`/tenants/${tenantId}/attendance/stats/by-schedule`, { params });
     return response.data;
   },
 

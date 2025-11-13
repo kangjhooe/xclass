@@ -18,6 +18,25 @@ export interface RegisterPayload {
   picWhatsapp: string;
 }
 
+export interface RegisterPpdbPayload {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+  npsn: string;
+}
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  newPassword: string;
+  confirmPassword: string;
+  resetToken?: string;
+}
+
 export interface AuthUser {
   id: number;
   name: string;
@@ -54,8 +73,23 @@ export const authApi = {
     return response.data;
   },
 
+  async registerPpdb(payload: RegisterPpdbPayload): Promise<RegisterResponse> {
+    const response = await apiClient.post('/auth/register-ppdb', payload);
+    return response.data;
+  },
+
   async getProfile() {
     const response = await apiClient.get('/auth/profile');
+    return response.data;
+  },
+
+  async forgotPassword(payload: ForgotPasswordPayload) {
+    const response = await apiClient.post('/auth/forgot-password', payload);
+    return response.data;
+  },
+
+  async resetPassword(payload: ResetPasswordPayload) {
+    const response = await apiClient.post('/auth/reset-password', payload);
     return response.data;
   },
 };

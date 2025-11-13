@@ -11,6 +11,16 @@ import {
 import { ClassRoom } from '../../classes/entities/class-room.entity';
 import { Attendance } from '../../attendance/entities/attendance.entity';
 import { StudentGrade } from '../../grades/entities/student-grade.entity';
+import { HealthRecord } from '../../health/entities/health-record.entity';
+import { DisciplinaryAction } from '../../discipline/entities/disciplinary-action.entity';
+import { CounselingSession } from '../../counseling/entities/counseling-session.entity';
+import { ExtracurricularParticipant } from '../../extracurricular/entities/extracurricular-participant.entity';
+import { CourseEnrollment } from '../../elearning/entities/course-enrollment.entity';
+import { CourseProgress } from '../../elearning/entities/course-progress.entity';
+import { ExamAttempt } from '../../exams/entities/exam-attempt.entity';
+import { Alumni } from '../../alumni/entities/alumni.entity';
+import { Graduation } from '../../graduation/entities/graduation.entity';
+import { StudentTransfer } from '../../student-transfer/entities/student-transfer.entity';
 
 @Entity('students')
 export class Student {
@@ -266,6 +276,15 @@ export class Student {
   @Column({ type: 'varchar', length: 20, nullable: true })
   studentStatus: string;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  academicLevel: string; // 'SD', 'SMP', 'SMA', 'SMK'
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  currentGrade: string; // '1', '2', '3', '4', '5', '6' untuk SD, '7', '8', '9' untuk SMP, '10', '11', '12' untuk SMA
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  academicYear: string; // Tahun ajaran saat ini, e.g., '2024/2025'
+
   @Column({ type: 'text', nullable: true })
   notes: string;
 
@@ -293,5 +312,35 @@ export class Student {
 
   @OneToMany(() => StudentGrade, (grade) => grade.student)
   grades: StudentGrade[];
+
+  @OneToMany(() => HealthRecord, (healthRecord) => healthRecord.student)
+  healthRecords: HealthRecord[];
+
+  @OneToMany(() => DisciplinaryAction, (disciplinaryAction) => disciplinaryAction.student)
+  disciplinaryActions: DisciplinaryAction[];
+
+  @OneToMany(() => CounselingSession, (counselingSession) => counselingSession.student)
+  counselingSessions: CounselingSession[];
+
+  @OneToMany(() => ExtracurricularParticipant, (participant) => participant.student)
+  extracurricularParticipants: ExtracurricularParticipant[];
+
+  @OneToMany(() => CourseEnrollment, (enrollment) => enrollment.student)
+  courseEnrollments: CourseEnrollment[];
+
+  @OneToMany(() => CourseProgress, (progress) => progress.student)
+  courseProgresses: CourseProgress[];
+
+  @OneToMany(() => ExamAttempt, (examAttempt) => examAttempt.student)
+  examAttempts: ExamAttempt[];
+
+  @OneToMany(() => Alumni, (alumni) => alumni.student)
+  alumniRecords: Alumni[];
+
+  @OneToMany(() => Graduation, (graduation) => graduation.student)
+  graduations: Graduation[];
+
+  @OneToMany(() => StudentTransfer, (transfer) => transfer.student)
+  transfers: StudentTransfer[];
 }
 

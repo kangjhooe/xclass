@@ -1,0 +1,89 @@
+================================================================================
+  MIGRATION ACADEMIC TRACKING - INSTRUKSI FINAL
+================================================================================
+
+STATUS: SIAP DIJALANKAN
+FILE: database/sql/add_student_academic_tracking_simple.sql
+
+================================================================================
+CARA TERCEPAT: VIA PHPMYADMIN
+================================================================================
+
+LANGKAH 1: START MYSQL SERVICE
+  - Buka XAMPP Control Panel
+  - Klik "Start" pada MySQL service
+  - Tunggu sampai status "Running" (hijau)
+
+LANGKAH 2: BUKA PHPMYADMIN
+  - Buka browser
+  - Akses: http://localhost/phpmyadmin
+  - Login: root (password kosong)
+
+LANGKAH 3: PILIH DATABASE
+  - Klik database "xclass" di sidebar kiri
+  - Jika belum ada, buat dulu dengan: node create-xclass-database.js
+
+LANGKAH 4: JALANKAN MIGRATION
+  - Klik tab "SQL" di bagian atas
+  - Buka file: database/sql/add_student_academic_tracking_simple.sql
+  - Copy-paste SEMUA isi file ke textarea SQL
+  - Klik tombol "Go"
+
+LANGKAH 5: VERIFIKASI
+  - Jika ada error "column already exists" -> NORMAL, lanjutkan
+  - Scroll ke bawah untuk melihat hasil verifikasi
+  - Pastikan ada 3 kolom baru: academic_level, current_grade, academic_year
+
+================================================================================
+VERIFIKASI BERHASIL
+================================================================================
+
+Jalankan query ini untuk verifikasi:
+
+  DESCRIBE students;
+
+Atau:
+
+  SELECT COLUMN_NAME, DATA_TYPE 
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'xclass'
+  AND TABLE_NAME = 'students'
+  AND COLUMN_NAME IN ('academic_level', 'current_grade', 'academic_year');
+
+HASIL YANG DIHARAPKAN:
+  - academic_level (VARCHAR 20)
+  - current_grade (VARCHAR 10)
+  - academic_year (VARCHAR 10)
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+ERROR: "Can't connect to MySQL server"
+  -> Start MySQL service di XAMPP Control Panel
+
+ERROR: "Table 'xclass.students' doesn't exist"
+  -> Jalankan: node create-xclass-database.js
+  -> Atau start aplikasi NestJS agar TypeORM membuat tabel
+
+ERROR: "Duplicate column name"
+  -> NORMAL - kolom sudah ada, migration sudah pernah dijalankan
+
+================================================================================
+SETELAH MIGRATION
+================================================================================
+
+1. Restart aplikasi NestJS (jika sedang berjalan)
+2. Test endpoint: GET /students/nisn/{nisn}/lifetime
+3. Update data existing siswa dengan academic level jika perlu
+
+================================================================================
+FILE TERKAIT
+================================================================================
+
+- Migration SQL: database/sql/add_student_academic_tracking_simple.sql
+- Script PowerShell: run-migration.ps1
+- Dokumentasi: README_MIGRATION.md
+
+================================================================================
+

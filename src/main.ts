@@ -80,7 +80,32 @@ async function bootstrap() {
     console.log('Application is running on: http://localhost:3000');
     console.log('Swagger documentation available at: http://localhost:3000/api/docs');
   } catch (error) {
-    console.error('Error starting application:', error);
+    console.error('\n❌❌❌ Error starting application!\n');
+    console.error('Error:', error.message);
+    
+    if (error.message && error.message.includes('ECONNREFUSED')) {
+      console.error('\n💡 Database Connection Error:');
+      console.error('   1. Make sure XAMPP MySQL service is running');
+      console.error('   2. Open XAMPP Control Panel');
+      console.error('   3. Click "Start" on MySQL service');
+      console.error('   4. Run: node test-db-connection.js to test connection\n');
+    } else if (error.message && error.message.includes('ER_ACCESS_DENIED')) {
+      console.error('\n💡 Database Authentication Error:');
+      console.error('   1. Check DB_USERNAME and DB_PASSWORD in .env file');
+      console.error('   2. Default XAMPP: username=root, password=(empty)');
+      console.error('   3. Run: node test-db-connection.js to test connection\n');
+    } else if (error.message && error.message.includes('ER_BAD_DB_ERROR')) {
+      console.error('\n💡 Database Not Found Error:');
+      console.error('   1. Database does not exist');
+      console.error('   2. Run: node create-xclass-database.js to create database\n');
+    } else {
+      console.error('\n💡 Check:');
+      console.error('   1. .env file exists and is configured correctly');
+      console.error('   2. Database is running');
+      console.error('   3. Run: node test-db-connection.js to test connection');
+      console.error('\nFull error:', error);
+    }
+    
     process.exit(1);
   }
 }

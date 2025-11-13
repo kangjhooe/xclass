@@ -25,6 +25,18 @@ export const academicYearsApi = {
     return response.data;
   },
 
+  getActive: async (tenantId: number): Promise<AcademicYear | null> => {
+    try {
+      const response = await apiClient.get(`/tenants/${tenantId}/academic-years/active`);
+      return response.data ?? null;
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
   getById: async (tenantId: number, id: number): Promise<AcademicYear> => {
     const response = await apiClient.get(`/tenants/${tenantId}/academic-years/${id}`);
     return response.data;

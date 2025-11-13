@@ -55,6 +55,18 @@ export class StudentTransfer {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ nullable: true })
+  initiatedByTenantId: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'push' })
+  transferType: string; // 'push' = transfer keluar, 'pull' = permintaan mutasi masuk
+
+  @Column({ type: 'date', nullable: true })
+  transferDate: Date;
+
+  @Column({ type: 'json', nullable: true })
+  documents: string[];
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -4,9 +4,22 @@ import { CorrespondenceController } from './correspondence.controller';
 import { CorrespondenceService } from './correspondence.service';
 import { IncomingLetter } from './entities/incoming-letter.entity';
 import { OutgoingLetter } from './entities/outgoing-letter.entity';
+import { LetterTemplate } from './entities/letter-template.entity';
+import { CorrespondenceArchive } from './entities/correspondence-archive.entity';
+import { LetterSequence } from './entities/letter-sequence.entity';
+import { GeneratedLetter } from './entities/generated-letter.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([IncomingLetter, OutgoingLetter])],
+  imports: [
+    TypeOrmModule.forFeature([
+      IncomingLetter,
+      OutgoingLetter,
+      LetterTemplate,
+      CorrespondenceArchive,
+      LetterSequence,
+      GeneratedLetter,
+    ]),
+  ],
   controllers: [CorrespondenceController],
   providers: [CorrespondenceService],
   exports: [CorrespondenceService],

@@ -7,8 +7,10 @@ import { CourseMaterial } from './entities/course-material.entity';
 import { CourseVideo } from './entities/course-video.entity';
 import { CourseAssignment } from './entities/course-assignment.entity';
 import { CourseQuiz } from './entities/course-quiz.entity';
+import { CourseQuizQuestion } from './entities/course-quiz-question.entity';
 import { CourseProgress } from './entities/course-progress.entity';
 import { CourseAnnouncement } from './entities/course-announcement.entity';
+import { Question } from '../exams/entities/question.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CreateCourseEnrollmentDto } from './dto/create-course-enrollment.dto';
@@ -33,10 +35,14 @@ export class ELearningService {
     private assignmentRepository: Repository<CourseAssignment>,
     @InjectRepository(CourseQuiz)
     private quizRepository: Repository<CourseQuiz>,
+    @InjectRepository(CourseQuizQuestion)
+    private quizQuestionRepository: Repository<CourseQuizQuestion>,
     @InjectRepository(CourseProgress)
     private progressRepository: Repository<CourseProgress>,
     @InjectRepository(CourseAnnouncement)
     private announcementRepository: Repository<CourseAnnouncement>,
+    @InjectRepository(Question)
+    private questionRepository: Repository<Question>,
   ) {}
 
   // Course CRUD
@@ -285,6 +291,56 @@ export class ELearningService {
       where: { courseId, studentId },
       relations: ['course', 'student'],
     });
+  }
+
+  // Add Question from Bank to Quiz
+  async addQuestionToQuiz(
+    quizId: number,
+    questionId: number,
+    instansiId: number,
+  ) {
+    const quiz = await this.quizRepository.findOne({
+      where: { id: quizId },
+      relations: ['course'],
+    });
+
+    if (!quiz || quiz.course.instansiId !== instansiId) {
+      throw new NotFoundException('Quiz not found');
+    }
+
+    const question = await this.questionRepository.findOne({
+      where: { id: questionId, instansiId },
+      relations: ['stimulus'],
+    });
+
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
+
+    // Get current order
+    const existingQuestions = await this.quizQuestionRepository.find({
+      where: { quizId },
+      order: { order: 'DESC' },
+      take: 1,
+    });
+
+    const nextOrder = existingQuestions.length > 0 ? existingQuestions[0].order + 1 : 0;
+
+    // Convert Question to CourseQuizQuestion format
+    const quizQuestion = this.quizQuestionRepository.create({
+      quizId,
+      questionId: question.id,
+      question: question.questionText,
+      type: question.questionType as any, // Map to CourseQuizQuestion type
+      options: question.options ? Object.values(question.options) : [],
+      correctAnswer: question.correctAnswer || '',
+      points: question.points,
+      explanation: question.explanation || '',
+      order: nextOrder,
+      isSnapshot: true,
+    });
+
+    return await this.quizQuestionRepository.save(quizQuestion);
   }
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { ModulePageShell } from '@/components/layouts/ModulePageShell';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
@@ -18,7 +18,8 @@ export default function AttendancePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-  const [filterClassId, setFilterClassId] = useState<number | undefined>(undefined);
+  const [filterScheduleId, setFilterScheduleId] = useState<number | undefined>(undefined);
+  const [filterStatus, setFilterStatus] = useState<AttendanceCreateData['status'] | ''>('');
   const [formData, setFormData] = useState<AttendanceCreateData>({
     studentId: 0,
     scheduleId: 0,
@@ -30,8 +31,8 @@ export default function AttendancePage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['attendance', tenantId, filterDate, filterClassId],
-    queryFn: () => attendanceApi.getAll(tenantId!, { date: filterDate }),
+    queryKey: ['attendance', tenantId, filterDate, filterScheduleId],
+    queryFn: () => attendanceApi.getAll(tenantId!, { date: filterDate, scheduleId: filterScheduleId }),
     enabled: !!tenantId,
   });
 
@@ -146,9 +147,97 @@ export default function AttendancePage() {
     );
   };
 
-  const totalAttendance = data?.data?.length || 0;
-  const presentCount = data?.data?.filter((a) => a.status === 'present').length || 0;
-  const absentCount = data?.data?.filter((a) => a.status === 'absent').length || 0;
+  const filteredAttendances = useMemo(() => {
+    if (!data?.data) {
+      return [];
+    }
+    if (!filterStatus) {
+      return data.data;
+    }
+    return data.data.filter((attendance) => attendance.status === filterStatus);
+  }, [data?.data, filterStatus]);
+
+  const { data: summaryData } = useQuery({
+    queryKey: ['attendance-summary', tenantId, filterDate, filterScheduleId],
+    queryFn: () =>
+      attendanceApi.getSummary(tenantId!, {
+        date: filterDate,
+        scheduleId: filterScheduleId,
+      }),
+    enabled: !!tenantId,
+  });
+
+  const summaryFallback = {
+    total: filteredAttendances.length,
+    present: filteredAttendances.filter((a) => a.status === 'present').length,
+    absent: filteredAttendances.filter((a) => a.status === 'absent').length,
+    late: filteredAttendances.filter((a) => a.status === 'late').length,
+    excused: filteredAttendances.filter((a) => a.status === 'excused').length,
+  };
+
+  const summary = filterStatus ? summaryFallback : summaryData ?? summaryFallback;
+
+  const totalAttendance = filterStatus ? summaryFallback.total : summary.total;
+  const presentCount = filterStatus ? summaryFallback.present : summary.present;
+  const absentCount = filterStatus ? summaryFallback.absent : summary.absent;
+  const lateCount = filterStatus ? summaryFallback.late : summary.late;
+  const excusedCount = filterStatus ? summaryFallback.excused : summary.excused;
+
+  const scheduleOptions = useMemo(() => {
+    if (!schedulesData?.data) {
+      return [];
+    }
+    return schedulesData.data.map((schedule) => {
+      const className = schedule.classRoom?.name ?? '';
+      const subjectName = schedule.subject?.name ?? '';
+      const teacherName = schedule.teacher?.name ?? '';
+      const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][schedule.dayOfWeek] ?? '';
+      const timeRange = `${schedule.startTime} - ${schedule.endTime}`;
+      const label = [className || subjectName, teacherName, `${dayName} ${timeRange}`]
+        .filter(Boolean)
+        .join(' • ');
+      return {
+        id: schedule.id,
+        label: label || `Jadwal ${schedule.id}`,
+        isActive: schedule.isActive ?? true,
+      };
+    });
+  }, [schedulesData?.data]);
+
+  const selectedScheduleMeta = useMemo(() => {
+    if (filterScheduleId === undefined) {
+      return undefined;
+    }
+    return scheduleOptions.find((option) => option.id === filterScheduleId);
+  }, [scheduleOptions, filterScheduleId]);
+
+  const dailyRange = useMemo(() => {
+    if (!filterDate) {
+      return undefined;
+    }
+    const end = new Date(filterDate);
+    if (Number.isNaN(end.getTime())) {
+      return undefined;
+    }
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    const toIsoDate = (date: Date) => date.toISOString().split('T')[0];
+    return {
+      startDate: toIsoDate(start),
+      endDate: toIsoDate(end),
+    };
+  }, [filterDate]);
+
+  const { data: dailyStats, isLoading: isLoadingDailyStats, isError: isDailyStatsError } = useQuery({
+    queryKey: ['attendance-daily-stats', tenantId, filterScheduleId, dailyRange?.startDate, dailyRange?.endDate],
+    queryFn: () =>
+      attendanceApi.getDailyStats(tenantId!, {
+        scheduleId: filterScheduleId,
+        startDate: dailyRange!.startDate,
+        endDate: dailyRange!.endDate,
+      }),
+    enabled: !!tenantId && !!dailyRange,
+  });
 
   return (
     <TenantLayout>
@@ -198,12 +287,30 @@ export default function AttendancePage() {
               </svg>
             ),
           },
+          {
+            label: 'Terlambat',
+            value: lateCount,
+            icon: (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" />
+              </svg>
+            ),
+          },
+          {
+            label: 'Izin',
+            value: excusedCount,
+            icon: (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            ),
+          },
         ]}
       >
         {({ themeConfig }) => (
           <>
             <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-gray-100/50 p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Tanggal</label>
                   <input
@@ -214,18 +321,35 @@ export default function AttendancePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Kelas</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Jadwal</label>
                   <select
-                    value={filterClassId || ''}
-                    onChange={(e) => setFilterClassId(e.target.value ? parseInt(e.target.value) : undefined)}
+                    value={filterScheduleId || ''}
+                    onChange={(e) =>
+                      setFilterScheduleId(e.target.value ? parseInt(e.target.value) : undefined)
+                    }
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl bg-white/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 hover:border-gray-300 font-medium"
                   >
-                    <option value="">Semua Kelas</option>
-                    {schedulesData?.data?.map((schedule) => (
-                      <option key={schedule.id} value={schedule.id}>
-                        {schedule.classRoom?.name || schedule.subject?.name || `Jadwal ${schedule.id}`}
+                    <option value="">Semua Jadwal</option>
+                    {scheduleOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                        {!option.isActive ? ' (Tidak Aktif)' : ''}
                       </option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl bg-white/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 hover:border-gray-300 font-medium"
+                  >
+                    <option value="">Semua Status</option>
+                    <option value="present">Hadir</option>
+                    <option value="absent">Tidak Hadir</option>
+                    <option value="late">Terlambat</option>
+                    <option value="excused">Izin</option>
                   </select>
                 </div>
                 <div className="flex items-end">
@@ -233,7 +357,8 @@ export default function AttendancePage() {
                     variant="secondary"
                     onClick={() => {
                       setFilterDate(new Date().toISOString().split('T')[0]);
-                      setFilterClassId(undefined);
+                      setFilterScheduleId(undefined);
+                      setFilterStatus('');
                     }}
                     className="w-full px-4 py-3 rounded-2xl border-2 hover:bg-gray-50 transition-all duration-200 font-semibold"
                   >
@@ -241,7 +366,86 @@ export default function AttendancePage() {
                   </Button>
                 </div>
               </div>
+              {selectedScheduleMeta && selectedScheduleMeta.isActive === false && (
+                <div className="mt-4 px-4 py-3 rounded-2xl border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium flex items-center space-x-3">
+                  <svg className="w-5 h-5 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Jadwal yang dipilih sedang tidak aktif. Pastikan data absensi tetap relevan.</span>
+                </div>
+              )}
             </div>
+
+            {dailyRange && (
+              <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow border border-gray-100/50 p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">Tren 7 Hari Terakhir</h3>
+                    <p className="text-sm text-gray-500">
+                      {formatDate(dailyRange.startDate)} - {formatDate(dailyRange.endDate)}
+                    </p>
+                  </div>
+                  {isLoadingDailyStats && (
+                    <div className="flex items-center text-sm text-gray-500">
+                      <svg className="w-4 h-4 animate-spin mr-2" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h3z"
+                        ></path>
+                      </svg>
+                      Memuat tren...
+                    </div>
+                  )}
+                </div>
+                {isDailyStatsError && (
+                  <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm">
+                    Tidak dapat memuat data tren harian saat ini.
+                  </div>
+                )}
+                {!isLoadingDailyStats && !isDailyStatsError && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {dailyStats && dailyStats.length > 0 ? (
+                      dailyStats.map((stat) => (
+                        <div
+                          key={stat.date}
+                          className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm hover:shadow transition-shadow duration-200"
+                        >
+                          <p className="text-sm font-semibold text-gray-700">{formatDate(stat.date)}</p>
+                          <div className="mt-2 space-y-1 text-sm">
+                            <p className="flex justify-between">
+                              <span className="text-gray-500">Total</span>
+                              <span className="font-medium text-gray-800">{stat.total}</span>
+                            </p>
+                            <p className="flex justify-between">
+                              <span className="text-gray-500">Hadir</span>
+                              <span className="font-medium text-green-600">{stat.present}</span>
+                            </p>
+                            <p className="flex justify-between">
+                              <span className="text-gray-500">Tidak Hadir</span>
+                              <span className="font-medium text-red-600">{stat.absent}</span>
+                            </p>
+                            <p className="flex justify-between">
+                              <span className="text-gray-500">Terlambat</span>
+                              <span className="font-medium text-yellow-600">{stat.late}</span>
+                            </p>
+                            <p className="flex justify-between">
+                              <span className="text-gray-500">Izin</span>
+                              <span className="font-medium text-blue-600">{stat.excused}</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-full text-center text-sm text-gray-500 py-6">
+                        Tidak ada data absensi dalam rentang tanggal ini.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {isLoading ? (
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
@@ -255,7 +459,7 @@ export default function AttendancePage() {
                     <TableHeader>
                       <TableRow className="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 border-b-2 border-white/20">
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Siswa</TableHead>
-                        <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Mata Pelajaran</TableHead>
+                        <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Jadwal</TableHead>
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Tanggal</TableHead>
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Status</TableHead>
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Catatan</TableHead>
@@ -263,25 +467,42 @@ export default function AttendancePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data?.data?.map((attendance, index) => (
+                      {filteredAttendances.map((attendance, index) => (
                         <TableRow 
                           key={attendance.id} 
                           className={`transition-all duration-300 ${
                             index % 2 === 0 ? 'bg-white/80' : 'bg-gray-50/30'
                           } hover:bg-gradient-to-r hover:from-orange-50/50 hover:to-amber-50/50 hover:shadow-md border-b border-gray-100/50 group`}
                         >
-                          <TableCell>{formatDate(attendance.date)}</TableCell>
                           <TableCell className="font-medium text-gray-800">
                             {attendance.student?.name || `Siswa #${attendance.studentId}`}
                           </TableCell>
                           <TableCell>
-                            {attendance.schedule?.subject?.name || '-'}
+                            <div className="flex flex-col">
+                              <span className="font-semibold">
+                                {attendance.schedule?.subject?.name || attendance.schedule?.classRoom?.name || '-'}
+                              </span>
+                              <span className="text-xs text-gray-600">
+                                {attendance.schedule
+                                  ? `${attendance.schedule?.teacher?.name ?? '-'} • ${
+                                      ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][
+                                        attendance.schedule.dayOfWeek
+                                      ] ?? '-'
+                                    } ${attendance.schedule.startTime} - ${attendance.schedule.endTime}`
+                                  : '-'}
+                              </span>
+                              {attendance.schedule?.isActive === false && (
+                                <span className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide font-semibold bg-gray-200 text-gray-700 rounded-full inline-block w-max">
+                                  Jadwal tidak aktif
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {formatDate(attendance.date)}
                           </TableCell>
                           <TableCell>{getStatusBadge(attendance.status)}</TableCell>
                           <TableCell>{attendance.notes || '-'}</TableCell>
-                          <TableCell>
-                            {attendance.teacher?.name || '-'}
-                          </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
                               <Button
@@ -304,9 +525,9 @@ export default function AttendancePage() {
                           </TableCell>
                         </TableRow>
                       ))}
-                      {data?.data?.length === 0 && (
+                      {filteredAttendances.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-12">
+                          <TableCell colSpan={6} className="text-center py-12">
                             <div className="flex flex-col items-center">
                               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -365,9 +586,9 @@ export default function AttendancePage() {
                       required
                     >
                       <option value="">Pilih Jadwal</option>
-                      {schedulesData?.data?.map((schedule) => (
+                      {scheduleOptions.map((schedule) => (
                         <option key={schedule.id} value={schedule.id}>
-                          {schedule.classRoom?.name || schedule.subject?.name || `Jadwal ${schedule.id}`}
+                          {schedule.label}
                         </option>
                       ))}
                     </select>

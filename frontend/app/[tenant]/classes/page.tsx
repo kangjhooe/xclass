@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { ModulePageShell } from '@/components/layouts/ModulePageShell';
@@ -11,8 +11,10 @@ import { StatCard } from '@/components/ui/StatCard';
 import { classesApi, ClassRoom, ClassRoomCreateData } from '@/lib/api/classes';
 import { teachersApi } from '@/lib/api/teachers';
 import { infrastructureApi } from '@/lib/api/infrastructure';
+import { dataPokokApi } from '@/lib/api/data-pokok';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
+import { useActiveAcademicYear } from '@/lib/hooks/useAcademicYear';
 
 export default function ClassesPage() {
   const params = useParams();
@@ -27,21 +29,72 @@ export default function ClassesPage() {
     roomId: undefined,
     capacity: undefined,
     homeroomTeacherId: undefined,
-    academicYear: '',
     isActive: true,
+    academicYear: '',
   });
 
   const queryClient = useQueryClient();
+  const isTenantReady = !!tenantId;
+  const {
+    data: activeAcademicYear,
+    isLoading: academicYearLoading,
+  } = useActiveAcademicYear(tenantId, { enabled: isTenantReady });
+  const activeAcademicYearName = activeAcademicYear?.name || '';
+
+  useEffect(() => {
+    if (!activeAcademicYearName) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.academicYear && prev.academicYear.length > 0) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        academicYear: activeAcademicYearName,
+      };
+    });
+  }, [activeAcademicYearName]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['classes', tenantId],
-    queryFn: () => classesApi.getAll(tenantId!),
-    enabled: !!tenantId,
+    queryKey: ['classes', tenantId, activeAcademicYearName || 'all'],
+    queryFn: () =>
+      classesApi.getAll(tenantId!, {
+        academicYear: activeAcademicYearName || undefined,
+      }),
+    enabled: !!tenantId && !academicYearLoading,
   });
 
-  const { data: teachersData } = useQuery({
+  const { data: teachersData, isLoading: teachersLoading } = useQuery({
     queryKey: ['teachers', tenantId],
-    queryFn: () => teachersApi.getAll(tenantId!),
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak ditemukan');
+      }
+      const response = await teachersApi.getAll(tenantId);
+      
+      // Handle both array response and object response format
+      // Backend might return array directly or { data, total }
+      if (Array.isArray(response)) {
+        return {
+          data: response,
+          total: response.length,
+        };
+      }
+      
+      // If response already has data property, use it
+      if (response && typeof response === 'object' && 'data' in response) {
+        return response;
+      }
+      
+      // Fallback: wrap in object
+      return {
+        data: [],
+        total: 0,
+      };
+    },
     enabled: !!tenantId,
   });
 
@@ -51,15 +104,43 @@ export default function ClassesPage() {
     enabled: !!tenantId,
   });
 
+  const { data: dataPokok } = useQuery({
+    queryKey: ['data-pokok', tenantId],
+    queryFn: () => dataPokokApi.get(tenantId!),
+    enabled: !!tenantId,
+  });
+
+  // Helper function to get level options based on jenjang
+  const getLevelOptions = () => {
+    const jenjang = dataPokok?.jenjang?.toUpperCase() || '';
+    
+    if (jenjang.includes('SD') || jenjang.includes('MI')) {
+      return ['I', 'II', 'III', 'IV', 'V', 'VI'];
+    } else if (jenjang.includes('SMP') || jenjang.includes('MTS')) {
+      return ['VII', 'VIII', 'IX'];
+    } else if (jenjang.includes('SMA') || jenjang.includes('SMK') || jenjang.includes('MA') || jenjang.includes('MAK')) {
+      return ['X', 'XI', 'XII'];
+    }
+    
+    // Default: return all options if jenjang not found
+    return ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  };
+
+  const levelOptions = getLevelOptions();
+
   const createMutation = useMutation({
     mutationFn: (data: ClassRoomCreateData) => {
       if (!tenantId) {
         throw new Error('Tenant ID tidak tersedia.');
       }
-      return classesApi.create(tenantId, data);
+      const payload: ClassRoomCreateData = {
+        ...data,
+        academicYear: data.academicYear || activeAcademicYearName || undefined,
+      };
+      return classesApi.create(tenantId, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['classes', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['classes', tenantId, activeAcademicYearName || 'all'] });
       setIsModalOpen(false);
       resetForm();
     },
@@ -70,10 +151,16 @@ export default function ClassesPage() {
       if (!tenantId) {
         throw new Error('Tenant ID tidak tersedia.');
       }
-      return classesApi.update(tenantId, id, data);
+      const payload: Partial<ClassRoomCreateData> = {
+        ...data,
+      };
+      if (data.academicYear !== undefined) {
+        payload.academicYear = data.academicYear;
+      }
+      return classesApi.update(tenantId, id, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['classes', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['classes', tenantId, activeAcademicYearName || 'all'] });
       setIsModalOpen(false);
       setSelectedClass(null);
       resetForm();
@@ -88,7 +175,7 @@ export default function ClassesPage() {
       return classesApi.delete(tenantId, id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['classes', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['classes', tenantId, activeAcademicYearName || 'all'] });
     },
   });
 
@@ -100,8 +187,8 @@ export default function ClassesPage() {
       roomId: undefined,
       capacity: undefined,
       homeroomTeacherId: undefined,
-      academicYear: '',
       isActive: true,
+      academicYear: activeAcademicYearName || '',
     });
     setSelectedClass(null);
   };
@@ -115,8 +202,8 @@ export default function ClassesPage() {
       roomId: classRoom.roomId,
       capacity: classRoom.capacity,
       homeroomTeacherId: classRoom.homeroomTeacherId,
-      academicYear: classRoom.academicYear || '',
       isActive: classRoom.isActive ?? true,
+      academicYear: classRoom.academicYear || '',
     });
     setIsModalOpen(true);
   };
@@ -227,7 +314,6 @@ export default function ClassesPage() {
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Ruangan</TableHead>
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Kapasitas</TableHead>
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Wali Kelas</TableHead>
-                        <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Tahun Ajaran</TableHead>
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Status</TableHead>
                         <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider text-center">Aksi</TableHead>
                       </TableRow>
@@ -249,7 +335,6 @@ export default function ClassesPage() {
                           </TableCell>
                           <TableCell>{classRoom.capacity || '-'}</TableCell>
                           <TableCell>{classRoom.homeroomTeacher?.name || '-'}</TableCell>
-                          <TableCell>{classRoom.academicYear || '-'}</TableCell>
                           <TableCell>
                             <span className={`px-3 py-1 text-xs font-bold rounded-full ${
                               classRoom.isActive 
@@ -283,7 +368,7 @@ export default function ClassesPage() {
                       ))}
                       {data?.data?.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-12">
+                          <TableCell colSpan={7} className="text-center py-12">
                             <div className="flex flex-col items-center">
                               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -328,13 +413,18 @@ export default function ClassesPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
-                      <input
-                        type="text"
+                      <select
                         value={formData.level}
                         onChange={(e) => setFormData({ ...formData, level: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Contoh: X, XI, XII"
-                      />
+                      >
+                        <option value="">Pilih Level</option>
+                        {levelOptions.map((level) => (
+                          <option key={level} value={level}>
+                            {level}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div>
@@ -391,40 +481,37 @@ export default function ClassesPage() {
                           })
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={teachersLoading}
                       >
                         <option value="">Pilih Wali Kelas</option>
-                        {teachersData?.data?.map((teacher) => (
-                          <option key={teacher.id} value={teacher.id}>
-                            {teacher.name}
-                          </option>
-                        ))}
+                        {teachersLoading ? (
+                          <option value="">Memuat data guru...</option>
+                        ) : (
+                          teachersData?.data?.map((teacher) => (
+                            <option key={teacher.id} value={teacher.id}>
+                              {teacher.name}
+                            </option>
+                          ))
+                        )}
                       </select>
+                      {!teachersLoading && (!teachersData?.data || teachersData.data.length === 0) && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Belum ada data guru. Tambahkan guru di halaman Guru terlebih dahulu.
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Ajaran</label>
-                      <input
-                        type="text"
-                        value={formData.academicYear}
-                        onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Contoh: 2024/2025"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <select
-                        value={formData.isActive ? 'active' : 'inactive'}
-                        onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'active' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="active">Aktif</option>
-                        <option value="inactive">Tidak Aktif</option>
-                      </select>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      value={formData.isActive ? 'active' : 'inactive'}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'active' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="active">Aktif</option>
+                      <option value="inactive">Tidak Aktif</option>
+                    </select>
                   </div>
                 </div>
 

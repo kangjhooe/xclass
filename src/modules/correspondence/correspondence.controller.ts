@@ -1,37 +1,74 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { CorrespondenceService } from './correspondence.service';
 import { CreateIncomingLetterDto } from './dto/create-incoming-letter.dto';
 import { UpdateIncomingLetterDto } from './dto/update-incoming-letter.dto';
 import { CreateOutgoingLetterDto } from './dto/create-outgoing-letter.dto';
 import { UpdateOutgoingLetterDto } from './dto/update-outgoing-letter.dto';
 import { AddDispositionDto } from './dto/add-disposition.dto';
-import { TenantId, CurrentUserId } from '../../common/decorators/tenant.decorator';
+import {
+  TenantId,
+  CurrentUserId,
+} from '../../common/decorators/tenant.decorator';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   LetterStatus,
   LetterPriority,
-  LetterNature,
 } from './entities/incoming-letter.entity';
 import {
   OutgoingLetterStatus,
 } from './entities/outgoing-letter.entity';
+import { CreateLetterTemplateDto } from './dto/create-letter-template.dto';
+import { UpdateLetterTemplateDto } from './dto/update-letter-template.dto';
+import { UpdateLetterSequenceDto } from './dto/update-letter-sequence.dto';
+import { GenerateLetterDto } from './dto/generate-letter.dto';
+import { ArchiveSourceType } from './entities/correspondence-archive.entity';
 
-@Controller('correspondence')
+@Controller({
+  path: ['correspondence', 'tenants/:tenant/correspondence'],
+})
 @UseGuards(JwtAuthGuard)
 export class CorrespondenceController {
   constructor(
     private readonly correspondenceService: CorrespondenceService,
   ) {}
+
+  // ========== Archive Overview ==========
+  @Get()
+  listArchive(
+    @TenantId() instansiId: number,
+    @Query('type') type?: ArchiveSourceType,
+    @Query('status') status?: string,
+    @Query('category') category?: string,
+    @Query('search') search?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return this.correspondenceService.listArchive({
+      instansiId,
+      type,
+      status,
+      category,
+      search,
+      startDate,
+      endDate,
+      page: +page,
+      limit: +limit,
+    });
+  }
 
   // ========== Incoming Letters ==========
   @Post('incoming')
@@ -214,6 +251,116 @@ export class CorrespondenceController {
     return this.correspondenceService.getStatistics(
       instansiId,
       year ? +year : undefined,
+    );
+  }
+
+  // ========== Templates ==========
+  @Get('templates')
+  listTemplates(@TenantId() instansiId: number) {
+    return this.correspondenceService.listTemplates(instansiId);
+  }
+
+  @Post('templates')
+  createTemplate(
+    @TenantId() instansiId: number,
+    @CurrentUserId() userId: number,
+    @Body() dto: CreateLetterTemplateDto,
+  ) {
+    return this.correspondenceService.createTemplate(instansiId, userId, dto);
+  }
+
+  @Get('templates/:id')
+  getTemplate(
+    @TenantId() instansiId: number,
+    @Param('id') id: string,
+  ) {
+    return this.correspondenceService.getTemplate(instansiId, +id);
+  }
+
+  @Patch('templates/:id')
+  updateTemplate(
+    @TenantId() instansiId: number,
+    @CurrentUserId() userId: number,
+    @Param('id') id: string,
+    @Body() dto: UpdateLetterTemplateDto,
+  ) {
+    return this.correspondenceService.updateTemplate(
+      instansiId,
+      +id,
+      userId,
+      dto,
+    );
+  }
+
+  @Delete('templates/:id')
+  deleteTemplate(
+    @TenantId() instansiId: number,
+    @Param('id') id: string,
+  ) {
+    return this.correspondenceService.deleteTemplate(instansiId, +id);
+  }
+
+  // ========== Sequences ==========
+  @Get('sequences')
+  listSequences(@TenantId() instansiId: number) {
+    return this.correspondenceService.listSequences(instansiId);
+  }
+
+  @Get('sequences/:code')
+  getSequence(
+    @TenantId() instansiId: number,
+    @Param('code') code: string,
+  ) {
+    return this.correspondenceService.getSequence(instansiId, code);
+  }
+
+  @Patch('sequences/:code')
+  updateSequence(
+    @TenantId() instansiId: number,
+    @Param('code') code: string,
+    @Body() dto: UpdateLetterSequenceDto,
+  ) {
+    return this.correspondenceService.updateSequence(instansiId, code, dto);
+  }
+
+  // ========== Generated Letters ==========
+  @Post('generate')
+  generateLetter(
+    @TenantId() instansiId: number,
+    @CurrentUserId() userId: number,
+    @Body() dto: GenerateLetterDto,
+  ) {
+    return this.correspondenceService.generateLetter(instansiId, userId, dto);
+  }
+
+  @Get('generated')
+  listGenerated(@TenantId() instansiId: number) {
+    return this.correspondenceService.listGeneratedLetters(instansiId);
+  }
+
+  @Get('generated/:id/download')
+  async downloadGeneratedLetter(
+    @Param('id') id: string,
+    @TenantId() instansiId: number,
+    @Res() res: Response,
+  ) {
+    return this.correspondenceService.downloadGeneratedLetter(
+      +id,
+      instansiId,
+      res,
+    );
+  }
+
+  @Get('archive/:id/download')
+  async downloadArchiveLetter(
+    @Param('id') id: string,
+    @TenantId() instansiId: number,
+    @Res() res: Response,
+  ) {
+    return this.correspondenceService.downloadArchiveLetter(
+      +id,
+      instansiId,
+      res,
     );
   }
 }

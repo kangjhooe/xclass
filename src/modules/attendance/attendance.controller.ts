@@ -16,7 +16,7 @@ import { TenantId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 
-@Controller('attendance')
+@Controller({ path: ['attendance', 'tenants/:tenant/attendance'] })
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
@@ -32,8 +32,57 @@ export class AttendanceController {
     @Query('studentId') studentId?: number,
     @Query('scheduleId') scheduleId?: number,
     @Query('date') date?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
-    return this.attendanceService.findAll({ studentId, scheduleId, date, instansiId });
+    return this.attendanceService.findAll({ studentId, scheduleId, date, startDate, endDate, instansiId });
+  }
+
+  @Get('stats/summary')
+  getStats(
+    @TenantId() instansiId: number,
+    @Query('scheduleId') scheduleId?: number,
+    @Query('date') date?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.attendanceService.getStats({
+      scheduleId,
+      date,
+      startDate,
+      endDate,
+      instansiId,
+    });
+  }
+
+  @Get('stats/daily')
+  getDailyStats(
+    @TenantId() instansiId: number,
+    @Query('scheduleId') scheduleId?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.attendanceService.getDailyStats({
+      scheduleId,
+      startDate,
+      endDate,
+      instansiId,
+    });
+  }
+
+  @Get('stats/by-schedule')
+  getScheduleStats(
+    @TenantId() instansiId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('status') status?: 'present' | 'absent' | 'late' | 'excused',
+  ) {
+    return this.attendanceService.getScheduleStats({
+      instansiId,
+      startDate,
+      endDate,
+      status,
+    });
   }
 
   @Get(':id')

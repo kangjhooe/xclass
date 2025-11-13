@@ -26,10 +26,10 @@ export function Tooltip({
   };
 
   const arrows = {
-    top: 'top-full left-1/2 transform -translate-x-1/2 border-t-gray-900',
-    bottom: 'bottom-full left-1/2 transform -translate-x-1/2 border-b-gray-900',
-    left: 'left-full top-1/2 transform -translate-y-1/2 border-l-gray-900',
-    right: 'right-full top-1/2 transform -translate-y-1/2 border-r-gray-900',
+    top: 'top-full left-1/2 transform -translate-x-1/2 border-t-popover border-t-border',
+    bottom: 'bottom-full left-1/2 transform -translate-x-1/2 border-b-popover border-b-border',
+    left: 'left-full top-1/2 transform -translate-y-1/2 border-l-popover border-l-border',
+    right: 'right-full top-1/2 transform -translate-y-1/2 border-r-popover border-r-border',
   };
 
   return (
@@ -42,7 +42,7 @@ export function Tooltip({
       {isVisible && (
         <div
           className={cn(
-            'absolute z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg whitespace-nowrap',
+            'absolute z-50 px-3 py-2 text-sm text-popover-foreground bg-popover rounded-lg shadow-lg whitespace-nowrap border border-border',
             positions[position],
             className
           )}

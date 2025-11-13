@@ -184,6 +184,14 @@ export class MobileApiService {
 
     const grades = await query.orderBy('grade.createdAt', 'DESC').getMany();
 
+    const assessmentLabels: Record<string, string> = {
+      NH: 'Nilai Harian (NH)',
+      PTS: 'Penilaian Tengah Semester (PTS)',
+      PAS: 'Penilaian Akhir Semester (PAS)',
+      PROJECT: 'Nilai Proyek',
+      OTHER: 'Penilaian Lainnya',
+    };
+
     return {
       success: true,
       data: grades.map((g) => ({
@@ -191,7 +199,10 @@ export class MobileApiService {
         subject: g.subject?.name || null,
         teacher: g.teacher?.name || null,
         score: g.score,
-        type: g.assignmentType || null,
+        type:
+          g.assessmentType === 'OTHER'
+            ? g.customAssessmentLabel || assessmentLabels.OTHER
+            : assessmentLabels[g.assessmentType] || g.assessmentType,
         date: g.createdAt.toLocaleDateString('id-ID'),
       })),
     };

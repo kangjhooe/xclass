@@ -34,7 +34,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        'bg-gray-200 dark:bg-gray-700',
+        'bg-muted',
         variants[variant],
         animations[animation],
         className
@@ -72,7 +72,7 @@ export function SkeletonAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div className={cn('p-6 space-y-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700', className)}>
+    <div className={cn('p-6 space-y-4 bg-card rounded-lg border border-border', className)}>
       <Skeleton variant="rectangular" height={24} width="60%" />
       <SkeletonText lines={3} />
       <div className="flex gap-2">
@@ -96,13 +96,13 @@ export function SkeletonTable({
   return (
     <div className="w-full">
       {showHeader && (
-        <div className="flex gap-4 p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex gap-4 p-4 border-b border-border">
           {Array.from({ length: columns }).map((_, i) => (
             <Skeleton key={i} variant="rectangular" height={20} width="100%" />
           ))}
         </div>
       )}
-      <div className="divide-y divide-gray-200 dark:divide-gray-700">
+      <div className="divide-y divide-border">
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <div key={rowIndex} className="flex gap-4 p-4">
             {Array.from({ length: columns }).map((_, colIndex) => (
@@ -133,7 +133,7 @@ export function SkeletonList({
   return (
     <div className="space-y-3">
       {Array.from({ length: items }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div key={i} className="flex items-center gap-4 p-4 bg-card rounded-lg border border-border">
           {showAvatar && <SkeletonAvatar size="md" />}
           <div className="flex-1 space-y-2">
             <Skeleton variant="rectangular" height={16} width="40%" />
@@ -156,7 +156,7 @@ export function SkeletonStats({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div key={i} className="p-6 bg-card rounded-lg border border-border">
           <div className="flex items-center justify-between mb-4">
             <Skeleton variant="rectangular" height={16} width="60%" />
             <SkeletonAvatar size="sm" />

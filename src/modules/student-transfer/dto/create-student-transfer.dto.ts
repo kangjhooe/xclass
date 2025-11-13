@@ -1,4 +1,4 @@
-import { IsNumber, IsString, IsOptional } from 'class-validator';
+import { IsNumber, IsString, IsOptional, IsArray, IsDateString } from 'class-validator';
 
 export class CreateStudentTransferDto {
   @IsNumber()
@@ -14,5 +14,14 @@ export class CreateStudentTransferDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsDateString()
+  @IsOptional()
+  transferDate?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  documents?: string[];
 }
 

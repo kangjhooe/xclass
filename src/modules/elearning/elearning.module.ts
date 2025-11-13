@@ -14,6 +14,7 @@ import { CourseQuizQuestion } from './entities/course-quiz-question.entity';
 import { CourseQuizAttempt } from './entities/course-quiz-attempt.entity';
 import { CourseProgress } from './entities/course-progress.entity';
 import { CourseAnnouncement } from './entities/course-announcement.entity';
+import { Question } from '../exams/entities/question.entity';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { CourseAnnouncement } from './entities/course-announcement.entity';
       CourseQuizAttempt,
       CourseProgress,
       CourseAnnouncement,
+      Question,
     ]),
   ],
   controllers: [ELearningController],

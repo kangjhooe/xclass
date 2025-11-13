@@ -33,12 +33,12 @@ export function SortableTableHead({
 
   return (
     <TableHead
-      className={cn('cursor-pointer select-none hover:bg-gray-100', className)}
+      className={cn('cursor-pointer select-none hover:bg-muted/50', className)}
       onClick={handleClick}
     >
       <div className="flex items-center gap-2">
         <span>{children}</span>
-        <span className="text-gray-400">
+        <span className="text-muted-foreground">
           {direction === 'asc' ? '↑' : direction === 'desc' ? '↓' : '⇅'}
         </span>
       </div>

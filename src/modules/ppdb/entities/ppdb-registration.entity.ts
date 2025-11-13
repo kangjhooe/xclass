@@ -141,6 +141,9 @@ export class PpdbRegistration {
   @Column()
   instansiId: number;
 
+  @Column({ nullable: true })
+  userId: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

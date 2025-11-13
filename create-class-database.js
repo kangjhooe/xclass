@@ -1,0 +1,60 @@
+const mysql = require('mysql2/promise');
+
+async function createClassDatabase() {
+  // Database config - adjust if needed
+  const dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USERNAME || 'root',
+    password: process.env.DB_PASSWORD || '',
+  };
+
+  let connection;
+  
+  try {
+    console.log('🔌 Menghubungkan ke MySQL server...\n');
+    connection = await mysql.createConnection(dbConfig);
+    console.log('✅ Terhubung ke MySQL server!\n');
+
+    console.log('🔍 Membuat database "class"...\n');
+    
+    // Create database
+    await connection.query('CREATE DATABASE IF NOT EXISTS `class` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    console.log('✅ Database "class" berhasil dibuat atau sudah ada!');
+    
+    // Use database
+    await connection.query('USE `class`');
+    console.log('✅ Menggunakan database "class"\n');
+    
+    // Check existing tables
+    const [tables] = await connection.query('SHOW TABLES');
+    
+    if (tables.length === 0) {
+      console.log('⚠️  Database "class" masih kosong (belum ada tabel).');
+      console.log('💡 Pastikan untuk menjalankan migrasi database atau TypeORM sync.\n');
+    } else {
+      console.log(`✅ Database "class" sudah memiliki ${tables.length} tabel.\n`);
+    }
+    
+    console.log('✅ Setup database "class" selesai!\n');
+    console.log('💡 Jangan lupa update file .env dengan:');
+    console.log('   DB_DATABASE=class\n');
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    if (error.code === 'ECONNREFUSED') {
+      console.error('⚠️  Tidak bisa terhubung ke MySQL server.');
+      console.error('💡 Pastikan MySQL/XAMPP sudah berjalan.\n');
+    } else {
+      console.error('Stack:', error.stack);
+    }
+    process.exit(1);
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
+
+createClassDatabase();
+

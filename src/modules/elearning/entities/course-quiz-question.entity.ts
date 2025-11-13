@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CourseQuiz } from './course-quiz.entity';
+import { Question } from '../../exams/entities/question.entity';
 
 export enum QuestionType {
   MULTIPLE_CHOICE = 'multiple_choice',
@@ -22,6 +23,9 @@ export class CourseQuizQuestion {
 
   @Column()
   quizId: number;
+
+  @Column({ nullable: true })
+  questionId: number; // Reference ke Question dari bank soal
 
   @Column({ type: 'text' })
   question: string;
@@ -47,6 +51,9 @@ export class CourseQuizQuestion {
   @Column({ type: 'int', default: 0 })
   order: number;
 
+  @Column({ default: true })
+  isSnapshot: boolean; // True jika di-copy dari Question
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -58,5 +65,9 @@ export class CourseQuizQuestion {
   })
   @JoinColumn({ name: 'quiz_id' })
   quiz: CourseQuiz;
+
+  @ManyToOne(() => Question, { nullable: true })
+  @JoinColumn({ name: 'question_id' })
+  sourceQuestion: Question;
 }
 

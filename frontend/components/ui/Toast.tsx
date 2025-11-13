@@ -155,7 +155,7 @@ export function Toast({ toast, onClose }: ToastProps) {
     >
       {/* Progress Bar */}
       {!toast.persistent && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-700 rounded-t-lg overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-muted rounded-t-lg overflow-hidden">
           <div
             className={cn('h-full transition-all duration-75 ease-linear', style.progress)}
             style={{ width: `${progress}%` }}
@@ -196,7 +196,7 @@ export function Toast({ toast, onClose }: ToastProps) {
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 -mt-1 -mr-1"
+          className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 -mt-1 -mr-1"
           aria-label="Close"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,7 +256,7 @@ export function ToastContainer({
         </div>
       ))}
       {toasts.length > maxToasts && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 bg-white dark:bg-gray-800 rounded border">
+        <div className="text-xs text-muted-foreground px-2 py-1 bg-background rounded border border-border">
           +{toasts.length - maxToasts} more
         </div>
       )}

@@ -101,7 +101,7 @@ export const FormField = forwardRef<HTMLInputElement | HTMLTextAreaElement | HTM
       return (
         <div className="relative">
           {prefix && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
               {prefix}
             </div>
           )}
@@ -115,7 +115,7 @@ export const FormField = forwardRef<HTMLInputElement | HTMLTextAreaElement | HTM
             ref={ref as React.Ref<HTMLInputElement>}
           />
           {suffix && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
               {suffix}
             </div>
           )}
@@ -129,18 +129,18 @@ export const FormField = forwardRef<HTMLInputElement | HTMLTextAreaElement | HTM
           htmlFor={name}
           className={cn(
             'block text-sm font-medium',
-            error ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300',
+            error ? 'text-destructive' : 'text-foreground',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
         >
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-destructive ml-1">*</span>}
         </label>
 
         {renderInput()}
 
         {showError && error && (
-          <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+          <p className="text-sm text-destructive flex items-center gap-1">
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
@@ -154,7 +154,7 @@ export const FormField = forwardRef<HTMLInputElement | HTMLTextAreaElement | HTM
         )}
 
         {helpText && !error && (
-          <p className="text-sm text-gray-500 dark:text-gray-400">{helpText}</p>
+          <p className="text-sm text-muted-foreground">{helpText}</p>
         )}
       </div>
     );

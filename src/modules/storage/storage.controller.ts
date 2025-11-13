@@ -18,7 +18,7 @@ import { StorageService } from './storage.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 
-@Controller('storage')
+@Controller({ path: ['storage', 'tenants/:tenant/storage'] })
 @UseGuards(JwtAuthGuard)
 export class StorageController {
   constructor(private readonly storageService: StorageService) {}

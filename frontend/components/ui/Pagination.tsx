@@ -56,7 +56,7 @@ export function Pagination({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+    <div className="flex items-center justify-between px-4 py-3 bg-background border-t border-border sm:px-6">
       <div className="flex flex-1 justify-between sm:hidden">
         <Button
           variant="outline"
@@ -77,7 +77,7 @@ export function Pagination({
       </div>
       <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-foreground">
             Menampilkan <span className="font-medium">{startItem}</span> sampai{' '}
             <span className="font-medium">{endItem}</span> dari{' '}
             <span className="font-medium">{totalItems}</span> hasil
@@ -99,7 +99,7 @@ export function Pagination({
                 return (
                   <span
                     key={`ellipsis-${index}`}
-                    className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:z-20 focus:outline-offset-0"
+                    className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-foreground ring-1 ring-inset ring-border focus:z-20 focus:outline-offset-0"
                   >
                     ...
                   </span>
@@ -113,7 +113,6 @@ export function Pagination({
                   variant={currentPage === pageNum ? 'primary' : 'outline'}
                   size="sm"
                   onClick={() => onPageChange(pageNum)}
-                  className={currentPage === pageNum ? 'z-10 bg-blue-600 text-white' : ''}
                 >
                   {pageNum}
                 </Button>

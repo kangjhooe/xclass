@@ -2,6 +2,8 @@ import { Controller, Post, Body, UseGuards, Get, Request } from '@nestjs/common'
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterPpdbDto } from './dto/register-ppdb.dto';
+import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -32,6 +34,33 @@ export class AuthController {
       console.error('Register error:', error.message);
       throw error;
     }
+  }
+
+  @Post('register-ppdb')
+  async registerPpdb(@Body() registerDto: RegisterPpdbDto) {
+    try {
+      const result = await this.authService.registerPpdb(registerDto);
+      console.log('Register PPDB successful for:', registerDto.email);
+      return result;
+    } catch (error) {
+      console.error('Register PPDB error:', error.message);
+      throw error;
+    }
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto.email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      resetPasswordDto.email,
+      resetPasswordDto.newPassword,
+      resetPasswordDto.confirmPassword,
+      resetPasswordDto.resetToken,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

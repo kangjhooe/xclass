@@ -162,5 +162,15 @@ export class ELearningController {
   ) {
     return this.elearningService.getStudentProgress(+courseId, +studentId, instansiId);
   }
+
+  // Add Question from Bank to Quiz
+  @Post('quizzes/:quizId/questions/add')
+  addQuestionToQuiz(
+    @Param('quizId') quizId: string,
+    @Body() body: { questionId: number },
+    @TenantId() instansiId: number,
+  ) {
+    return this.elearningService.addQuestionToQuiz(+quizId, body.questionId, instansiId);
+  }
 }
 

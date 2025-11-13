@@ -15,8 +15,9 @@ import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
+import { CheckScheduleConflictDto } from './dto/check-schedule-conflict.dto';
 
-@Controller('schedules')
+@Controller({ path: ['schedules', 'tenants/:tenant/schedules'] })
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
@@ -24,6 +25,11 @@ export class SchedulesController {
   @Post()
   create(@Body() createScheduleDto: CreateScheduleDto, @TenantId() instansiId: number) {
     return this.schedulesService.create(createScheduleDto, instansiId);
+  }
+
+  @Post('check-conflict')
+  checkConflict(@Body() dto: CheckScheduleConflictDto, @TenantId() instansiId: number) {
+    return this.schedulesService.checkScheduleConflicts(dto, instansiId);
   }
 
   @Get()

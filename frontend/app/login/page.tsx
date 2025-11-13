@@ -44,6 +44,7 @@ export default function LoginPage() {
     password: '',
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -155,13 +156,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (searchParams?.get('registered') === 'true') {
-      setError('Pendaftaran berhasil. Silakan login menggunakan kredensial Anda.');
+      setSuccess('Pendaftaran berhasil. Silakan login menggunakan kredensial Anda.');
     }
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     try {
       const response = await loginMutation.mutateAsync(formData);
@@ -386,6 +388,20 @@ export default function LoginPage() {
                   </Link>
                 </div>
 
+                {success && (
+                  <div className="mt-8 rounded-2xl border border-green-200 bg-green-50/80 p-4 text-sm text-green-600 shadow-inner animate-section">
+                    <div className="flex items-start gap-3">
+                      <svg className="mt-0.5 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span className="font-medium leading-relaxed">{success}</span>
+                    </div>
+                  </div>
+                )}
                 {error && (
                   <div className="mt-8 rounded-2xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-600 shadow-inner animate-section">
                     <div className="flex items-start gap-3">

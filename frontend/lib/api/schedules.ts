@@ -37,6 +37,27 @@ export interface ScheduleCreateData {
   isActive?: boolean;
 }
 
+export interface ScheduleConflict {
+  type: 'class' | 'teacher' | 'room';
+  schedules: Schedule[];
+}
+
+export interface ScheduleConflictResponse {
+  hasConflict: boolean;
+  conflicts: ScheduleConflict[];
+}
+
+export interface ScheduleConflictPayload {
+  classId: number;
+  subjectId: number;
+  teacherId: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  room?: string;
+  scheduleId?: number;
+}
+
 export const schedulesApi = {
   getAll: async (
     tenantId: number,
@@ -58,6 +79,14 @@ export const schedulesApi = {
 
   update: async (tenantId: number, id: number, data: Partial<ScheduleCreateData>): Promise<Schedule> => {
     const response = await apiClient.patch(`/tenants/${tenantId}/schedules/${id}`, data);
+    return response.data;
+  },
+
+  checkConflict: async (
+    tenantId: number,
+    payload: ScheduleConflictPayload,
+  ): Promise<ScheduleConflictResponse> => {
+    const response = await apiClient.post(`/tenants/${tenantId}/schedules/check-conflict`, payload);
     return response.data;
   },
 

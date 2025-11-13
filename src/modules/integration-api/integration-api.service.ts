@@ -598,6 +598,19 @@ export class IntegrationApiService {
       where: { instansiId, nisn },
     });
 
+    // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NISN
+    const activeStudentInOtherTenant = await this.studentRepository.findOne({
+      where: { 
+        nisn, 
+        isActive: true,
+      },
+    });
+    
+    if (activeStudentInOtherTenant && activeStudentInOtherTenant.instansiId !== instansiId) {
+      // Skip sync jika siswa sudah aktif di tenant lain
+      throw new Error(`Siswa dengan NISN ${nisn} sudah aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`);
+    }
+
     const studentData: Partial<Student> = {
       instansiId,
       nisn,
@@ -640,6 +653,26 @@ export class IntegrationApiService {
       where: { instansiId, nik },
     });
 
+    // Validasi: Guru bisa aktif di banyak tenant, tapi hanya 1 yang menjadi tenant induk
+    let isMainTenant = false;
+    const activeTeachersWithSameNik = await this.teacherRepository.find({
+      where: { 
+        nik, 
+        isActive: true,
+      },
+    });
+    
+    // Cek apakah sudah ada tenant induk untuk NIK ini
+    const existingMainTenant = activeTeachersWithSameNik.find(t => t.isMainTenant === true);
+    
+    if (existingMainTenant && existingMainTenant.instansiId !== instansiId) {
+      // Sudah ada tenant induk, jadi tenant baru otomatis menjadi cabang
+      isMainTenant = false;
+    } else if (!existingMainTenant) {
+      // Belum ada tenant induk, set sebagai induk
+      isMainTenant = true;
+    }
+
     const teacherData: Partial<Teacher> = {
       instansiId,
       nik,
@@ -656,6 +689,7 @@ export class IntegrationApiService {
       specialization: this.mapField(data, 'bidang_studi', fieldMapping.specialization),
       employeeNumber: this.mapField(data, 'no_pegawai', fieldMapping.employeeNumber),
       isActive: true,
+      isMainTenant,
     };
 
     if (teacher) {

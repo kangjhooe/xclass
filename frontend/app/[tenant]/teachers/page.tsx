@@ -1,23 +1,124 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { ModulePageShell } from '@/components/layouts/ModulePageShell';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Pagination } from '@/components/ui/Pagination';
 import { teachersApi, Teacher, TeacherCreateData } from '@/lib/api/teachers';
+import { subjectsApi, Subject } from '@/lib/api/subjects';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTenantId } from '@/lib/hooks/useTenant';
+import { useTenantIdState } from '@/lib/hooks/useTenant';
+import { useToastStore } from '@/lib/store/toast';
+import { useDebounce } from '@/lib/hooks/useDebounce';
+
+// Subject Assignment Form Component
+function SubjectAssignmentForm({
+  teacher,
+  subjects,
+  onSubmit,
+  onCancel,
+  isLoading,
+}: {
+  teacher: Teacher;
+  subjects: Subject[];
+  onSubmit: (subjectIds: number[]) => void;
+  onCancel: () => void;
+  isLoading?: boolean;
+}) {
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<number[]>(
+    teacher.subjects?.map((s) => s.id) || []
+  );
+
+  const handleToggle = (subjectId: number) => {
+    setSelectedSubjectIds((prev) =>
+      prev.includes(subjectId)
+        ? prev.filter((id) => id !== subjectId)
+        : [...prev, subjectId]
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(selectedSubjectIds);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
+        {subjects.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">Tidak ada mata pelajaran tersedia</p>
+        ) : (
+          <div className="space-y-2">
+            {subjects.map((subject) => (
+              <label
+                key={subject.id}
+                className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedSubjectIds.includes(subject.id)}
+                  onChange={() => handleToggle(subject.id)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <span className="font-medium text-gray-900">{subject.name}</span>
+                  {subject.code && (
+                    <span className="ml-2 text-sm text-gray-500">({subject.code})</span>
+                  )}
+                </div>
+                {!subject.isActive && (
+                  <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                    Tidak Aktif
+                  </span>
+                )}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex justify-between items-center pt-2">
+        <p className="text-sm text-gray-600">
+          {selectedSubjectIds.length} mata pelajaran dipilih
+        </p>
+        <div className="flex space-x-2">
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Batal
+          </Button>
+          <Button type="submit" loading={isLoading}>
+            Simpan
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+}
 
 export default function TeachersPage() {
   const params = useParams();
   const tenantNpsn = params?.tenant as string; // NPSN from URL
-  const tenantId = useTenantId(); // Numeric ID for API calls
+  const { tenantId, loading: tenantLoading, error: tenantError } = useTenantIdState(); // Numeric ID for API calls
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMutasiModalOpen, setIsMutasiModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterGender, setFilterGender] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { success, error: showError, warning } = useToastStore();
   const [formData, setFormData] = useState<TeacherCreateData>({
     name: '',
     email: '',
@@ -37,10 +138,59 @@ export default function TeachersPage() {
 
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['teachers', tenantId],
-    queryFn: () => teachersApi.getAll(tenantId!),
-    enabled: !!tenantId,
+  // Fetch teachers with filters and pagination
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['teachers', tenantId, currentPage, pageSize, debouncedSearchTerm, filterStatus, filterGender],
+    queryFn: async () => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak ditemukan');
+      }
+      const params: any = {
+        page: currentPage,
+        limit: pageSize,
+      };
+      if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+      if (filterStatus !== 'all') params.isActive = filterStatus === 'active';
+      if (filterGender !== 'all') params.gender = filterGender;
+      
+      const response = await teachersApi.getAll(tenantId, params);
+      
+      // Handle both array response and object response format
+      if (Array.isArray(response)) {
+        return {
+          data: response,
+          total: response.length,
+          page: 1,
+          limit: pageSize,
+          totalPages: Math.ceil(response.length / pageSize),
+        };
+      }
+      
+      // If response already has data property, use it
+      if (response && typeof response === 'object' && 'data' in response) {
+        return response;
+      }
+      
+      // Fallback: wrap in object
+      return {
+        data: [],
+        total: 0,
+        page: 1,
+        limit: pageSize,
+        totalPages: 0,
+      };
+    },
+    enabled: !!tenantId && !tenantLoading,
+  });
+
+  // Fetch subjects for assignment
+  const { data: subjectsData } = useQuery({
+    queryKey: ['subjects', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return { data: [], total: 0 };
+      return subjectsApi.getAll(tenantId);
+    },
+    enabled: !!tenantId && !tenantLoading,
   });
 
   const createMutation = useMutation({
@@ -52,8 +202,13 @@ export default function TeachersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teachers', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['teachers-stats', tenantId] });
       setIsModalOpen(false);
       resetForm();
+      success('Guru berhasil ditambahkan');
+    },
+    onError: (error: any) => {
+      showError(error.message || 'Gagal menambahkan guru');
     },
   });
 
@@ -66,9 +221,14 @@ export default function TeachersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teachers', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['teachers-stats', tenantId] });
       setIsModalOpen(false);
       setSelectedTeacher(null);
       resetForm();
+      success('Data guru berhasil diperbarui');
+    },
+    onError: (error: any) => {
+      showError(error.message || 'Gagal memperbarui data guru');
     },
   });
 
@@ -81,6 +241,72 @@ export default function TeachersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teachers', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['teachers-stats', tenantId] });
+      setIsDeleteModalOpen(false);
+      setTeacherToDelete(null);
+      success('Guru berhasil dihapus');
+    },
+    onError: (error: any) => {
+      showError(error.message || 'Gagal menghapus guru');
+      setIsDeleteModalOpen(false);
+      setTeacherToDelete(null);
+    },
+  });
+
+  const exportPDFMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      await teachersApi.exportPDF(tenantId);
+    },
+    onSuccess: () => {
+      success('Export PDF berhasil');
+    },
+    onError: (error: any) => {
+      showError(error.message || 'Gagal mengekspor PDF');
+    },
+  });
+
+  const exportExcelMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      await teachersApi.exportExcel(tenantId);
+    },
+    onSuccess: () => {
+      success('Export Excel berhasil');
+    },
+    onError: (error: any) => {
+      showError(error.message || 'Gagal mengekspor Excel');
+    },
+  });
+
+  const importExcelMutation = useMutation({
+    mutationFn: async ({ file, sheetIndex, startRow }: { file: File; sheetIndex?: number; startRow?: number }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return teachersApi.importExcel(tenantId, file, sheetIndex, startRow);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['teachers', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['teachers-stats', tenantId] });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      if (result.failed > 0) {
+        warning(`Import selesai: ${result.imported} berhasil, ${result.failed} gagal dari ${result.total} total`);
+      } else {
+        success(`Import berhasil! ${result.imported} data berhasil diimpor`);
+      }
+    },
+    onError: (error: any) => {
+      showError(error.message || 'Terjadi kesalahan saat mengimpor data');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     },
   });
 
@@ -102,6 +328,7 @@ export default function TeachersPage() {
       isActive: true,
     });
     setSelectedTeacher(null);
+    setFormErrors({});
   };
 
   const handleEdit = (teacher: Teacher) => {
@@ -125,10 +352,38 @@ export default function TeachersPage() {
     setIsModalOpen(true);
   };
 
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!formData.name.trim()) {
+      errors.name = 'Nama wajib diisi';
+    }
+    
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Format email tidak valid';
+    }
+    
+    if (formData.phone && !/^[0-9+\-\s()]+$/.test(formData.phone)) {
+      errors.phone = 'Format nomor telepon tidak valid';
+    }
+    
+    if (formData.nik && !/^[0-9]{16}$/.test(formData.nik.replace(/\s/g, ''))) {
+      errors.nik = 'NIK harus 16 digit angka';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantId) {
-      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      showError('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
+    if (!validateForm()) {
+      showError('Mohon perbaiki kesalahan pada form');
       return;
     }
 
@@ -139,19 +394,129 @@ export default function TeachersPage() {
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (teacher: Teacher) => {
+    setTeacherToDelete(teacher);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!teacherToDelete || !tenantId) {
+      showError('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+    deleteMutation.mutate(teacherToDelete.id);
+  };
+
+  const handleExportPDF = () => {
     if (!tenantId) {
-      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      showError('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+    exportPDFMutation.mutate();
+  };
+
+  const handleExportExcel = () => {
+    if (!tenantId) {
+      showError('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+    exportExcelMutation.mutate();
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!tenantId) {
+      showError('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
       return;
     }
 
-    if (confirm('Apakah Anda yakin ingin menghapus guru ini?')) {
-      deleteMutation.mutate(id);
+    // Validate file type
+    const validTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ];
+    if (!validTypes.includes(file.type)) {
+      showError('File harus berformat Excel (.xlsx atau .xls)');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      showError('Ukuran file maksimal 10MB');
+      return;
+    }
+
+    importExcelMutation.mutate({ file });
+  };
+
+  const handleMutasi = () => {
+    setIsMutasiModalOpen(true);
+  };
+
+  const handleViewDetail = async (teacher: Teacher) => {
+    if (!tenantId) return;
+    try {
+      const fullTeacher = await teachersApi.getById(tenantId, teacher.id);
+      setSelectedTeacher(fullTeacher);
+      setIsDetailModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching teacher details:', error);
+      setSelectedTeacher(teacher);
+      setIsDetailModalOpen(true);
     }
   };
 
-  const totalTeachers = data?.data?.length || 0;
-  const activeTeachers = data?.data?.filter((teacher) => teacher.isActive).length || 0;
+  const handleAssignSubjects = (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setIsSubjectModalOpen(true);
+  };
+
+  const updateSubjectsMutation = useMutation({
+    mutationFn: ({ id, subjectIds }: { id: number; subjectIds: number[] }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return teachersApi.updateSubjects(tenantId, id, subjectIds);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers', tenantId] });
+      setIsSubjectModalOpen(false);
+      setSelectedTeacher(null);
+      success('Mata pelajaran berhasil di-assign');
+    },
+    onError: (error: any) => {
+      showError(error.message || 'Gagal meng-assign mata pelajaran');
+    },
+  });
+
+  const handleSubjectSubmit = (subjectIds: number[]) => {
+    if (!selectedTeacher) return;
+    updateSubjectsMutation.mutate({ id: selectedTeacher.id, subjectIds });
+  };
+
+  // Calculate stats from all data (not just current page)
+  const statsQuery = useQuery({
+    queryKey: ['teachers-stats', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return { total: 0, active: 0 };
+      const response = await teachersApi.getAll(tenantId, { limit: 1000 });
+      const allTeachers = Array.isArray(response) ? response : response?.data || [];
+      return {
+        total: allTeachers.length,
+        active: allTeachers.filter((t) => t.isActive).length,
+      };
+    },
+    enabled: !!tenantId && !tenantLoading,
+  });
+
+  const totalTeachers = statsQuery.data?.total || 0;
+  const activeTeachers = statsQuery.data?.active || 0;
 
   return (
     <TenantLayout>
@@ -160,18 +525,65 @@ export default function TeachersPage() {
         title="Data Guru"
         description="Kelola data guru dan tenaga pendidik"
         actions={({ themeConfig }) => (
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsModalOpen(true);
-            }}
-            className={themeConfig.primaryButton}
-          >
-            <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Tambah Guru
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsModalOpen(true);
+              }}
+              className={themeConfig.primaryButton}
+            >
+              <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="ml-2">Tambah Guru</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleMutasi}
+            >
+              <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+              <span className="ml-2">Mutasi</span>
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleImportClick}
+              disabled={importExcelMutation.isPending}
+              loading={importExcelMutation.isPending}
+            >
+              <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v4H4zM4 12h16v8H4z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12v8M16 12v8" />
+              </svg>
+              <span className="ml-2">Import (Excel)</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+              disabled={exportPDFMutation.isPending}
+              loading={exportPDFMutation.isPending}
+            >
+              <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11V3l8 4v4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 15h16v6H4z" />
+              </svg>
+              <span className="ml-2">Export (PDF)</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={exportExcelMutation.isPending}
+              loading={exportExcelMutation.isPending}
+            >
+              <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v16H4z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8l8 8M16 8l-8 8" />
+              </svg>
+              <span className="ml-2">Export (Excel)</span>
+            </Button>
+          </div>
         )}
         stats={[
           {
@@ -210,13 +622,87 @@ export default function TeachersPage() {
       >
         {({ themeConfig }) => (
           <>
-            {isLoading ? (
+            {tenantLoading ? (
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
                 <div className={`inline-block animate-spin rounded-full h-12 w-12 border-b-2 ${themeConfig.accentBorder}`}></div>
-                <p className="mt-4 text-gray-600">Memuat data...</p>
+                <p className="mt-4 text-gray-600">Memuat informasi tenant...</p>
+              </div>
+            ) : tenantError ? (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-red-200 p-12 text-center">
+                <div className="text-red-500 mb-4">
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-red-600 font-semibold mb-2">Error Memuat Tenant</p>
+                <p className="text-gray-600 text-sm">{tenantError.message || 'Gagal memuat informasi tenant'}</p>
+              </div>
+            ) : isLoading ? (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+                <div className={`inline-block animate-spin rounded-full h-12 w-12 border-b-2 ${themeConfig.accentBorder}`}></div>
+                <p className="mt-4 text-gray-600">Memuat data guru...</p>
+              </div>
+            ) : error ? (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-red-200 p-12 text-center">
+                <div className="text-red-500 mb-4">
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-red-600 font-semibold mb-2">Error Memuat Data</p>
+                <p className="text-gray-600 text-sm">{error instanceof Error ? error.message : 'Terjadi kesalahan saat memuat data guru'}</p>
+                {!tenantId && (
+                  <p className="mt-2 text-sm text-yellow-600">Tenant ID: {tenantId || 'Belum tersedia'}</p>
+                )}
               </div>
             ) : (
               <>
+                {/* Search and Filters */}
+                <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-2">
+                      <Input
+                        type="text"
+                        placeholder="Cari nama, NIP, email, atau NUPTK..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <select
+                        value={filterStatus}
+                        onChange={(e) => {
+                          setFilterStatus(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="all">Semua Status</option>
+                        <option value="active">Aktif</option>
+                        <option value="inactive">Tidak Aktif</option>
+                      </select>
+                    </div>
+                    <div>
+                      <select
+                        value={filterGender}
+                        onChange={(e) => {
+                          setFilterGender(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="all">Semua Jenis Kelamin</option>
+                        <option value="L">Laki-laki</option>
+                        <option value="P">Perempuan</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-gray-100/50 overflow-hidden">
                   <div className="overflow-x-auto">
                     <Table>
@@ -226,6 +712,7 @@ export default function TeachersPage() {
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Email</TableHead>
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Telepon</TableHead>
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">NUPTK</TableHead>
+                          <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Mata Pelajaran</TableHead>
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Jenis Kelamin</TableHead>
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Status</TableHead>
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider text-center">Aksi</TableHead>
@@ -243,6 +730,24 @@ export default function TeachersPage() {
                             <TableCell>{teacher.email || '-'}</TableCell>
                             <TableCell>{teacher.phone || '-'}</TableCell>
                             <TableCell>{teacher.nuptk || '-'}</TableCell>
+                            <TableCell>
+                              {teacher.subjects && teacher.subjects.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {teacher.subjects.slice(0, 2).map((subject) => (
+                                    <span key={subject.id} className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                      {subject.name}
+                                    </span>
+                                  ))}
+                                  {teacher.subjects.length > 2 && (
+                                    <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                                      +{teacher.subjects.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </TableCell>
                             <TableCell>{teacher.gender === 'L' ? 'Laki-laki' : teacher.gender === 'P' ? 'Perempuan' : '-'}</TableCell>
                             <TableCell>
                               <span className={`px-3 py-1 text-xs font-bold rounded-full ${
@@ -254,7 +759,19 @@ export default function TeachersPage() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <div className="flex space-x-2">
+                              <div className="flex flex-wrap gap-2 justify-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewDetail(teacher)}
+                                  className="hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                                  title="Lihat Detail"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -264,9 +781,20 @@ export default function TeachersPage() {
                                   Edit
                                 </Button>
                                 <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleAssignSubjects(teacher)}
+                                  className="hover:bg-purple-50 hover:border-purple-300 transition-colors"
+                                  title="Assign Mata Pelajaran"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                </Button>
+                                <Button
                                   variant="danger"
                                   size="sm"
-                                  onClick={() => handleDelete(teacher.id)}
+                                  onClick={() => handleDelete(teacher)}
                                   className="hover:bg-red-600 transition-colors"
                                 >
                                   Hapus
@@ -292,6 +820,17 @@ export default function TeachersPage() {
                       </TableBody>
                     </Table>
                   </div>
+                  
+                  {/* Pagination */}
+                  {data && data.totalPages > 1 && (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={data.totalPages || 1}
+                      totalItems={data.total || 0}
+                      itemsPerPage={pageSize}
+                      onPageChange={setCurrentPage}
+                    />
+                  )}
                 </div>
 
                 <Modal
@@ -306,16 +845,30 @@ export default function TeachersPage() {
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Nama <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Nama <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => {
+                              setFormData({ ...formData, name: e.target.value });
+                              if (formErrors.name) {
+                                setFormErrors({ ...formErrors, name: '' });
+                              }
+                            }}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                              formErrors.name
+                                ? 'border-red-500 focus:ring-red-500'
+                                : 'border-gray-300 focus:ring-blue-500'
+                            }`}
+                            required
+                          />
+                          {formErrors.name && (
+                            <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
+                          )}
+                        </div>
                       </div>
 
                       <div>
@@ -333,9 +886,23 @@ export default function TeachersPage() {
                         <input
                           type="text"
                           value={formData.nik}
-                          onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '').slice(0, 16);
+                            setFormData({ ...formData, nik: value });
+                            if (formErrors.nik) {
+                              setFormErrors({ ...formErrors, nik: '' });
+                            }
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                            formErrors.nik
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
+                          placeholder="16 digit angka"
                         />
+                        {formErrors.nik && (
+                          <p className="mt-1 text-sm text-red-500">{formErrors.nik}</p>
+                        )}
                       </div>
 
                       <div>
@@ -363,9 +930,21 @@ export default function TeachersPage() {
                         <input
                           type="email"
                           value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onChange={(e) => {
+                            setFormData({ ...formData, email: e.target.value });
+                            if (formErrors.email) {
+                              setFormErrors({ ...formErrors, email: '' });
+                            }
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                            formErrors.email
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
                         />
+                        {formErrors.email && (
+                          <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+                        )}
                       </div>
 
                       <div>
@@ -373,9 +952,21 @@ export default function TeachersPage() {
                         <input
                           type="tel"
                           value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onChange={(e) => {
+                            setFormData({ ...formData, phone: e.target.value });
+                            if (formErrors.phone) {
+                              setFormErrors({ ...formErrors, phone: '' });
+                            }
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                            formErrors.phone
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
                         />
+                        {formErrors.phone && (
+                          <p className="mt-1 text-sm text-red-500">{formErrors.phone}</p>
+                        )}
                       </div>
 
                       <div>
@@ -474,6 +1065,216 @@ export default function TeachersPage() {
                       </Button>
                     </div>
                   </form>
+                </Modal>
+
+                {/* Hidden file input for import */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+
+                {/* Detail Modal */}
+                <Modal
+                  isOpen={isDetailModalOpen}
+                  onClose={() => {
+                    setIsDetailModalOpen(false);
+                    setSelectedTeacher(null);
+                  }}
+                  title="Detail Guru"
+                  size="lg"
+                >
+                  {selectedTeacher && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
+                          <p className="text-gray-900 font-semibold">{selectedTeacher.name}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">NIP</label>
+                          <p className="text-gray-900">{selectedTeacher.nip || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">NIK</label>
+                          <p className="text-gray-900">{selectedTeacher.nik || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">NUPTK</label>
+                          <p className="text-gray-900">{selectedTeacher.nuptk || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                          <p className="text-gray-900">{selectedTeacher.email || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
+                          <p className="text-gray-900">{selectedTeacher.phone || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
+                          <p className="text-gray-900">{selectedTeacher.gender === 'L' ? 'Laki-laki' : selectedTeacher.gender === 'P' ? 'Perempuan' : '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label>
+                          <p className="text-gray-900">{selectedTeacher.birthDate ? formatDate(selectedTeacher.birthDate) : '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Tempat Lahir</label>
+                          <p className="text-gray-900">{selectedTeacher.birthPlace || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Pendidikan</label>
+                          <p className="text-gray-900">{selectedTeacher.education || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Spesialisasi</label>
+                          <p className="text-gray-900">{selectedTeacher.specialization || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                            selectedTeacher.isActive 
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' 
+                              : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
+                          }`}>
+                            {selectedTeacher.isActive ? 'Aktif' : 'Tidak Aktif'}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+                          <p className="text-gray-900">{selectedTeacher.address || '-'}</p>
+                        </div>
+                        {selectedTeacher.subjects && selectedTeacher.subjects.length > 0 && (
+                          <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran</label>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedTeacher.subjects.map((subject) => (
+                                <span key={subject.id} className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">
+                                  {subject.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-end space-x-2 pt-4">
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setIsDetailModalOpen(false);
+                            setSelectedTeacher(null);
+                          }}
+                        >
+                          Tutup
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setIsDetailModalOpen(false);
+                            handleEdit(selectedTeacher);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Modal>
+
+                {/* Subject Assignment Modal */}
+                <Modal
+                  isOpen={isSubjectModalOpen}
+                  onClose={() => {
+                    setIsSubjectModalOpen(false);
+                    setSelectedTeacher(null);
+                  }}
+                  title={`Assign Mata Pelajaran - ${selectedTeacher?.name || ''}`}
+                  size="md"
+                >
+                  {selectedTeacher && subjectsData && (
+                    <SubjectAssignmentForm
+                      teacher={selectedTeacher}
+                      subjects={subjectsData.data || []}
+                      onSubmit={handleSubjectSubmit}
+                      onCancel={() => {
+                        setIsSubjectModalOpen(false);
+                        setSelectedTeacher(null);
+                      }}
+                      isLoading={updateSubjectsMutation.isPending}
+                    />
+                  )}
+                </Modal>
+
+                {/* Delete Confirmation Modal */}
+                <Modal
+                  isOpen={isDeleteModalOpen}
+                  onClose={() => {
+                    setIsDeleteModalOpen(false);
+                    setTeacherToDelete(null);
+                  }}
+                  title="Konfirmasi Hapus"
+                  size="md"
+                >
+                  <div className="space-y-4">
+                    <p className="text-gray-600">
+                      Apakah Anda yakin ingin menghapus guru <strong>{teacherToDelete?.name}</strong>?
+                    </p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Peringatan:</strong> Tindakan ini tidak dapat dibatalkan. 
+                        Semua data terkait guru ini akan dihapus secara permanen.
+                      </p>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setIsDeleteModalOpen(false);
+                          setTeacherToDelete(null);
+                        }}
+                        disabled={deleteMutation.isPending}
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        variant="danger"
+                        onClick={confirmDelete}
+                        loading={deleteMutation.isPending}
+                      >
+                        Hapus
+                      </Button>
+                    </div>
+                  </div>
+                </Modal>
+
+                {/* Mutasi Modal */}
+                <Modal
+                  isOpen={isMutasiModalOpen}
+                  onClose={() => setIsMutasiModalOpen(false)}
+                  title="Mutasi Guru"
+                  size="md"
+                >
+                  <div className="space-y-4">
+                    <p className="text-gray-600">
+                      Fitur mutasi guru memungkinkan Anda untuk memindahkan guru ke sekolah/instansi lain.
+                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm text-blue-800">
+                        <strong>Catatan:</strong> Fitur ini sedang dalam pengembangan. 
+                        Untuk saat ini, silakan hubungi administrator untuk proses mutasi guru.
+                      </p>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button
+                        variant="secondary"
+                        onClick={() => setIsMutasiModalOpen(false)}
+                      >
+                        Tutup
+                      </Button>
+                    </div>
+                  </div>
                 </Modal>
               </>
             )}

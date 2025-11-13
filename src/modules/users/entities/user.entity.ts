@@ -28,7 +28,7 @@ export class User {
 
   @Column({
     type: 'enum',
-    enum: ['super_admin', 'admin_tenant', 'teacher', 'student', 'staff'],
+    enum: ['super_admin', 'admin_tenant', 'teacher', 'student', 'staff', 'ppdb_applicant'],
     default: 'staff',
   })
   role: string;

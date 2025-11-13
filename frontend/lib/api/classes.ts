@@ -38,7 +38,10 @@ export interface ClassRoomCreateData {
 }
 
 export const classesApi = {
-  getAll: async (tenantId: number, params?: { search?: string }): Promise<{ data: ClassRoom[]; total: number }> => {
+  getAll: async (
+    tenantId: number,
+    params?: { search?: string; academicYear?: string },
+  ): Promise<{ data: ClassRoom[]; total: number }> => {
     const response = await apiClient.get(`/tenants/${tenantId}/classes`, { params });
     return response.data;
   },

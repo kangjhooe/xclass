@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { StudentTransferService } from './student-transfer.service';
 import { CreateStudentTransferDto } from './dto/create-student-transfer.dto';
+import { CreatePullRequestDto } from './dto/create-pull-request.dto';
 import { UpdateStudentTransferDto } from './dto/update-student-transfer.dto';
 import { ApproveTransferDto } from './dto/approve-transfer.dto';
 import { RejectTransferDto } from './dto/reject-transfer.dto';
@@ -19,7 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { CurrentUserId } from '../../common/decorators/tenant.decorator';
 
-@Controller('student-transfers')
+@Controller({ path: ['student-transfers', 'tenants/:tenant/student-transfers'] })
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class StudentTransferController {
   constructor(private readonly studentTransferService: StudentTransferService) {}
@@ -30,6 +31,14 @@ export class StudentTransferController {
     @TenantId() instansiId: number,
   ) {
     return this.studentTransferService.create(createTransferDto, instansiId);
+  }
+
+  @Post('pull-request')
+  createPullRequest(
+    @Body() createPullDto: CreatePullRequestDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.studentTransferService.createPullRequest(createPullDto, instansiId);
   }
 
   @Get()
@@ -49,6 +58,19 @@ export class StudentTransferController {
       limit: Number(limit),
       instansiId,
     });
+  }
+
+  @Get('lookup')
+  lookupStudent(
+    @Query('sourceTenantNpsn') sourceTenantNpsn: string,
+    @Query('studentNisn') studentNisn: string,
+    @TenantId() instansiId: number,
+  ) {
+    return this.studentTransferService.lookupStudentByNpsnAndNisn(
+      sourceTenantNpsn,
+      studentNisn,
+      instansiId,
+    );
   }
 
   @Get(':id')

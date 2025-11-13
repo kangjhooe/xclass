@@ -1,14 +1,17 @@
-import { IsString, IsEmail, IsOptional, IsBoolean, IsDateString } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsBoolean, IsDateString, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class CreateTeacherDto {
   @IsString()
+  @MinLength(2, { message: 'Nama minimal 2 karakter' })
+  @MaxLength(100, { message: 'Nama maksimal 100 karakter' })
   name: string;
 
-  @IsEmail()
+  @IsEmail({}, { message: 'Format email tidak valid' })
   @IsOptional()
   email?: string;
 
   @IsString()
+  @Matches(/^[0-9+\-\s()]*$/, { message: 'Format nomor telepon tidak valid' })
   @IsOptional()
   phone?: string;
 
@@ -21,6 +24,7 @@ export class CreateTeacherDto {
   nip?: string;
 
   @IsString()
+  @Matches(/^[0-9]{16}$/, { message: 'NIK harus 16 digit angka' })
   @IsOptional()
   nik?: string;
 
@@ -55,5 +59,9 @@ export class CreateTeacherDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isMainTenant?: boolean; // true = tenant induk, false = tenant cabang
 }
 

@@ -18,7 +18,7 @@ export function StatsCard({ icon, label, value, footer, theme = 'indigo', classN
     <div className={cn(themeConfig.statCard, className)}>
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3">
-          <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">{label}</p>
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
           <div className={cn('text-3xl font-semibold', themeConfig.statValue)}>{value}</div>
         </div>
         {icon && (
@@ -27,7 +27,7 @@ export function StatsCard({ icon, label, value, footer, theme = 'indigo', classN
           </div>
         )}
       </div>
-      {footer && <div className="mt-4 text-sm text-gray-500">{footer}</div>}
+      {footer && <div className="mt-4 text-sm text-muted-foreground">{footer}</div>}
     </div>
   );
 }

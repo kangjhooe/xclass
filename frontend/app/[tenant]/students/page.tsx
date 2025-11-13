@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { ModulePageShell } from '@/components/layouts/ModulePageShell';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { SkeletonTable, SkeletonStats } from '@/components/ui/Skeleton';
+import { ImportButton } from '@/components/ui/ImportButton';
 import { studentsApi, Student, StudentCreateData } from '@/lib/api/students';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId, useTenantIdState } from '@/lib/hooks/useTenant';
+import { useActiveAcademicYear } from '@/lib/hooks/useAcademicYear';
+import apiClient from '@/lib/api/client';
+import { validateEmail, validatePhone, validateNISN } from '@/lib/validation/schemas';
 
 const DetailField = ({ label, value }: { label: string; value?: ReactNode }) => {
   const displayValue =
@@ -93,6 +97,7 @@ type GuardianDisplayMode = 'guardian' | 'father' | 'mother';
 
 export default function StudentsPage() {
   const params = useParams();
+  const router = useRouter();
   const tenantNpsn = params?.tenant as string; // NPSN from URL
   const { tenantId, loading: tenantLoading, error: tenantError } = useTenantIdState(); // Numeric ID for API calls
   
@@ -125,9 +130,141 @@ export default function StudentsPage() {
     address: '',
     class_id: undefined,
     status: 'active',
+    academicYear: '',
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [exportingFormat, setExportingFormat] = useState<'excel' | 'pdf' | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const queryClient = useQueryClient();
+
+  const isTenantReady = !!tenantId && !tenantLoading;
+  const {
+    data: activeAcademicYear,
+    isLoading: academicYearLoading,
+  } = useActiveAcademicYear(tenantId, { enabled: isTenantReady });
+  const activeAcademicYearName = activeAcademicYear?.name || '';
+  const isExporting = exportingFormat !== null;
+
+  useEffect(() => {
+    if (!activeAcademicYearName) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.academicYear && prev.academicYear.length > 0) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        academicYear: activeAcademicYearName,
+      };
+    });
+  }, [activeAcademicYearName]);
+
+  const handleNavigateToTransfer = () => {
+    if (!tenantNpsn) {
+      return;
+    }
+    router.push(`/${tenantNpsn}/student-transfer`);
+  };
+
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    setExportingFormat(format);
+    try {
+      const response = await apiClient.get(
+        `/tenants/${tenantId}/students/export/${format}`,
+        {
+          responseType: 'blob',
+        }
+      );
+
+      const blob = new Blob([response.data], {
+        type:
+          format === 'excel'
+            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            : 'application/pdf',
+      });
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `students_${new Date().toISOString().split('T')[0]}.${
+        format === 'excel' ? 'xlsx' : 'pdf'
+      }`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error: any) {
+      console.error('Export error:', error);
+      const message =
+        error?.response?.data?.message ||
+        'Gagal mengekspor data siswa. Silakan coba lagi.';
+      alert(message);
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
+  const handleImport = async (file: File, format: 'excel' | 'csv') => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
+    if (format !== 'excel') {
+      alert('Format file tidak didukung. Gunakan file Excel (.xlsx).');
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+
+      const response = await apiClient.post(
+        `/tenants/${tenantId}/students/import/excel`,
+        uploadData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      const result = response.data;
+      const importedCount = result?.imported ?? result?.count ?? result?.data?.length ?? 0;
+      const failedCount = result?.failed ?? 0;
+
+      await queryClient.invalidateQueries({ queryKey: ['students', tenantId, activeAcademicYearName || 'all'] });
+      
+      if (failedCount > 0) {
+        alert(`Import selesai: ${importedCount} berhasil, ${failedCount} gagal. Silakan cek detail error di console.`);
+        console.log('Import results:', result?.results);
+      } else {
+        alert(`Berhasil mengimpor ${importedCount} data siswa.`);
+      }
+    } catch (error: any) {
+      console.error('Import error:', error);
+      const message =
+        error?.response?.data?.message ||
+        'Gagal mengimpor data siswa. Silakan coba lagi.';
+      alert(message);
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   // Transform backend data to frontend format
   const transformStudent = (student: any): Student | null => {
@@ -146,8 +283,14 @@ export default function StudentsPage() {
       }
     }
     
+    // Determine status
+    const isActive = student.isActive !== undefined 
+      ? student.isActive 
+      : student.status === 'active' || student.status === undefined;
+    
     return {
       id: student.id,
+      // Backward compatibility fields
       nis: student.studentNumber || student.nis || '',
       nisn: student.nisn || '',
       name: student.name || '',
@@ -157,17 +300,26 @@ export default function StudentsPage() {
       birth_place: student.birthPlace || '',
       birth_date: birthDateStr,
       address: student.address || '',
-      class_id: student.classId || undefined,
+      class_id: student.classId || student.class_id || undefined,
       class_name: student.classRoom?.name || student.className || '',
-      status: student.isActive !== undefined ? (student.isActive ? 'active' : 'inactive') : (student.status || 'active'),
-      created_at: student.createdAt,
-      updated_at: student.updatedAt,
+      status: isActive ? 'active' : 'inactive',
+      created_at: student.createdAt || student.created_at,
+      updated_at: student.updatedAt || student.updated_at,
+      // New format fields
+      npsn: student.npsn,
+      studentNumber: student.studentNumber,
+      birthPlace: student.birthPlace,
+      birthDate: birthDateStr,
+      classId: student.classId,
+      classRoom: student.classRoom,
+      isActive: isActive,
+      nik: student.nik,
       ...student, // Keep all other fields for detail modal
     };
   };
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['students', tenantId],
+    queryKey: ['students', tenantId, activeAcademicYearName || 'all'],
     queryFn: async () => {
       if (!tenantId) {
         throw new Error('Tenant ID tidak ditemukan. Silakan login terlebih dahulu.');
@@ -175,13 +327,47 @@ export default function StudentsPage() {
       
       try {
         console.log('Fetching students for tenantId:', tenantId);
-        const response = await studentsApi.getAll(tenantId);
+        const academicYearParam = activeAcademicYearName && activeAcademicYearName.length > 0
+          ? activeAcademicYearName
+          : undefined;
+        const response = await studentsApi.getAll(tenantId, {
+          academicYear: academicYearParam,
+        });
         console.log('Students API response:', response);
         
-        // Handle both direct array and wrapped response
-        const isArrayResponse = Array.isArray(response);
-        const responseMeta = !isArrayResponse ? (response as any) : undefined;
-        const studentsArray = isArrayResponse ? response : (responseMeta?.data || []);
+        // Handle both array response and object response format
+        // Backend might return array directly or { data, total, page, limit, totalPages }
+        let studentsArray: any[] = [];
+        let responseMeta: any = {};
+        
+        if (Array.isArray(response)) {
+          console.log('Response is array, converting to object format');
+          studentsArray = response;
+          responseMeta = {
+            total: response.length,
+            page: 1,
+            limit: response.length,
+            totalPages: 1,
+          };
+        } else if (response && typeof response === 'object' && 'data' in response) {
+          // Response already has data property
+          studentsArray = response.data || [];
+          responseMeta = {
+            total: response.total ?? studentsArray.length,
+            page: response.page ?? 1,
+            limit: response.limit ?? 20,
+            totalPages: response.totalPages ?? Math.ceil((response.total ?? studentsArray.length) / (response.limit ?? 20)),
+          };
+        } else {
+          // Fallback: empty array
+          studentsArray = [];
+          responseMeta = {
+            total: 0,
+            page: 1,
+            limit: 20,
+            totalPages: 1,
+          };
+        }
         
         console.log('Students array:', studentsArray);
         console.log('Number of students:', studentsArray.length);
@@ -194,10 +380,10 @@ export default function StudentsPage() {
         
         return {
           data: transformed,
-          total: responseMeta?.total ?? transformed.length,
-          page: responseMeta?.page ?? 1,
-          limit: responseMeta?.limit ?? 20,
-          totalPages: responseMeta?.totalPages ?? 1,
+          total: responseMeta.total,
+          page: responseMeta.page,
+          limit: responseMeta.limit,
+          totalPages: responseMeta.totalPages,
         };
       } catch (err: any) {
         console.error('Error fetching students:', err);
@@ -218,7 +404,7 @@ export default function StudentsPage() {
         throw new Error(errorMessage);
       }
     },
-    enabled: !!tenantId && !tenantLoading,
+    enabled: !!tenantId && !tenantLoading && !academicYearLoading,
     retry: 1,
   });
 
@@ -230,24 +416,36 @@ export default function StudentsPage() {
 
       // Transform frontend data to backend format
       const backendData: any = {
-        studentNumber: data.nis,
+        studentNumber: data.nis || data.studentNumber,
         nisn: data.nisn,
         name: data.name,
         email: data.email,
         phone: data.phone,
         gender: data.gender,
-        birthPlace: data.birth_place,
-        birthDate: data.birth_date,
+        birthPlace: data.birth_place || data.birthPlace,
+        birthDate: data.birth_date || data.birthDate,
         address: data.address,
-        classId: data.class_id,
-        isActive: data.status === 'active',
+        classId: data.class_id || data.classId,
+        isActive: data.status === 'active' || data.isActive !== false,
       };
+      
+      backendData.academicYear = data.academicYear || activeAcademicYearName || undefined;
+
+      // Add optional fields if provided
+      if (data.npsn) backendData.npsn = data.npsn;
+      if (data.nik) backendData.nik = data.nik;
+      if (data.religion) backendData.religion = data.religion;
       return studentsApi.create(tenantId, backendData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['students', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['students', tenantId, activeAcademicYearName || 'all'] });
       setIsModalOpen(false);
       resetForm();
+    },
+    onError: (error: any) => {
+      console.error('Error creating student:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Gagal membuat data siswa';
+      alert(errorMessage);
     },
   });
 
@@ -259,24 +457,49 @@ export default function StudentsPage() {
 
       // Transform frontend data to backend format
       const backendData: any = {};
-      if (data.nis !== undefined) backendData.studentNumber = data.nis;
+      if (data.nis !== undefined || data.studentNumber !== undefined) {
+        backendData.studentNumber = data.nis || data.studentNumber;
+      }
       if (data.nisn !== undefined) backendData.nisn = data.nisn;
       if (data.name !== undefined) backendData.name = data.name;
       if (data.email !== undefined) backendData.email = data.email;
       if (data.phone !== undefined) backendData.phone = data.phone;
       if (data.gender !== undefined) backendData.gender = data.gender;
-      if (data.birth_place !== undefined) backendData.birthPlace = data.birth_place;
-      if (data.birth_date !== undefined) backendData.birthDate = data.birth_date;
+      if (data.birth_place !== undefined || data.birthPlace !== undefined) {
+        backendData.birthPlace = data.birth_place || data.birthPlace;
+      }
+      if (data.birth_date !== undefined || data.birthDate !== undefined) {
+        backendData.birthDate = data.birth_date || data.birthDate;
+      }
       if (data.address !== undefined) backendData.address = data.address;
-      if (data.class_id !== undefined) backendData.classId = data.class_id;
-      if (data.status !== undefined) backendData.isActive = data.status === 'active';
+      if (data.class_id !== undefined || data.classId !== undefined) {
+        backendData.classId = data.class_id || data.classId;
+      }
+      if (data.status !== undefined) {
+        backendData.isActive = data.status === 'active';
+      } else if (data.isActive !== undefined) {
+        backendData.isActive = data.isActive;
+      }
+      if (data.academicYear !== undefined) {
+        backendData.academicYear = data.academicYear;
+      }
+      
+      // Add optional fields if provided
+      if (data.npsn !== undefined) backendData.npsn = data.npsn;
+      if (data.nik !== undefined) backendData.nik = data.nik;
+      if (data.religion !== undefined) backendData.religion = data.religion;
       return studentsApi.update(tenantId, id, backendData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['students', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['students', tenantId, activeAcademicYearName || 'all'] });
       setIsModalOpen(false);
       setSelectedStudent(null);
       resetForm();
+    },
+    onError: (error: any) => {
+      console.error('Error updating student:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Gagal mengupdate data siswa';
+      alert(errorMessage);
     },
   });
 
@@ -293,7 +516,9 @@ export default function StudentsPage() {
       address: '',
       class_id: undefined,
       status: 'active',
+      academicYear: activeAcademicYearName || '',
     });
+    setFormErrors({});
     setSelectedStudent(null);
   };
 
@@ -332,8 +557,52 @@ export default function StudentsPage() {
           ? normalizedClassId
           : undefined,
       status: resolvedStatus,
+      academicYear: (pickStudentValue(student, ['academicYear', 'academic_year']) as string) || '',
     });
     setIsModalOpen(true);
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    // Validate name (required)
+    if (!formData.name || formData.name.trim().length < 2) {
+      errors.name = 'Nama wajib diisi dan minimal 2 karakter';
+    }
+
+    // Validate NISN (if provided, must be 10 digits)
+    if (formData.nisn && formData.nisn.trim() !== '') {
+      const nisnError = validateNISN(formData.nisn);
+      if (nisnError) errors.nisn = nisnError;
+    }
+
+    // Validate email (if provided)
+    if (formData.email && formData.email.trim() !== '') {
+      const emailError = validateEmail(formData.email);
+      if (emailError) errors.email = emailError;
+    }
+
+    // Validate phone (if provided)
+    if (formData.phone && formData.phone.trim() !== '') {
+      const phoneError = validatePhone(formData.phone);
+      if (phoneError) errors.phone = phoneError;
+    }
+
+    // Validate birth date (if provided)
+    if (formData.birth_date) {
+      const date = new Date(formData.birth_date);
+      if (isNaN(date.getTime())) {
+        errors.birth_date = 'Tanggal lahir tidak valid';
+      } else {
+        const today = new Date();
+        if (date > today) {
+          errors.birth_date = 'Tanggal lahir tidak boleh di masa depan';
+        }
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -343,10 +612,22 @@ export default function StudentsPage() {
       return;
     }
 
+    if (!validateForm()) {
+      return;
+    }
+
     if (selectedStudent) {
       updateMutation.mutate({ id: selectedStudent.id, data: formData });
     } else {
       createMutation.mutate(formData);
+    }
+  };
+
+  const handleFieldChange = (field: keyof StudentCreateData, value: any) => {
+    setFormData({ ...formData, [field]: value });
+    // Clear error when user starts typing
+    if (formErrors[field]) {
+      setFormErrors({ ...formErrors, [field]: '' });
     }
   };
 
@@ -500,18 +781,66 @@ export default function StudentsPage() {
         title="Data Siswa"
         description="Kelola data siswa di instansi Anda"
         actions={({ themeConfig }) => (
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsModalOpen(true);
-            }}
-            className={themeConfig.primaryButton}
-          >
-            <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Tambah Siswa
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsModalOpen(true);
+              }}
+              className={themeConfig.primaryButton}
+            >
+              <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Tambah Siswa
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleNavigateToTransfer}
+              disabled={!isTenantReady}
+              className="flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              Mutasi
+            </Button>
+            <ImportButton
+              onImport={handleImport}
+              isLoading={isImporting}
+              disabled={!isTenantReady}
+              accept=".xlsx,.xls"
+              label="Import Excel"
+              loadingLabel="Mengimpor..."
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleExport('excel')}
+              disabled={!isTenantReady || totalStudents === 0 || (isExporting && exportingFormat !== 'excel')}
+              loading={exportingFormat === 'excel'}
+              className="flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export Excel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleExport('pdf')}
+              disabled={!isTenantReady || totalStudents === 0 || (isExporting && exportingFormat !== 'pdf')}
+              loading={exportingFormat === 'pdf'}
+              className="flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Export PDF
+            </Button>
+          </div>
         )}
         stats={[
           {
@@ -587,7 +916,11 @@ export default function StudentsPage() {
                   )}
                   <div className="flex gap-2 justify-center">
                     <Button
-                      onClick={() => queryClient.invalidateQueries({ queryKey: ['students', tenantId] })}
+                      onClick={() =>
+                        queryClient.invalidateQueries({
+                          queryKey: ['students', tenantId, activeAcademicYearName || 'all'],
+                        })
+                      }
                       className="bg-red-600 hover:bg-red-700 text-white"
                     >
                       Coba Lagi
@@ -859,11 +1192,16 @@ export default function StudentsPage() {
                     <input
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      onChange={(e) => handleFieldChange('name', e.target.value)}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                        formErrors.name ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       placeholder="Masukkan nama lengkap siswa"
                       required
                     />
+                    {formErrors.name && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                    )}
                   </div>
 
                   <div>
@@ -871,7 +1209,7 @@ export default function StudentsPage() {
                     <input
                       type="text"
                       value={formData.nis}
-                      onChange={(e) => setFormData({ ...formData, nis: e.target.value })}
+                      onChange={(e) => handleFieldChange('nis', e.target.value)}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       placeholder="Nomor Induk Siswa"
                     />
@@ -882,10 +1220,16 @@ export default function StudentsPage() {
                     <input
                       type="text"
                       value={formData.nisn}
-                      onChange={(e) => setFormData({ ...formData, nisn: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                      placeholder="Nomor Induk Siswa Nasional"
+                      onChange={(e) => handleFieldChange('nisn', e.target.value)}
+                      maxLength={10}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                        formErrors.nisn ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="10 digit angka"
                     />
+                    {formErrors.nisn && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.nisn}</p>
+                    )}
                   </div>
 
                   <div>
@@ -893,10 +1237,15 @@ export default function StudentsPage() {
                     <input
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      onChange={(e) => handleFieldChange('email', e.target.value)}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                        formErrors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       placeholder="email@example.com"
                     />
+                    {formErrors.email && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                    )}
                   </div>
 
                   <div>
@@ -904,17 +1253,22 @@ export default function StudentsPage() {
                     <input
                       type="tel"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      onChange={(e) => handleFieldChange('phone', e.target.value)}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                        formErrors.phone ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       placeholder="08xxxxxxxxxx"
                     />
+                    {formErrors.phone && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.phone}</p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Jenis Kelamin</label>
                     <select
                       value={formData.gender}
-                      onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                      onChange={(e) => handleFieldChange('gender', e.target.value)}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
                     >
                       <option value="">Pilih Jenis Kelamin</option>
@@ -928,7 +1282,7 @@ export default function StudentsPage() {
                     <input
                       type="text"
                       value={formData.birth_place}
-                      onChange={(e) => setFormData({ ...formData, birth_place: e.target.value })}
+                      onChange={(e) => handleFieldChange('birth_place', e.target.value)}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       placeholder="Kota/Kabupaten"
                     />
@@ -939,16 +1293,22 @@ export default function StudentsPage() {
                     <input
                       type="date"
                       value={formData.birth_date}
-                      onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      onChange={(e) => handleFieldChange('birth_date', e.target.value)}
+                      max={new Date().toISOString().split('T')[0]}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                        formErrors.birth_date ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.birth_date && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.birth_date}</p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Alamat</label>
                     <textarea
                       value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      onChange={(e) => handleFieldChange('address', e.target.value)}
                       rows={3}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
                       placeholder="Masukkan alamat lengkap"
@@ -959,7 +1319,7 @@ export default function StudentsPage() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
                     <select
                       value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      onChange={(e) => handleFieldChange('status', e.target.value)}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
                     >
                       <option value="active">Aktif</option>

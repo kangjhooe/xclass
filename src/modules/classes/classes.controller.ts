@@ -16,7 +16,7 @@ import { TenantId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 
-@Controller('classes')
+@Controller({ path: ['classes', 'tenants/:tenant/classes'] })
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class ClassesController {
   constructor(private readonly classesService: ClassesService) {}
@@ -27,8 +27,12 @@ export class ClassesController {
   }
 
   @Get()
-  findAll(@TenantId() instansiId: number, @Query('search') search?: string) {
-    return this.classesService.findAll({ search, instansiId });
+  findAll(
+    @TenantId() instansiId: number,
+    @Query('search') search?: string,
+    @Query('academicYear') academicYear?: string,
+  ) {
+    return this.classesService.findAll({ search, academicYear, instansiId });
   }
 
   @Get(':id')

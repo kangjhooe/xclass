@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { ModulePageShell } from '@/components/layouts/ModulePageShell';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
@@ -14,8 +15,12 @@ import { subjectsApi } from '@/lib/api/subjects';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
+import { useActiveAcademicYear } from '@/lib/hooks/useAcademicYear';
+import { useRouter } from 'next/navigation';
 
 export default function ExamsPage() {
+  const params = useParams();
+  const router = useRouter();
   const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
@@ -32,20 +37,50 @@ export default function ExamsPage() {
     totalQuestions: 0,
     passingScore: 60,
     isActive: true,
+    academicYear: '',
   });
 
   const queryClient = useQueryClient();
+  const isTenantReady = !!tenantId;
+  const {
+    data: activeAcademicYear,
+    isLoading: academicYearLoading,
+  } = useActiveAcademicYear(tenantId, { enabled: isTenantReady });
+  const activeAcademicYearName = activeAcademicYear?.name || '';
+
+  useEffect(() => {
+    if (!activeAcademicYearName) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.academicYear && prev.academicYear.length > 0) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        academicYear: activeAcademicYearName,
+      };
+    });
+  }, [activeAcademicYearName]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['exams', tenantId, currentPage],
-    queryFn: () => examsApi.getAll(tenantId!),
-    enabled: !!tenantId,
+    queryKey: ['exams', tenantId, currentPage, activeAcademicYearName || 'all'],
+    queryFn: () =>
+      examsApi.getAll(tenantId!, {
+        academicYear: activeAcademicYearName || undefined,
+      }),
+    enabled: !!tenantId && !academicYearLoading,
   });
 
   const { data: classesData } = useQuery({
-    queryKey: ['classes', tenantId],
-    queryFn: () => classesApi.getAll(tenantId!),
-    enabled: !!tenantId,
+    queryKey: ['classes', tenantId, 'for-exams', activeAcademicYearName || 'all'],
+    queryFn: () =>
+      classesApi.getAll(tenantId!, {
+        academicYear: activeAcademicYearName || undefined,
+      }),
+    enabled: !!tenantId && !academicYearLoading,
   });
 
   const { data: subjectsData } = useQuery({
@@ -59,10 +94,14 @@ export default function ExamsPage() {
       if (!tenantId) {
         throw new Error('Tenant ID tidak tersedia.');
       }
-      return examsApi.create(tenantId, data);
+      const payload: ExamCreateData = {
+        ...data,
+        academicYear: data.academicYear || activeAcademicYearName || undefined,
+      };
+      return examsApi.create(tenantId, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exams', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exams', tenantId, currentPage, activeAcademicYearName || 'all'] });
       setIsModalOpen(false);
       resetForm();
     },
@@ -73,10 +112,16 @@ export default function ExamsPage() {
       if (!tenantId) {
         throw new Error('Tenant ID tidak tersedia.');
       }
-      return examsApi.update(tenantId, id, data);
+      const payload: Partial<ExamCreateData> = {
+        ...data,
+      };
+      if (data.academicYear !== undefined) {
+        payload.academicYear = data.academicYear;
+      }
+      return examsApi.update(tenantId, id, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exams', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exams', tenantId, currentPage, activeAcademicYearName || 'all'] });
       setIsModalOpen(false);
       setSelectedExam(null);
       resetForm();
@@ -91,7 +136,7 @@ export default function ExamsPage() {
       return examsApi.delete(tenantId, id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exams', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exams', tenantId, currentPage, activeAcademicYearName || 'all'] });
     },
   });
 
@@ -107,6 +152,7 @@ export default function ExamsPage() {
       totalQuestions: 0,
       passingScore: 60,
       isActive: true,
+      academicYear: activeAcademicYearName || '',
     });
     setSelectedExam(null);
   };
@@ -124,6 +170,7 @@ export default function ExamsPage() {
       totalQuestions: exam.totalQuestions || 0,
       passingScore: exam.passingScore || 60,
       isActive: exam.isActive ?? true,
+      academicYear: exam.academicYear || activeAcademicYearName || '',
     });
     setIsModalOpen(true);
   };
@@ -272,6 +319,22 @@ export default function ExamsPage() {
                                   className="hover:bg-violet-50 hover:border-violet-300 transition-colors"
                                 >
                                   Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => router.push(`/${params.tenant}/exams/${exam.id}/questions`)}
+                                  className="hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                                >
+                                  Kelola Soal
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => router.push(`/${params.tenant}/exams/${exam.id}/results`)}
+                                  className="hover:bg-green-50 hover:border-green-300 transition-colors"
+                                >
+                                  Hasil Ujian
                                 </Button>
                                 <Button
                                   variant="danger"
