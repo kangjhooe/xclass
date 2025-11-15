@@ -19,7 +19,8 @@ import { PublicPageService } from './public-page.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { TenantId } from '../../common/decorators/tenant.decorator';
-import { ContactFormStatus, PPDBFormStatus } from './entities/contact-form.entity';
+import { ContactFormStatus } from './entities/contact-form.entity';
+import { PPDBFormStatus } from './entities/ppdb-form.entity';
 
 @Controller('public-page')
 @UseGuards(JwtAuthGuard, TenantGuard)

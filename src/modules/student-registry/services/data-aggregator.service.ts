@@ -285,12 +285,11 @@ export class DataAggregatorService {
         id: grade.id,
         score: grade.score,
         date: grade.date,
-        semester: grade.semester,
-        academicYear: grade.academicYear,
+        assessmentType: grade.assessmentType,
         teacher: grade.teacher ? {
           name: grade.teacher.name,
         } : null,
-        notes: grade.notes,
+        description: grade.description,
       });
     });
 
@@ -320,10 +319,9 @@ export class DataAggregatorService {
         subject: g.subject?.name,
         score: g.score,
         date: g.date,
-        semester: g.semester,
-        academicYear: g.academicYear,
+        assessmentType: g.assessmentType,
         teacher: g.teacher?.name,
-        notes: g.notes,
+        description: g.description,
       })),
     };
   }
@@ -413,9 +411,9 @@ export class DataAggregatorService {
       actions: actions.map((a) => ({
         id: a.id,
         incidentDate: a.incidentDate,
-        violationType: a.violationType,
+        sanctionType: a.sanctionType,
         description: a.description,
-        actionTaken: a.actionTaken,
+        sanctionDetails: a.sanctionDetails,
         reporter: a.reporter ? {
           name: a.reporter.name,
         } : null,
@@ -439,9 +437,8 @@ export class DataAggregatorService {
       sessions: sessions.map((s) => ({
         id: s.id,
         sessionDate: s.sessionDate,
-        sessionType: s.sessionType,
-        issues: s.issues,
-        recommendations: s.recommendations,
+        issue: s.issue,
+        followUp: s.followUp,
         counselor: s.counselor ? {
           name: s.counselor.name,
         } : null,
@@ -457,7 +454,7 @@ export class DataAggregatorService {
     const participants = await this.extracurricularParticipantRepository.find({
       where: { studentId, instansiId },
       relations: ['extracurricular'],
-      order: { joinedDate: 'DESC' },
+      order: { joinedAt: 'DESC' },
     });
 
     return {
@@ -466,11 +463,10 @@ export class DataAggregatorService {
         id: p.id,
         extracurricular: p.extracurricular ? {
           name: p.extracurricular.name,
-          type: p.extracurricular.type,
+          category: p.extracurricular.category,
         } : null,
-        joinedDate: p.joinedDate,
-        role: p.role,
-        achievements: p.achievements,
+        joinedAt: p.joinedAt,
+        status: p.status,
         notes: p.notes,
       })),
     };
@@ -487,7 +483,7 @@ export class DataAggregatorService {
       .andWhere('attempt.instansiId = :instansiId', { instansiId });
 
     if (academicYear) {
-      query.andWhere('attempt.academicYear = :academicYear', { academicYear });
+      query.andWhere('exam.academicYear = :academicYear', { academicYear });
     }
 
     const attempts = await query.orderBy('attempt.startedAt', 'DESC').getMany();
@@ -497,13 +493,13 @@ export class DataAggregatorService {
       attempts: attempts.map((a) => ({
         id: a.id,
         exam: a.exam ? {
-          name: a.exam.name,
-          type: a.exam.type,
+          title: a.exam.title,
+          examType: a.exam.examType,
         } : null,
         startedAt: a.startedAt,
-        completedAt: a.completedAt,
+        submittedAt: a.submittedAt,
         score: a.score,
-        maxScore: a.maxScore,
+        totalQuestions: a.totalQuestions,
         status: a.status,
       })),
     };
@@ -515,16 +511,17 @@ export class DataAggregatorService {
   private async aggregatePromotion(studentId: number, instansiId: number) {
     const promotions = await this.promotionRepository.find({
       where: { studentId, instansiId },
-      order: { promotionDate: 'DESC' },
+      relations: ['fromClass', 'toClass'],
+      order: { completedAt: 'DESC' },
     });
 
     return {
       total: promotions.length,
       promotions: promotions.map((p) => ({
         id: p.id,
-        fromGrade: p.fromGrade,
-        toGrade: p.toGrade,
-        promotionDate: p.promotionDate,
+        fromClass: p.fromClass ? { id: p.fromClass.id, name: p.fromClass.name } : null,
+        toClass: p.toClass ? { id: p.toClass.id, name: p.toClass.name } : null,
+        completedAt: p.completedAt,
         academicYear: p.academicYear,
         notes: p.notes,
       })),
@@ -536,7 +533,7 @@ export class DataAggregatorService {
    */
   private async aggregateTransfer(studentId: number, instansiId: number) {
     const transfers = await this.transferRepository.find({
-      where: { studentId, instansiId },
+      where: { studentId },
       order: { transferDate: 'DESC' },
     });
 
@@ -546,8 +543,8 @@ export class DataAggregatorService {
         id: t.id,
         transferType: t.transferType,
         transferDate: t.transferDate,
-        fromSchool: t.fromSchool,
-        toSchool: t.toSchool,
+        fromTenantId: t.fromTenantId,
+        toTenantId: t.toTenantId,
         reason: t.reason,
         notes: t.notes,
       })),
@@ -568,9 +565,9 @@ export class DataAggregatorService {
       graduations: graduations.map((g) => ({
         id: g.id,
         graduationDate: g.graduationDate,
-        academicYear: g.academicYear,
+        graduationYear: g.graduationYear,
         certificateNumber: g.certificateNumber,
-        finalGPA: g.finalGPA,
+        finalGrade: g.finalGrade,
         notes: g.notes,
       })),
     };
@@ -591,9 +588,11 @@ export class DataAggregatorService {
         id: a.id,
         graduationYear: a.graduationYear,
         currentOccupation: a.currentOccupation,
-        currentInstitution: a.currentInstitution,
-        contactInfo: a.contactInfo,
-        achievements: a.achievements,
+        company: a.company,
+        position: a.position,
+        phone: a.phone,
+        email: a.email,
+        notes: a.notes,
       })),
     };
   }
@@ -630,11 +629,11 @@ export class DataAggregatorService {
   private async aggregateFinance(studentId: number, instansiId: number) {
     const payments = await this.sppPaymentRepository.find({
       where: { studentId, instansiId },
-      order: { paymentDate: 'DESC' },
+      order: { paidDate: 'DESC' },
     });
 
     const totalPaid = payments
-      .filter((p) => p.status === 'paid')
+      .filter((p) => p.paymentStatus === 'paid')
       .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0);
 
     return {
@@ -643,10 +642,10 @@ export class DataAggregatorService {
       payments: payments.map((p) => ({
         id: p.id,
         amount: p.amount,
-        paymentDate: p.paymentDate,
+        paidDate: p.paidDate,
         dueDate: p.dueDate,
-        status: p.status,
-        notes: p.notes,
+        paymentStatus: p.paymentStatus,
+        paymentNotes: p.paymentNotes,
       })),
     };
   }
@@ -658,7 +657,7 @@ export class DataAggregatorService {
     const registrations = await this.eventRegistrationRepository.find({
       where: { studentId, instansiId },
       relations: ['event'],
-      order: { registeredAt: 'DESC' },
+      order: { registrationDate: 'DESC' },
     });
 
     return {
@@ -666,10 +665,11 @@ export class DataAggregatorService {
       events: registrations.map((r) => ({
         id: r.id,
         event: r.event ? {
-          name: r.event.name,
-          eventDate: r.event.eventDate,
+          title: r.event.title,
+          startDate: r.event.startDate,
+          endDate: r.event.endDate,
         } : null,
-        registeredAt: r.registeredAt,
+        registrationDate: r.registrationDate,
         status: r.status,
       })),
     };

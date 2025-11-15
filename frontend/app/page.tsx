@@ -279,7 +279,17 @@ export default function Home() {
   // Fetch testimonials from API
   const { data: testimonialsData, isLoading: isLoadingTestimonials } = useQuery({
     queryKey: ['testimonials', 'featured'],
-    queryFn: () => testimonialsApi.getFeatured(3),
+    queryFn: async () => {
+      try {
+        return await testimonialsApi.getFeatured(3);
+      } catch (error: any) {
+        // Silently handle errors for optional endpoints - use fallback data
+        if (error?.isNetworkError || error?.response?.status === 404) {
+          return null; // Return null to trigger fallback
+        }
+        throw error; // Re-throw other errors
+      }
+    },
     retry: 1, // Only retry once if fails
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

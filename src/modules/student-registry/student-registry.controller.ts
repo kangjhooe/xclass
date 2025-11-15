@@ -17,7 +17,7 @@ import { GenerateRegistryDto, BatchGenerateRegistryDto } from './dto/generate-re
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/tenant.decorator';
 
 @ApiTags('student-registry')
 @ApiBearerAuth()

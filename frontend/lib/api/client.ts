@@ -61,15 +61,67 @@ apiClient.interceptors.response.use(
       const networkError = new Error(errorMessage);
       (networkError as any).isNetworkError = true;
       (networkError as any).originalError = error;
-      console.error('API Client Error:', {
-        message: error.message,
-        code: error.code,
-        config: error.config,
+      
+      // Build error details object with only non-empty values
+      const errorDetails: Record<string, any> = {
         baseURL: API_URL,
-      });
+      };
+      
+      // Add message if it exists and is not empty
+      if (error?.message && typeof error.message === 'string' && error.message.trim()) {
+        errorDetails.message = error.message;
+      } else {
+        errorDetails.message = 'Unknown network error';
+      }
+      
+      // Add code if it exists
+      if (error?.code && typeof error.code === 'string') {
+        errorDetails.code = error.code;
+      }
+      
+      // Add request details if config exists
+      if (error?.config) {
+        if (error.config.url) {
+          errorDetails.url = error.config.url;
+        }
+        if (error.config.method) {
+          errorDetails.method = error.config.method.toUpperCase();
+        }
+        if (error.config.baseURL) {
+          errorDetails.baseURL = error.config.baseURL;
+        }
+      }
+      
+      // Add request property if it exists (indicates request was made but no response)
+      if (error?.request) {
+        errorDetails.requestMade = true;
+      }
+      
+      // Log error details with safe serialization
+      try {
+        // Ensure we always have meaningful data to log
+        const logData = {
+          message: errorDetails.message,
+          code: errorDetails.code || 'N/A',
+          url: errorDetails.url || 'N/A',
+          method: errorDetails.method || 'N/A',
+          baseURL: errorDetails.baseURL,
+          requestMade: errorDetails.requestMade || false,
+        };
+        
+        console.error('API Client Error:', logData);
+      } catch (logError) {
+        // Ultimate fallback if even logging fails
+        console.error('API Client Error (fallback):', {
+          message: errorMessage,
+          baseURL: API_URL,
+          originalErrorType: error?.constructor?.name || typeof error,
+        });
+      }
       return Promise.reject(networkError);
     }
 
+    // Handle specific HTTP status codes
     if (error.response?.status === 401) {
       // Unauthorized - redirect to login
       if (typeof window !== 'undefined') {
@@ -82,6 +134,27 @@ apiClient.interceptors.response.use(
           window.location.href = '/login';
         }
       }
+    } else if (error.response?.status === 404) {
+      // Endpoint not found - log but don't show error for public endpoints
+      const url = error.config?.url || 'unknown';
+      if (url.includes('/public/')) {
+        // Silently handle missing public endpoints (they're optional)
+        console.warn(`Public endpoint not found: ${url}. Using fallback data.`);
+      } else {
+        console.error('API Endpoint Not Found:', {
+          url,
+          method: error.config?.method,
+          status: error.response.status,
+        });
+      }
+    } else if (error.response?.status >= 500) {
+      // Server errors
+      console.error('API Server Error:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response.status,
+        message: error.response.data?.message || 'Internal server error',
+      });
     }
     return Promise.reject(error);
   }

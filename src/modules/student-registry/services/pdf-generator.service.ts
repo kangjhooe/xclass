@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import { DigitalSignature } from '../../academic-reports/entities/digital-signature.entity';
 import * as fs from 'fs';
 
@@ -60,7 +60,7 @@ export class PdfGeneratorService {
    * Generate PDF content
    */
   private async generatePDFContent(
-    doc: PDFDocument,
+    doc: PDFKit.PDFDocument,
     data: any,
     options: {
       includeSignature?: boolean;
@@ -566,10 +566,18 @@ export class PdfGeneratorService {
                 width: 150,
                 align: 'center',
               });
+            // Map signature type to position text
+            const positionMap: Record<string, string> = {
+              headmaster: 'Kepala Sekolah',
+              teacher: 'Guru',
+              admin: 'Administrator',
+              counselor: 'Konselor',
+            };
+            const positionText = signature.metadata?.position || positionMap[signature.type] || 'Kepala Sekolah';
             doc
               .fontSize(9)
               .font('Helvetica')
-              .text(signature.position || 'Kepala Sekolah', signatureX, signatureY + 85, {
+              .text(positionText, signatureX, signatureY + 85, {
                 width: 150,
                 align: 'center',
               });

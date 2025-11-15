@@ -235,11 +235,11 @@ export class PublicPageService {
 
   // PPDB Form methods
   async submitPPDBForm(instansiId: number, data: any): Promise<PPDBForm> {
-    const form: PPDBForm = this.ppdbFormRepository.create({
+    const form = this.ppdbFormRepository.create({
       instansiId,
       ...data,
       status: PPDBFormStatus.SUBMITTED,
-    });
+    }) as unknown as PPDBForm;
 
     return await this.ppdbFormRepository.save(form);
   }
@@ -425,7 +425,7 @@ export class PublicPageService {
       instansiId,
       ...data,
       publishedAt: data.status === 'published' ? new Date() : null,
-    });
+    }) as unknown as News;
     if (file) {
       // TODO: Upload file using StorageService
       news.featuredImage = `/uploads/${file.filename}`;
@@ -475,7 +475,7 @@ export class PublicPageService {
     const gallery = this.galleryRepository.create({
       instansiId,
       ...data,
-    });
+    }) as unknown as Gallery;
     if (file) {
       // TODO: Upload file using StorageService
       gallery.image = `/uploads/${file.filename}`;
@@ -546,7 +546,7 @@ export class PublicPageService {
     const download = this.downloadRepository.create({
       instansiId,
       ...data,
-    });
+    }) as unknown as Download;
     if (file) {
       // TODO: Upload file using StorageService
       download.fileUrl = `/uploads/${file.filename}`;
