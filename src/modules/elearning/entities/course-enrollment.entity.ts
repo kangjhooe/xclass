@@ -45,7 +45,7 @@ export class CourseEnrollment {
   @JoinColumn({ name: 'course_id' })
   course: Course;
 
-  @ManyToOne(() => Student, {
+  @ManyToOne(() => Student, (student) => student.courseEnrollments, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'student_id' })

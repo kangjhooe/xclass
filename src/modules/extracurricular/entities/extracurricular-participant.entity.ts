@@ -56,7 +56,7 @@ export class ExtracurricularParticipant {
   @JoinColumn({ name: 'extracurricular_id' })
   extracurricular: Extracurricular;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.extracurricularParticipants)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 }

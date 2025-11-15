@@ -235,7 +235,7 @@ export class PublicPageService {
 
   // PPDB Form methods
   async submitPPDBForm(instansiId: number, data: any): Promise<PPDBForm> {
-    const form = this.ppdbFormRepository.create({
+    const form: PPDBForm = this.ppdbFormRepository.create({
       instansiId,
       ...data,
       status: PPDBFormStatus.SUBMITTED,
@@ -389,6 +389,196 @@ export class PublicPageService {
 
     const categories = [...new Set(downloads.map(d => d.category).filter(Boolean))];
     return categories;
+  }
+
+  // ========== ADMIN METHODS - NEWS ==========
+  async getAllNewsAdmin(instansiId: number, page: number = 1, limit: number = 10, status?: string) {
+    const skip = (page - 1) * limit;
+    const where: any = { instansiId };
+    if (status) {
+      where.status = status;
+    }
+    const [news, total] = await this.newsRepository.findAndCount({
+      where,
+      skip,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      data: news,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getNewsByIdAdmin(instansiId: number, id: number) {
+    return this.newsRepository.findOne({
+      where: { id, instansiId },
+    });
+  }
+
+  async createNews(instansiId: number, data: any, file?: Express.Multer.File) {
+    const news = this.newsRepository.create({
+      instansiId,
+      ...data,
+      publishedAt: data.status === 'published' ? new Date() : null,
+    });
+    if (file) {
+      // TODO: Upload file using StorageService
+      news.featuredImage = `/uploads/${file.filename}`;
+    }
+    return this.newsRepository.save(news);
+  }
+
+  async updateNews(instansiId: number, id: number, data: any, file?: Express.Multer.File) {
+    const news = await this.newsRepository.findOne({ where: { id, instansiId } });
+    if (!news) {
+      throw new Error('News not found');
+    }
+    Object.assign(news, data);
+    if (file) {
+      // TODO: Upload file using StorageService
+      news.featuredImage = `/uploads/${file.filename}`;
+    }
+    if (data.status === 'published' && !news.publishedAt) {
+      news.publishedAt = new Date();
+    }
+    return this.newsRepository.save(news);
+  }
+
+  async deleteNews(instansiId: number, id: number) {
+    const news = await this.newsRepository.findOne({ where: { id, instansiId } });
+    if (!news) {
+      throw new Error('News not found');
+    }
+    return this.newsRepository.remove(news);
+  }
+
+  // ========== ADMIN METHODS - GALLERY ==========
+  async getAllGalleriesAdmin(instansiId: number) {
+    return this.galleryRepository.find({
+      where: { instansiId },
+      order: { order: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
+  async getGalleryByIdAdmin(instansiId: number, id: number) {
+    return this.galleryRepository.findOne({
+      where: { id, instansiId },
+    });
+  }
+
+  async createGallery(instansiId: number, data: any, file?: Express.Multer.File) {
+    const gallery = this.galleryRepository.create({
+      instansiId,
+      ...data,
+    });
+    if (file) {
+      // TODO: Upload file using StorageService
+      gallery.image = `/uploads/${file.filename}`;
+    }
+    return this.galleryRepository.save(gallery);
+  }
+
+  async updateGallery(instansiId: number, id: number, data: any, file?: Express.Multer.File) {
+    const gallery = await this.galleryRepository.findOne({ where: { id, instansiId } });
+    if (!gallery) {
+      throw new Error('Gallery not found');
+    }
+    Object.assign(gallery, data);
+    if (file) {
+      // TODO: Upload file using StorageService
+      gallery.image = `/uploads/${file.filename}`;
+    }
+    return this.galleryRepository.save(gallery);
+  }
+
+  async deleteGallery(instansiId: number, id: number) {
+    const gallery = await this.galleryRepository.findOne({ where: { id, instansiId } });
+    if (!gallery) {
+      throw new Error('Gallery not found');
+    }
+    return this.galleryRepository.remove(gallery);
+  }
+
+  // ========== ADMIN METHODS - TENANT PROFILE ==========
+  async getTenantProfileAdmin(instansiId: number) {
+    return this.tenantProfileRepository.findOne({
+      where: { instansiId },
+    });
+  }
+
+  async createOrUpdateTenantProfile(instansiId: number, data: any, file?: Express.Multer.File) {
+    let profile = await this.tenantProfileRepository.findOne({ where: { instansiId } });
+    if (!profile) {
+      profile = this.tenantProfileRepository.create({ instansiId });
+    }
+    Object.assign(profile, data);
+    if (file) {
+      // TODO: Upload file using StorageService
+      profile.logo = `/uploads/${file.filename}`;
+    }
+    return this.tenantProfileRepository.save(profile);
+  }
+
+  // ========== ADMIN METHODS - DOWNLOAD ==========
+  async getAllDownloadsAdmin(instansiId: number, category?: string) {
+    const where: any = { instansiId };
+    if (category) {
+      where.category = category;
+    }
+    return this.downloadRepository.find({
+      where,
+      order: { order: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
+  async getDownloadByIdAdmin(instansiId: number, id: number) {
+    return this.downloadRepository.findOne({
+      where: { id, instansiId },
+    });
+  }
+
+  async createDownload(instansiId: number, data: any, file?: Express.Multer.File) {
+    const download = this.downloadRepository.create({
+      instansiId,
+      ...data,
+    });
+    if (file) {
+      // TODO: Upload file using StorageService
+      download.fileUrl = `/uploads/${file.filename}`;
+      download.fileName = file.originalname;
+      download.fileSize = file.size;
+      download.fileType = file.mimetype;
+    }
+    return this.downloadRepository.save(download);
+  }
+
+  async updateDownload(instansiId: number, id: number, data: any, file?: Express.Multer.File) {
+    const download = await this.downloadRepository.findOne({ where: { id, instansiId } });
+    if (!download) {
+      throw new Error('Download not found');
+    }
+    Object.assign(download, data);
+    if (file) {
+      // TODO: Upload file using StorageService
+      download.fileUrl = `/uploads/${file.filename}`;
+      download.fileName = file.originalname;
+      download.fileSize = file.size;
+      download.fileType = file.mimetype;
+    }
+    return this.downloadRepository.save(download);
+  }
+
+  async deleteDownload(instansiId: number, id: number) {
+    const download = await this.downloadRepository.findOne({ where: { id, instansiId } });
+    if (!download) {
+      throw new Error('Download not found');
+    }
+    return this.downloadRepository.remove(download);
   }
 }
 

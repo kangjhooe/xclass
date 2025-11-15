@@ -73,7 +73,7 @@ export class StudentTransfer {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Student, {
+  @ManyToOne(() => Student, (student) => student.transfers, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'student_id' })

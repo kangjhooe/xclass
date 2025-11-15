@@ -86,11 +86,11 @@ export class BookLoan {
   @JoinColumn({ name: 'book_id' })
   book: Book;
 
-  @ManyToOne(() => Student, { nullable: true })
+  @ManyToOne(() => Student, (student) => student.bookLoans, { nullable: true })
   @JoinColumn({ name: 'student_id' })
   student: Student;
 
-  @ManyToOne(() => Teacher, { nullable: true })
+  @ManyToOne(() => Teacher, (teacher) => teacher.bookLoans, { nullable: true })
   @JoinColumn({ name: 'teacher_id' })
   teacher: Teacher;
 }

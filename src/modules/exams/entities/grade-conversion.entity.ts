@@ -71,7 +71,7 @@ export class GradeConversion {
   @JoinColumn({ name: 'class_id' })
   classRoom: ClassRoom;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.gradeConversions)
   @JoinColumn({ name: 'created_by' })
   teacher: Teacher;
 }

@@ -13,6 +13,8 @@ import { QuestionShare } from './entities/question-share.entity';
 import { GradeConversion } from './entities/grade-conversion.entity';
 import { ExamWeight } from './entities/exam-weight.entity';
 import { QuestionItemAnalysis } from './entities/question-item-analysis.entity';
+import { User } from '../users/entities/user.entity';
+import { Teacher } from '../teachers/entities/teacher.entity';
 import { StorageModule } from '../storage/storage.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TeachersModule } from '../teachers/teachers.module';
@@ -31,6 +33,8 @@ import { TeachersModule } from '../teachers/teachers.module';
       GradeConversion,
       ExamWeight,
       QuestionItemAnalysis,
+      User,
+      Teacher,
     ]),
     StorageModule,
     NotificationsModule,

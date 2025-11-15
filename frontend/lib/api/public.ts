@@ -218,4 +218,112 @@ export const publicApi = {
   },
 };
 
+// Admin API for managing public pages
+export const publicPageAdminApi = {
+  // News Management
+  getNews: async (
+    tenantId: number,
+    params?: { page?: number; limit?: number; status?: string }
+  ): Promise<NewsListResponse> => {
+    const response = await apiClient.get('/public-page/news', { params });
+    return response.data;
+  },
+
+  getNewsById: async (tenantId: number, id: number): Promise<News> => {
+    const response = await apiClient.get(`/public-page/news/${id}`);
+    return response.data;
+  },
+
+  createNews: async (tenantId: number, data: FormData): Promise<News> => {
+    const response = await apiClient.post('/public-page/news', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  updateNews: async (tenantId: number, id: number, data: FormData): Promise<News> => {
+    const response = await apiClient.put(`/public-page/news/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteNews: async (tenantId: number, id: number): Promise<void> => {
+    await apiClient.delete(`/public-page/news/${id}`);
+  },
+
+  // Gallery Management
+  getGalleries: async (tenantId: number): Promise<Gallery[]> => {
+    const response = await apiClient.get('/public-page/galleries');
+    return response.data;
+  },
+
+  getGalleryById: async (tenantId: number, id: number): Promise<Gallery> => {
+    const response = await apiClient.get(`/public-page/galleries/${id}`);
+    return response.data;
+  },
+
+  createGallery: async (tenantId: number, data: FormData): Promise<Gallery> => {
+    const response = await apiClient.post('/public-page/galleries', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  updateGallery: async (tenantId: number, id: number, data: FormData): Promise<Gallery> => {
+    const response = await apiClient.put(`/public-page/galleries/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteGallery: async (tenantId: number, id: number): Promise<void> => {
+    await apiClient.delete(`/public-page/galleries/${id}`);
+  },
+
+  // Profile Management
+  getProfile: async (tenantId: number): Promise<TenantProfile> => {
+    const response = await apiClient.get('/public-page/profile');
+    return response.data;
+  },
+
+  updateProfile: async (tenantId: number, data: FormData): Promise<TenantProfile> => {
+    const response = await apiClient.put('/public-page/profile', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Download Management
+  getDownloads: async (tenantId: number, category?: string): Promise<Download[]> => {
+    const response = await apiClient.get('/public-page/downloads', {
+      params: { category },
+    });
+    return response.data;
+  },
+
+  getDownloadById: async (tenantId: number, id: number): Promise<Download> => {
+    const response = await apiClient.get(`/public-page/downloads/${id}`);
+    return response.data;
+  },
+
+  createDownload: async (tenantId: number, data: FormData): Promise<Download> => {
+    const response = await apiClient.post('/public-page/downloads', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  updateDownload: async (tenantId: number, id: number, data: FormData): Promise<Download> => {
+    const response = await apiClient.put(`/public-page/downloads/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteDownload: async (tenantId: number, id: number): Promise<void> => {
+    await apiClient.delete(`/public-page/downloads/${id}`);
+  },
+};
+
 

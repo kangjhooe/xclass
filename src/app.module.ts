@@ -38,6 +38,7 @@ import { GraduationModule } from './modules/graduation/graduation.module';
 import { MessageModule } from './modules/message/message.module';
 import { ELearningModule } from './modules/elearning/elearning.module';
 import { StudentTransferModule } from './modules/student-transfer/student-transfer.module';
+import { StudentRegistryModule } from './modules/student-registry/student-registry.module';
 import { TeacherBranchModule } from './modules/teacher-branch/teacher-branch.module';
 import { AcademicReportsModule } from './modules/academic-reports/academic-reports.module';
 import { DataPokokModule } from './modules/data-pokok/data-pokok.module';
@@ -149,6 +150,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     MessageModule,
     ELearningModule,
     StudentTransferModule,
+    StudentRegistryModule,
     TeacherBranchModule,
     AcademicReportsModule,
     DataPokokModule,

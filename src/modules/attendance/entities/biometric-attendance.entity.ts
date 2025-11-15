@@ -66,7 +66,7 @@ export class BiometricAttendance {
   @Column({ type: 'timestamp', nullable: true })
   syncedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.biometricAttendances)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 

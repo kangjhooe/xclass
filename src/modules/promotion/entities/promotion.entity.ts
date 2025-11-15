@@ -58,7 +58,7 @@ export class Promotion {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.promotions)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 

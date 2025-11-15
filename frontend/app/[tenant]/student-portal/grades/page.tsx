@@ -212,10 +212,15 @@ export default function StudentGradesPage() {
         window.URL.revokeObjectURL(url);
       }
 
-      alert(`Data berhasil diekspor ke ${format.toUpperCase()}`);
+      // Show success message (using browser notification since this is a download action)
+      if (typeof window !== 'undefined') {
+        window.alert(`Data berhasil diekspor ke ${format.toUpperCase()}`);
+      }
     } catch (err) {
       console.error('Export error:', err);
-      alert('Gagal mengekspor data');
+      if (typeof window !== 'undefined') {
+        window.alert('Gagal mengekspor data');
+      }
     } finally {
       setIsExporting(false);
     }

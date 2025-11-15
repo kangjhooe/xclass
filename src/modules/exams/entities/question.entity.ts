@@ -102,7 +102,7 @@ export class Question {
   @JoinColumn({ name: 'stimulus_id' })
   stimulus: Stimulus;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.questions)
   @JoinColumn({ name: 'created_by' })
   teacher: Teacher;
 

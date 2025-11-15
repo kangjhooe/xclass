@@ -8,7 +8,8 @@ import {
   ArrowLeft,
   Calendar,
   Eye,
-  Clock
+  Clock,
+  Newspaper
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -63,13 +64,20 @@ export default function PublicNewsDetailPage() {
 
       <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Featured Image */}
-        {news.featuredImage && (
+        {news.featuredImage ? (
           <div className="mb-8 rounded-xl overflow-hidden shadow-lg">
             <img 
               src={news.featuredImage} 
               alt={news.title}
               className="w-full h-96 object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
+          </div>
+        ) : (
+          <div className="mb-8 rounded-xl overflow-hidden shadow-lg bg-gradient-to-br from-blue-100 to-purple-100 h-96 flex items-center justify-center">
+            <Newspaper className="w-24 h-24 text-gray-400" />
           </div>
         )}
 

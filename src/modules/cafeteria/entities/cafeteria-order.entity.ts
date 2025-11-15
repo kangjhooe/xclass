@@ -50,7 +50,7 @@ export class CafeteriaOrder {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.cafeteriaOrders)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 

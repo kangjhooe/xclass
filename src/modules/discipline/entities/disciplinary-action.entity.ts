@@ -56,11 +56,11 @@ export class DisciplinaryAction {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.disciplinaryActions)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.reportedDisciplinaryActions)
   @JoinColumn({ name: 'reporter_id' })
   reporter: Teacher;
 }

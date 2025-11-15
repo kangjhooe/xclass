@@ -13,8 +13,6 @@ import {
   Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { SearchInput } from '@/components/ui/SearchInput';
-import { Pagination } from '@/components/ui/Pagination';
 
 export default function PublicNewsPage() {
   const params = useParams();
@@ -23,8 +21,8 @@ export default function PublicNewsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 12;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['public-news', tenantId, currentPage, searchQuery],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['public-news', tenantId, currentPage],
     queryFn: () => publicApi.getNews(tenantId, { 
       page: currentPage, 
       limit: itemsPerPage 
@@ -33,6 +31,7 @@ export default function PublicNewsPage() {
   });
 
   const filteredNews = data?.data?.filter(news => 
+    !searchQuery || 
     news.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     news.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -43,6 +42,17 @@ export default function PublicNewsPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Memuat berita...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Gagal memuat berita</p>
+          <Button onClick={() => window.location.reload()}>Coba Lagi</Button>
         </div>
       </div>
     );
@@ -146,12 +156,24 @@ export default function PublicNewsPage() {
 
             {/* Pagination */}
             {data && data.totalPages > 1 && (
-              <div className="flex justify-center">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={data.totalPages}
-                  onPageChange={setCurrentPage}
-                />
+              <div className="flex justify-center items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Sebelumnya
+                </Button>
+                <span className="text-sm text-gray-600">
+                  Halaman {currentPage} dari {data.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(p => Math.min(data.totalPages, p + 1))}
+                  disabled={currentPage === data.totalPages}
+                >
+                  Selanjutnya
+                </Button>
               </div>
             )}
           </>

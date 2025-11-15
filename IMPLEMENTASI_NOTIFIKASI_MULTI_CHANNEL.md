@@ -374,8 +374,9 @@ npm run start:prod
 - [x] Update NotificationsController dengan WhatsApp endpoint
 - [x] Create database migration
 - [x] Update module dengan semua dependencies
-- [ ] Frontend UI (TODO)
-- [ ] Dashboard analytics (TODO)
+- [x] Frontend UI - Channel Management (`/notifications/channels`)
+- [x] Frontend UI - Template Management (`/notifications/templates`)
+- [x] Frontend UI - Analytics Dashboard (`/notifications/analytics`)
 
 ---
 

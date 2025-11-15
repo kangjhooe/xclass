@@ -21,6 +21,18 @@ import { ExamAttempt } from '../../exams/entities/exam-attempt.entity';
 import { Alumni } from '../../alumni/entities/alumni.entity';
 import { Graduation } from '../../graduation/entities/graduation.entity';
 import { StudentTransfer } from '../../student-transfer/entities/student-transfer.entity';
+import { BiometricEnrollment } from '../../attendance/entities/biometric-enrollment.entity';
+import { BiometricAttendance } from '../../attendance/entities/biometric-attendance.entity';
+import { SignedDocument } from '../../academic-reports/entities/signed-document.entity';
+import { Promotion } from '../../promotion/entities/promotion.entity';
+import { BookLoan } from '../../library/entities/book-loan.entity';
+import { SppPayment } from '../../finance/entities/spp-payment.entity';
+import { EventRegistration } from '../../events/entities/event-registration.entity';
+import { CourseVideoProgress } from '../../elearning/entities/course-video-progress.entity';
+import { CourseQuizAttempt } from '../../elearning/entities/course-quiz-attempt.entity';
+import { CourseAssignmentSubmission } from '../../elearning/entities/course-assignment-submission.entity';
+import { Card } from '../../card-management/entities/card.entity';
+import { CafeteriaOrder } from '../../cafeteria/entities/cafeteria-order.entity';
 
 @Entity('students')
 export class Student {
@@ -342,5 +354,41 @@ export class Student {
 
   @OneToMany(() => StudentTransfer, (transfer) => transfer.student)
   transfers: StudentTransfer[];
+
+  @OneToMany(() => BiometricEnrollment, (enrollment) => enrollment.student)
+  biometricEnrollments: BiometricEnrollment[];
+
+  @OneToMany(() => BiometricAttendance, (attendance) => attendance.student)
+  biometricAttendances: BiometricAttendance[];
+
+  @OneToMany(() => SignedDocument, (document) => document.student)
+  signedDocuments: SignedDocument[];
+
+  @OneToMany(() => Promotion, (promotion) => promotion.student)
+  promotions: Promotion[];
+
+  @OneToMany(() => BookLoan, (loan) => loan.student)
+  bookLoans: BookLoan[];
+
+  @OneToMany(() => SppPayment, (payment) => payment.student)
+  sppPayments: SppPayment[];
+
+  @OneToMany(() => EventRegistration, (registration) => registration.student)
+  eventRegistrations: EventRegistration[];
+
+  @OneToMany(() => CourseVideoProgress, (progress) => progress.student)
+  courseVideoProgresses: CourseVideoProgress[];
+
+  @OneToMany(() => CourseQuizAttempt, (attempt) => attempt.student)
+  courseQuizAttempts: CourseQuizAttempt[];
+
+  @OneToMany(() => CourseAssignmentSubmission, (submission) => submission.student)
+  courseAssignmentSubmissions: CourseAssignmentSubmission[];
+
+  @OneToMany(() => Card, (card) => card.student)
+  cards: Card[];
+
+  @OneToMany(() => CafeteriaOrder, (order) => order.student)
+  cafeteriaOrders: CafeteriaOrder[];
 }
 

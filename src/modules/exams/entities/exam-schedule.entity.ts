@@ -103,7 +103,7 @@ export class ExamSchedule {
   @JoinColumn({ name: 'subject_id' })
   subject: Subject;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.examSchedules)
   @JoinColumn({ name: 'teacher_id' })
   teacher: Teacher;
 }

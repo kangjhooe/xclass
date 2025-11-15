@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BiometricAttendance, SyncStatus, BiometricType } from '../entities/biometric-attendance.entity';
-import { BiometricDevice } from '../entities/biometric-device.entity';
+import { BiometricDevice, DeviceStatus } from '../entities/biometric-device.entity';
 import { BiometricEnrollment } from '../entities/biometric-enrollment.entity';
 import { Attendance } from '../entities/attendance.entity';
 import { Schedule } from '../../schedules/entities/schedule.entity';
@@ -120,7 +120,7 @@ export class BiometricSyncService {
     // Update device sync status
     await this.deviceRepository.update(deviceId, {
       lastSyncAt: new Date(),
-      status: failed === 0 ? 'active' : 'error',
+      status: failed === 0 ? DeviceStatus.ACTIVE : DeviceStatus.ERROR,
       lastError: failed > 0 ? errors.join('; ') : null,
     });
 

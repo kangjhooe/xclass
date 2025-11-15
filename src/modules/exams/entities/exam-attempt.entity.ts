@@ -80,7 +80,7 @@ export class ExamAttempt {
   @JoinColumn({ name: 'exam_id' })
   exam: Exam;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.examAttempts)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 }

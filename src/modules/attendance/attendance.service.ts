@@ -7,6 +7,7 @@ import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 import { Schedule } from '../schedules/entities/schedule.entity';
 import { Student } from '../students/entities/student.entity';
 import { Teacher } from '../teachers/entities/teacher.entity';
+import { User } from '../users/entities/user.entity';
 import { parseISO, isAfter, isBefore, isValid as isValidDate, getDay } from 'date-fns';
 
 @Injectable()
@@ -20,6 +21,8 @@ export class AttendanceService {
     private studentRepository: Repository<Student>,
     @InjectRepository(Teacher)
     private teacherRepository: Repository<Teacher>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   async create(createAttendanceDto: CreateAttendanceDto, instansiId: number) {
@@ -47,14 +50,17 @@ export class AttendanceService {
     return await this.attendanceRepository.save(attendance);
   }
 
-  async findAll(filters: {
-    studentId?: number;
-    scheduleId?: number;
-    date?: string;
-    instansiId: number;
-    startDate?: string;
-    endDate?: string;
-  }) {
+  async findAll(
+    filters: {
+      studentId?: number;
+      scheduleId?: number;
+      date?: string;
+      instansiId: number;
+      startDate?: string;
+      endDate?: string;
+    },
+    user?: { userId?: number; role?: string; email?: string },
+  ) {
     const { studentId, scheduleId, date, startDate, endDate, instansiId } = filters;
 
     this.ensureValidDateRange(startDate, endDate);
@@ -83,6 +89,45 @@ export class AttendanceService {
 
     if (endDate) {
       queryBuilder.andWhere('DATE(attendance.date) <= :endDate', { endDate });
+    }
+
+    // Filter by teacher if user is a teacher
+    if (user?.role === 'teacher' && user.userId) {
+      // Get user to find email
+      const userEntity = await this.userRepository.findOne({
+        where: { id: user.userId, instansiId },
+      });
+
+      if (userEntity) {
+        // Find teacher by email or by NIK (if email is generated)
+        let teacher = await this.teacherRepository.findOne({
+          where: { email: userEntity.email, instansiId },
+        });
+
+        // If not found by email, try to find by NIK from generated email
+        if (!teacher && userEntity.email?.includes('@xclass.local')) {
+          const nikMatch = userEntity.email.match(/teacher_(\d+)@xclass\.local/);
+          if (nikMatch && nikMatch[1]) {
+            teacher = await this.teacherRepository.findOne({
+              where: { nik: nikMatch[1], instansiId },
+            });
+          }
+        }
+
+        if (teacher) {
+          // Filter attendance where teacher is assigned or schedule teacher matches
+          queryBuilder.andWhere(
+            '(attendance.teacherId = :teacherId OR schedule.teacherId = :teacherId)',
+            { teacherId: teacher.id },
+          );
+        } else {
+          // If teacher not found, return empty result
+          queryBuilder.andWhere('1 = 0');
+        }
+      } else {
+        // If user not found, return empty result
+        queryBuilder.andWhere('1 = 0');
+      }
     }
 
     queryBuilder.orderBy('attendance.date', 'DESC');

@@ -51,7 +51,7 @@ export class CourseQuizAttempt {
   @JoinColumn({ name: 'quiz_id' })
   quiz: CourseQuiz;
 
-  @ManyToOne(() => Student, {
+  @ManyToOne(() => Student, (student) => student.courseQuizAttempts, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'student_id' })

@@ -39,6 +39,8 @@ import { StorageService } from '../storage/storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TeachersService } from '../teachers/teachers.service';
 import { QuestionItemAnalysis } from './entities/question-item-analysis.entity';
+import { User } from '../users/entities/user.entity';
+import { Teacher } from '../teachers/entities/teacher.entity';
 
 @Injectable()
 export class ExamsService {
@@ -65,6 +67,10 @@ export class ExamsService {
     private examWeightsRepository: Repository<ExamWeight>,
     @InjectRepository(QuestionItemAnalysis)
     private itemAnalysisRepository: Repository<QuestionItemAnalysis>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(Teacher)
+    private teacherRepository: Repository<Teacher>,
     private storageService: StorageService,
     private notificationsService: NotificationsService,
     private teachersService: TeachersService,
@@ -88,16 +94,19 @@ export class ExamsService {
     return await this.examsRepository.save(exam);
   }
 
-  async findAll(filters: {
-    search?: string;
-    examType?: ExamType;
-    status?: ExamStatus;
-    semester?: string;
-    academicYear?: string;
-    page?: number;
-    limit?: number;
-    instansiId: number;
-  }) {
+  async findAll(
+    filters: {
+      search?: string;
+      examType?: ExamType;
+      status?: ExamStatus;
+      semester?: string;
+      academicYear?: string;
+      page?: number;
+      limit?: number;
+      instansiId: number;
+    },
+    user?: { userId?: number; role?: string; email?: string },
+  ) {
     const {
       search,
       examType,
@@ -139,6 +148,45 @@ export class ExamsService {
       queryBuilder.andWhere('exam.academicYear = :academicYear', {
         academicYear,
       });
+    }
+
+    // Filter by teacher if user is a teacher
+    if (user?.role === 'teacher' && user.userId) {
+      // Get user to find email
+      const userEntity = await this.userRepository.findOne({
+        where: { id: user.userId, instansiId: filters.instansiId },
+      });
+
+      if (userEntity) {
+        // Find teacher by email or by NIK (if email is generated)
+        let teacher = await this.teacherRepository.findOne({
+          where: { email: userEntity.email, instansiId: filters.instansiId },
+        });
+
+        // If not found by email, try to find by NIK from generated email
+        if (!teacher && userEntity.email?.includes('@xclass.local')) {
+          const nikMatch = userEntity.email.match(/teacher_(\d+)@xclass\.local/);
+          if (nikMatch && nikMatch[1]) {
+            teacher = await this.teacherRepository.findOne({
+              where: { nik: nikMatch[1], instansiId: filters.instansiId },
+            });
+          }
+        }
+
+        if (teacher) {
+          // Filter exams where teacher is in exam schedules
+          queryBuilder.andWhere(
+            '(exam.createdBy = :teacherId OR EXISTS (SELECT 1 FROM exam_schedules es WHERE es.exam_id = exam.id AND es.teacher_id = :teacherId))',
+            { teacherId: teacher.id },
+          );
+        } else {
+          // If teacher not found, return empty result
+          queryBuilder.andWhere('1 = 0');
+        }
+      } else {
+        // If user not found, return empty result
+        queryBuilder.andWhere('1 = 0');
+      }
     }
 
     queryBuilder.orderBy('exam.createdAt', 'DESC');

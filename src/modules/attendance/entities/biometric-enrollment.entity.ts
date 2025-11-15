@@ -52,7 +52,7 @@ export class BiometricEnrollment {
   @Column({ type: 'timestamp', nullable: true })
   deletedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.biometricEnrollments)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 

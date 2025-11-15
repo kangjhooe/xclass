@@ -94,7 +94,7 @@ export class SppPayment {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.sppPayments)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 }

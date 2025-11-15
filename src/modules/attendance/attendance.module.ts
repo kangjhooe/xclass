@@ -12,6 +12,7 @@ import { BiometricEnrollment } from './entities/biometric-enrollment.entity';
 import { Schedule } from '../schedules/entities/schedule.entity';
 import { Student } from '../students/entities/student.entity';
 import { Teacher } from '../teachers/entities/teacher.entity';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { Teacher } from '../teachers/entities/teacher.entity';
       Schedule,
       Student,
       Teacher,
+      User,
     ]),
   ],
   controllers: [AttendanceController, BiometricController],

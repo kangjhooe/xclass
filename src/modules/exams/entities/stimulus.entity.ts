@@ -55,7 +55,7 @@ export class Stimulus {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.stimuli)
   @JoinColumn({ name: 'created_by' })
   teacher: Teacher;
 

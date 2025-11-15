@@ -13,7 +13,9 @@ import {
   UploadedFile,
   Res,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
+import { Request as ExpressRequest } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { ExamsService } from './exams.service';
@@ -33,12 +35,14 @@ import { CreateGradeConversionDto } from './dto/create-grade-conversion.dto';
 import { CreateExamWeightDto } from './dto/create-exam-weight.dto';
 import { AddQuestionToExamDto } from './dto/add-question-to-exam.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../common/guards/tenant.guard';
 import { ExamType, ExamStatus } from './entities/exam.entity';
 import { ScheduleStatus } from './entities/exam-schedule.entity';
 import { QuestionType } from './entities/question.entity';
 
 @Controller({ path: ['exams', 'tenants/:tenant/exams'] })
-// @UseGuards(JwtAuthGuard, TenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class ExamsController {
   constructor(private readonly examsService: ExamsService) {}
 
@@ -51,6 +55,7 @@ export class ExamsController {
   @Get()
   findAll(
     @TenantId() instansiId: number,
+    @Req() req: ExpressRequest,
     @Query('search') search?: string,
     @Query('examType') examType?: ExamType,
     @Query('status') status?: ExamStatus,
@@ -68,7 +73,7 @@ export class ExamsController {
       page: +page,
       limit: +limit,
       instansiId,
-    });
+    }, req.user as any);
   }
 
   @Get(':id')

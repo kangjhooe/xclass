@@ -11,6 +11,8 @@ import { Announcement } from '../announcement/entities/announcement.entity';
 import { Exam } from '../exams/entities/exam.entity';
 import { Tenant } from '../tenant/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
+import { Teacher } from '../teachers/entities/teacher.entity';
+import { ClassRoom } from '../classes/entities/class-room.entity';
 
 @Injectable()
 export class MobileApiService {
@@ -31,6 +33,10 @@ export class MobileApiService {
     private tenantRepository: Repository<Tenant>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Teacher)
+    private teacherRepository: Repository<Teacher>,
+    @InjectRepository(ClassRoom)
+    private classRoomRepository: Repository<ClassRoom>,
     private jwtService: JwtService,
   ) {}
 
@@ -360,6 +366,184 @@ export class MobileApiService {
     });
 
     return Math.round((present / total) * 100 * 100) / 100;
+  }
+
+  // Teacher Dashboard Methods
+  async getTeacherDashboard(userEmail: string, instansiId: number) {
+    // Find user first
+    const user = await this.userRepository.findOne({
+      where: { email: userEmail, instansiId, role: 'teacher' },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan atau bukan guru');
+    }
+
+    // Find teacher by email or by NIK (if email is generated)
+    let teacher = await this.teacherRepository.findOne({
+      where: { email: userEmail, instansiId },
+      relations: ['subjects'],
+    });
+
+    // If not found by email, try to find by NIK from generated email
+    if (!teacher && userEmail.includes('@xclass.local')) {
+      const nikMatch = userEmail.match(/teacher_(\d+)@xclass\.local/);
+      if (nikMatch && nikMatch[1]) {
+        teacher = await this.teacherRepository.findOne({
+          where: { nik: nikMatch[1], instansiId },
+          relations: ['subjects'],
+        });
+      }
+    }
+
+    if (!teacher) {
+      throw new NotFoundException('Data guru tidak ditemukan');
+    }
+
+    // Get teacher's classes from schedules
+    const teacherSchedules = await this.scheduleRepository.find({
+      where: { teacherId: teacher.id, instansiId, isActive: true },
+      relations: ['classRoom'],
+    });
+
+    const uniqueClassIds = [...new Set(teacherSchedules.map((s) => s.classId))];
+    const totalClasses = uniqueClassIds.length;
+
+    // Get total students from teacher's classes
+    const totalStudents = await this.studentRepository
+      .createQueryBuilder('student')
+      .where('student.classId IN (:...classIds)', { classIds: uniqueClassIds })
+      .andWhere('student.instansiId = :instansiId', { instansiId })
+      .getCount();
+
+    // Get today's schedules
+    const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const todaySchedules = await this.scheduleRepository.find({
+      where: { teacherId: teacher.id, dayOfWeek: today, instansiId, isActive: true },
+      relations: ['subject', 'classRoom'],
+      order: { startTime: 'ASC' },
+    });
+
+    // Get upcoming exams from exam schedules for this teacher
+    const upcomingExams = await this.examRepository
+      .createQueryBuilder('exam')
+      .innerJoin('exam.schedules', 'examSchedule')
+      .leftJoinAndSelect('examSchedule.subject', 'subject')
+      .where('exam.instansiId = :instansiId', { instansiId })
+      .andWhere('exam.startTime >= :today', { today: new Date() })
+      .andWhere('examSchedule.teacherId = :teacherId', { teacherId: teacher.id })
+      .orderBy('exam.startTime', 'ASC')
+      .take(5)
+      .getMany();
+
+    // Get announcements
+    const announcements = await this.announcementRepository.find({
+      where: {
+        instansiId,
+        status: 'published',
+      },
+      order: { createdAt: 'DESC' },
+      take: 5,
+    });
+
+    return {
+      success: true,
+      data: {
+        teacher: {
+          id: teacher.id,
+          name: teacher.name,
+          nik: teacher.nik || null,
+          employeeNumber: teacher.employeeNumber || null,
+          subjects: teacher.subjects?.map((s) => ({
+            id: s.id,
+            name: s.name,
+          })) || [],
+        },
+        stats: {
+          totalClasses,
+          totalStudents,
+          todaySchedules: todaySchedules.length,
+          upcomingExams: upcomingExams.length,
+        },
+        todaySchedules: todaySchedules.map((s) => ({
+          id: s.id,
+          subject: s.subject?.name || null,
+          class: s.classRoom?.name || null,
+          time: `${s.startTime} - ${s.endTime}`,
+          room: s.room || s.classRoom?.name || null,
+        })),
+        upcomingExams: upcomingExams.map((e) => {
+          // Get subject from first exam schedule
+          const firstSchedule = e.schedules?.[0];
+          return {
+            id: e.id,
+            title: e.title,
+            startDate: e.startTime.toISOString(),
+            subject: firstSchedule?.subject?.name || null,
+          };
+        }),
+        announcements: announcements.map((a) => ({
+          id: a.id,
+          title: a.title,
+          content: a.content,
+          created_at: a.createdAt.toLocaleDateString('id-ID'),
+        })),
+      },
+    };
+  }
+
+  async getTeacherSchedules(userEmail: string, instansiId: number) {
+    // Find user first
+    const user = await this.userRepository.findOne({
+      where: { email: userEmail, instansiId, role: 'teacher' },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan atau bukan guru');
+    }
+
+    // Find teacher by email or by NIK (if email is generated)
+    let teacher = await this.teacherRepository.findOne({
+      where: { email: userEmail, instansiId },
+    });
+
+    // If not found by email, try to find by NIK from generated email
+    if (!teacher && userEmail.includes('@xclass.local')) {
+      const nikMatch = userEmail.match(/teacher_(\d+)@xclass\.local/);
+      if (nikMatch && nikMatch[1]) {
+        teacher = await this.teacherRepository.findOne({
+          where: { nik: nikMatch[1], instansiId },
+        });
+      }
+    }
+
+    if (!teacher) {
+      throw new NotFoundException('Data guru tidak ditemukan');
+    }
+
+    const schedules = await this.scheduleRepository.find({
+      where: { teacherId: teacher.id, instansiId, isActive: true },
+      relations: ['subject', 'classRoom'],
+      order: { dayOfWeek: 'ASC', startTime: 'ASC' },
+    });
+
+    return {
+      success: true,
+      data: {
+        schedules: schedules.map((s) => ({
+          id: s.id,
+          subject: s.subject?.name || null,
+          subjectId: s.subjectId,
+          class: s.classRoom?.name || null,
+          classId: s.classId,
+          dayOfWeek: s.dayOfWeek,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          room: s.room || s.classRoom?.name || null,
+          isActive: s.isActive,
+        })),
+      },
+    };
   }
 }
 

@@ -69,18 +69,25 @@ export default function StudentExamsPage() {
 
     // Validasi waktu
     if (now < startTime) {
-      alert(`Ujian belum dimulai. Waktu mulai: ${formatDate(schedule.startTime)}`);
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(`Ujian belum dimulai. Waktu mulai: ${formatDate(schedule.startTime)}`);
+      }
       return;
     }
 
     if (now > endTime) {
-      alert(`Ujian sudah berakhir. Waktu selesai: ${formatDate(schedule.endTime)}`);
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(`Ujian sudah berakhir. Waktu selesai: ${formatDate(schedule.endTime)}`);
+      }
       return;
     }
 
     // Konfirmasi sebelum mulai
-    if (confirm('Apakah Anda yakin ingin mulai mengerjakan ujian ini? Setelah mulai, timer akan berjalan dan tidak dapat dihentikan.')) {
-      router.push(`/${params.tenant}/student-portal/exams/${schedule.examId}/take?scheduleId=${schedule.id}`);
+    if (typeof window !== 'undefined' && window.confirm) {
+      const confirmed = window.confirm('Apakah Anda yakin ingin mulai mengerjakan ujian ini? Setelah mulai, timer akan berjalan dan tidak dapat dihentikan.');
+      if (confirmed) {
+        router.push(`/${params.tenant}/student-portal/exams/${schedule.examId}/take?scheduleId=${schedule.id}`);
+      }
     }
   };
 

@@ -72,5 +72,18 @@ export class MobileApiController {
   async getAnnouncements(@Request() req, @TenantId() instansiId: number) {
     return this.mobileApiService.getAnnouncements(req.user.email, instansiId);
   }
+
+  // Teacher endpoints
+  @Get('teacher/dashboard')
+  @UseGuards(JwtAuthGuard, TenantGuard)
+  async getTeacherDashboard(@Request() req, @TenantId() instansiId: number) {
+    return this.mobileApiService.getTeacherDashboard(req.user.email, instansiId);
+  }
+
+  @Get('teacher/schedules')
+  @UseGuards(JwtAuthGuard, TenantGuard)
+  async getTeacherSchedules(@Request() req, @TenantId() instansiId: number) {
+    return this.mobileApiService.getTeacherSchedules(req.user.email, instansiId);
+  }
 }
 

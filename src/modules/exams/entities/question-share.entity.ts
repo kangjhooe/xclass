@@ -81,11 +81,11 @@ export class QuestionShare {
   @JoinColumn({ name: 'question_id' })
   question: Question;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.sentQuestionShares)
   @JoinColumn({ name: 'from_teacher_id' })
   fromTeacher: Teacher;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.receivedQuestionShares)
   @JoinColumn({ name: 'to_teacher_id' })
   toTeacher: Teacher;
 }

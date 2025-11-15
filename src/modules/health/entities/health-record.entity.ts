@@ -60,7 +60,7 @@ export class HealthRecord {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.healthRecords)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 }

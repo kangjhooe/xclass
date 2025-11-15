@@ -78,7 +78,7 @@ export class SignedDocument {
   @Column({ type: 'timestamp', nullable: true })
   revokedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.signedDocuments)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 

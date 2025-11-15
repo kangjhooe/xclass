@@ -77,11 +77,11 @@ export class EventRegistration {
   @JoinColumn({ name: 'event_id' })
   event: Event;
 
-  @ManyToOne(() => Student, { nullable: true })
+  @ManyToOne(() => Student, (student) => student.eventRegistrations, { nullable: true })
   @JoinColumn({ name: 'student_id' })
   student: Student;
 
-  @ManyToOne(() => Teacher, { nullable: true })
+  @ManyToOne(() => Teacher, (teacher) => teacher.eventRegistrations, { nullable: true })
   @JoinColumn({ name: 'teacher_id' })
   teacher: Teacher;
 }

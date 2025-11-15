@@ -11,6 +11,20 @@ import {
 import { ClassRoom } from '../../classes/entities/class-room.entity';
 import { Schedule } from '../../schedules/entities/schedule.entity';
 import { Subject } from '../../subjects/entities/subject.entity';
+import { StudentGrade } from '../../grades/entities/student-grade.entity';
+import { Attendance } from '../../attendance/entities/attendance.entity';
+import { DisciplinaryAction } from '../../discipline/entities/disciplinary-action.entity';
+import { CounselingSession } from '../../counseling/entities/counseling-session.entity';
+import { Card } from '../../card-management/entities/card.entity';
+import { EventRegistration } from '../../events/entities/event-registration.entity';
+import { BookLoan } from '../../library/entities/book-loan.entity';
+import { CurriculumSchedule } from '../../curriculum/entities/curriculum-schedule.entity';
+import { Question } from '../../exams/entities/question.entity';
+import { QuestionBank } from '../../exams/entities/question-bank.entity';
+import { QuestionShare } from '../../exams/entities/question-share.entity';
+import { GradeConversion } from '../../exams/entities/grade-conversion.entity';
+import { Stimulus } from '../../exams/entities/stimulus.entity';
+import { ExamSchedule } from '../../exams/entities/exam-schedule.entity';
 
 @Entity('teachers')
 export class Teacher {
@@ -324,5 +338,50 @@ export class Teacher {
     inverseJoinColumn: { name: 'subject_id', referencedColumnName: 'id' },
   })
   subjects: Subject[];
+
+  @OneToMany(() => StudentGrade, (grade) => grade.teacher)
+  grades: StudentGrade[];
+
+  @OneToMany(() => Attendance, (attendance) => attendance.teacher)
+  attendances: Attendance[];
+
+  @OneToMany(() => DisciplinaryAction, (action) => action.reporter)
+  reportedDisciplinaryActions: DisciplinaryAction[];
+
+  @OneToMany(() => CounselingSession, (session) => session.counselor)
+  counselingSessions: CounselingSession[];
+
+  @OneToMany(() => Card, (card) => card.teacher)
+  cards: Card[];
+
+  @OneToMany(() => EventRegistration, (registration) => registration.teacher)
+  eventRegistrations: EventRegistration[];
+
+  @OneToMany(() => BookLoan, (loan) => loan.teacher)
+  bookLoans: BookLoan[];
+
+  @OneToMany(() => CurriculumSchedule, (schedule) => schedule.teacher)
+  curriculumSchedules: CurriculumSchedule[];
+
+  @OneToMany(() => Question, (question) => question.teacher)
+  questions: Question[];
+
+  @OneToMany(() => QuestionBank, (bank) => bank.teacher)
+  questionBanks: QuestionBank[];
+
+  @OneToMany(() => QuestionShare, (share) => share.fromTeacher)
+  sentQuestionShares: QuestionShare[];
+
+  @OneToMany(() => QuestionShare, (share) => share.toTeacher)
+  receivedQuestionShares: QuestionShare[];
+
+  @OneToMany(() => GradeConversion, (conversion) => conversion.teacher)
+  gradeConversions: GradeConversion[];
+
+  @OneToMany(() => Stimulus, (stimulus) => stimulus.teacher)
+  stimuli: Stimulus[];
+
+  @OneToMany(() => ExamSchedule, (schedule) => schedule.teacher)
+  examSchedules: ExamSchedule[];
 }
 

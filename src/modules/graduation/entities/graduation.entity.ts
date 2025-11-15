@@ -47,7 +47,7 @@ export class Graduation {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.graduations)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 }

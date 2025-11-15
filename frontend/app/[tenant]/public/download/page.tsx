@@ -13,7 +13,6 @@ import {
   Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
 
 export default function PublicDownloadPage() {
   const params = useParams();
@@ -34,7 +33,7 @@ export default function PublicDownloadPage() {
   });
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));

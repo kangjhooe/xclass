@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PublicPageController } from './public-page.controller';
+import { PublicPageAdminController } from './public-page-admin.controller';
 import { PublicPageService } from './public-page.service';
 import { News } from './entities/news.entity';
 import { Gallery } from './entities/gallery.entity';
@@ -32,7 +33,7 @@ import { Download } from './entities/download.entity';
       Download,
     ]),
   ],
-  controllers: [PublicPageController],
+  controllers: [PublicPageController, PublicPageAdminController],
   providers: [PublicPageService],
   exports: [PublicPageService],
 })

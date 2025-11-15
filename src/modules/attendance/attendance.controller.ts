@@ -8,7 +8,9 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
+import { Request as ExpressRequest } from 'express';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
@@ -29,13 +31,14 @@ export class AttendanceController {
   @Get()
   findAll(
     @TenantId() instansiId: number,
+    @Req() req: ExpressRequest,
     @Query('studentId') studentId?: number,
     @Query('scheduleId') scheduleId?: number,
     @Query('date') date?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.attendanceService.findAll({ studentId, scheduleId, date, startDate, endDate, instansiId });
+    return this.attendanceService.findAll({ studentId, scheduleId, date, startDate, endDate, instansiId }, req.user as any);
   }
 
   @Get('stats/summary')

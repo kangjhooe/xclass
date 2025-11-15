@@ -80,7 +80,7 @@ export default function PublicHomePage() {
               </div>
             </div>
             <nav className="hidden md:flex items-center gap-4">
-              <Link href={`/${tenantId}/public`} className="text-gray-700 hover:text-blue-600 font-medium">
+              <Link href={`/${tenantId}/public`} className="text-blue-600 font-semibold border-b-2 border-blue-600 pb-1">
                 Beranda
               </Link>
               <Link href={`/${tenantId}/public/profile`} className="text-gray-700 hover:text-blue-600 font-medium">
@@ -162,13 +162,20 @@ export default function PublicHomePage() {
               {featuredNews.map((news) => (
                 <Link key={news.id} href={`/${tenantId}/public/news/${news.slug}`}>
                   <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow cursor-pointer">
-                    {news.featuredImage && (
+                    {news.featuredImage ? (
                       <div className="h-48 bg-gray-200 overflow-hidden">
                         <img 
                           src={news.featuredImage} 
                           alt={news.title}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
+                      </div>
+                    ) : (
+                      <div className="h-48 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                        <Newspaper className="w-12 h-12 text-gray-400" />
                       </div>
                     )}
                     <div className="p-6">
@@ -243,12 +250,15 @@ export default function PublicHomePage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {galleries.slice(0, 8).map((gallery) => (
-                <Link key={gallery.id} href={`/${tenantId}/public/gallery/${gallery.id}`}>
+                <Link key={gallery.id} href={`/${tenantId}/public/gallery`}>
                   <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden hover:opacity-90 transition-opacity cursor-pointer">
                     <img 
                       src={gallery.image} 
-                      alt={gallery.title}
+                      alt={gallery.title || 'Galeri foto'}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23ddd" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
+                      }}
                     />
                   </div>
                 </Link>

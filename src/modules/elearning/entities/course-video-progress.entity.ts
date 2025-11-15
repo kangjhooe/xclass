@@ -47,7 +47,7 @@ export class CourseVideoProgress {
   @JoinColumn({ name: 'video_id' })
   video: CourseVideo;
 
-  @ManyToOne(() => Student, {
+  @ManyToOne(() => Student, (student) => student.courseVideoProgresses, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'student_id' })

@@ -104,11 +104,11 @@ export class Card {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Student, { nullable: true })
+  @ManyToOne(() => Student, (student) => student.cards, { nullable: true })
   @JoinColumn({ name: 'student_id' })
   student: Student;
 
-  @ManyToOne(() => Teacher, { nullable: true })
+  @ManyToOne(() => Teacher, (teacher) => teacher.cards, { nullable: true })
   @JoinColumn({ name: 'teacher_id' })
   teacher: Teacher;
 }

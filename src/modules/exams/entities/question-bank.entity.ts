@@ -46,7 +46,7 @@ export class QuestionBank {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.questionBanks)
   @JoinColumn({ name: 'teacher_id' })
   teacher: Teacher;
 

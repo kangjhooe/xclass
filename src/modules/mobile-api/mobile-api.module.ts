@@ -10,6 +10,8 @@ import { Announcement } from '../announcement/entities/announcement.entity';
 import { Exam } from '../exams/entities/exam.entity';
 import { Tenant } from '../tenant/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
+import { Teacher } from '../teachers/entities/teacher.entity';
+import { ClassRoom } from '../classes/entities/class-room.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -23,6 +25,8 @@ import { AuthModule } from '../auth/auth.module';
       Exam,
       Tenant,
       User,
+      Teacher,
+      ClassRoom,
     ]),
     AuthModule,
   ],

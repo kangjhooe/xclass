@@ -51,7 +51,7 @@ export class Attendance {
   @JoinColumn({ name: 'schedule_id' })
   schedule: Schedule;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.attendances)
   @JoinColumn({ name: 'teacher_id' })
   teacher: Teacher;
 }

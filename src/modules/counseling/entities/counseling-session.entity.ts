@@ -52,11 +52,11 @@ export class CounselingSession {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @ManyToOne(() => Student)
+  @ManyToOne(() => Student, (student) => student.counselingSessions)
   @JoinColumn({ name: 'student_id' })
   student: Student;
 
-  @ManyToOne(() => Teacher)
+  @ManyToOne(() => Teacher, (teacher) => teacher.counselingSessions)
   @JoinColumn({ name: 'counselor_id' })
   counselor: Teacher;
 }
