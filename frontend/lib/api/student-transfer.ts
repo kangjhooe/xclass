@@ -106,7 +106,7 @@ export const studentTransferApi = {
     tenantId: number,
     sourceTenantNpsn: string,
     studentNisn: string,
-  ): Promise<{ sourceTenant: { id: number; npsn: string; name: string }; student: { id: number; name: string; nisn: string; nis: string; gender: string; birthDate: string; birthPlace: string; classId: number; email: string; phone: string } }> => {
+  ): Promise<{ sourceTenant: { id: number; npsn: string; name: string }; student: { id: number; name: string; nik: string; nisn?: string; nis: string; gender: string; birthDate: string; birthPlace: string; classId: number; email: string; phone: string } }> => {
     const response = await apiClient.get(
       `/tenants/${tenantId}/student-transfers/lookup`,
       {

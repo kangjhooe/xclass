@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AcademicYear } from './entities/academic-year.entity';
+import { AcademicYear, SemesterType } from './entities/academic-year.entity';
 import { CreateAcademicYearDto } from './dto/create-academic-year.dto';
 import { UpdateAcademicYearDto } from './dto/update-academic-year.dto';
 
@@ -112,6 +112,27 @@ export class AcademicYearService {
     return this.academicYearRepository.findOne({
       where: { instansiId, isActive: true },
     });
+  }
+
+  async setSemester(id: number, semesterType: SemesterType, instansiId: number) {
+    const academicYear = await this.findOne(id, instansiId);
+    
+    // Update semester type
+    academicYear.currentSemesterType = semesterType;
+    academicYear.currentSemester = semesterType === SemesterType.GANJIL ? 1 : 2;
+    
+    return await this.academicYearRepository.save(academicYear);
+  }
+
+  async getActiveWithSemester(instansiId: number) {
+    const active = await this.getActive(instansiId);
+    if (!active) {
+      return null;
+    }
+    return {
+      ...active,
+      semesterLabel: active.currentSemesterType === SemesterType.GANJIL ? 'Ganjil' : 'Genap',
+    };
   }
 }
 

@@ -72,6 +72,8 @@ export class GradesController {
   @Get('export')
   async export(
     @TenantId() instansiId: number,
+    @Res() res: Response,
+    @Req() req: Request,
     @Query('format') format: string = 'excel',
     @Query('studentId') studentId?: string,
     @Query('subjectId') subjectId?: string,
@@ -82,8 +84,6 @@ export class GradesController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('teacherId') teacherId?: string,
-    @Res() res: Response,
-    @Req() req: Request,
   ) {
     const filters = {
       instansiId,

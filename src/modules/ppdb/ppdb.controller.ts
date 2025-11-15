@@ -66,11 +66,11 @@ export class PpdbController {
   @Get('announcement/check')
   async checkAnnouncement(
     @Query('registrationNumber') registrationNumber?: string,
-    @Query('nisn') nisn?: string,
+    @Query('nisn') nisn?: string, // Parameter name tetap nisn untuk backward compatibility, tapi bisa digunakan untuk NIK juga
     @TenantId() instansiId?: number,
   ) {
     if (!registrationNumber && !nisn) {
-      throw new BadRequestException('Nomor pendaftaran atau NISN wajib diisi');
+      throw new BadRequestException('Nomor pendaftaran atau NISN/NIK wajib diisi');
     }
 
     return this.ppdbService.findByRegistrationNumberOrNisn(

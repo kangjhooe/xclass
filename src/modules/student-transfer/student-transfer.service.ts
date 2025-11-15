@@ -188,15 +188,15 @@ export class StudentTransferService {
       throw new BadRequestException('Siswa tidak aktif, tidak dapat ditransfer');
     }
 
-    // Validasi NISN tidak duplikat di tenant tujuan
-    if (student.nisn) {
+    // Validasi NIK tidak duplikat di tenant tujuan
+    if (student.nik) {
       const existingStudentInDestination = await this.studentRepository.findOne({
-        where: { nisn: student.nisn, instansiId: createTransferDto.toTenantId },
+        where: { nik: student.nik },
       });
 
       if (existingStudentInDestination && existingStudentInDestination.isActive) {
         throw new BadRequestException(
-          `Siswa dengan NISN ${student.nisn} sudah ada di tenant tujuan (${destinationTenant.name})`,
+          `Siswa dengan NIK ${student.nik} sudah ada di tenant tujuan (${destinationTenant.name})`,
         );
       }
     }
@@ -247,14 +247,14 @@ export class StudentTransferService {
       throw new BadRequestException('Tidak dapat menarik siswa dari instansi sendiri');
     }
 
-    // Find student by NISN in source tenant
+    // Find student by NIK in source tenant
     const student = await this.studentRepository.findOne({
-      where: { nisn: createPullDto.studentNisn, instansiId: sourceTenant.id },
+      where: { nik: createPullDto.studentNisn, instansiId: sourceTenant.id },
     });
 
     if (!student) {
       throw new NotFoundException(
-        `Siswa dengan NISN ${createPullDto.studentNisn} tidak ditemukan di tenant ${sourceTenant.name}`,
+        `Siswa dengan NIK ${createPullDto.studentNisn} tidak ditemukan di tenant ${sourceTenant.name}`,
       );
     }
 
@@ -262,10 +262,10 @@ export class StudentTransferService {
       throw new BadRequestException('Siswa tidak aktif, tidak dapat ditransfer');
     }
 
-    // Validasi NISN tidak duplikat di tenant tujuan (instansiId)
-    if (student.nisn) {
+    // Validasi NIK tidak duplikat di tenant tujuan (instansiId)
+    if (student.nik) {
       const existingStudentInDestination = await this.studentRepository.findOne({
-        where: { nisn: student.nisn, instansiId },
+        where: { nik: student.nik },
       });
 
       if (existingStudentInDestination && existingStudentInDestination.isActive) {
@@ -273,7 +273,7 @@ export class StudentTransferService {
           where: { id: instansiId },
         });
         throw new BadRequestException(
-          `Siswa dengan NISN ${student.nisn} sudah ada di tenant Anda (${destinationTenant?.name || 'tenant tujuan'})`,
+          `Siswa dengan NIK ${student.nik} sudah ada di tenant Anda (${destinationTenant?.name || 'tenant tujuan'})`,
         );
       }
     }
@@ -329,11 +329,11 @@ export class StudentTransferService {
     }
 
     const student = await this.studentRepository.findOne({
-      where: { instansiId: sourceTenant.id, nisn: studentNisn },
+      where: { instansiId: sourceTenant.id, nik: studentNisn },
     });
 
     if (!student) {
-      throw new NotFoundException('Siswa dengan NISN tersebut tidak ditemukan pada tenant sumber');
+      throw new NotFoundException('Siswa dengan NIK tersebut tidak ditemukan pada tenant sumber');
     }
 
     return {
@@ -411,7 +411,7 @@ export class StudentTransferService {
 
     if (search) {
       queryBuilder.andWhere(
-        '(student.name LIKE :search OR student.studentNumber LIKE :search OR student.nisn LIKE :search)',
+        '(student.name LIKE :search OR student.nik LIKE :search OR student.studentNumber LIKE :search OR student.nisn LIKE :search)',
         { search: `%${search}%` },
       );
     }
@@ -670,30 +670,30 @@ export class StudentTransferService {
     // Hapus classId karena akan diassign di tenant baru
     const { classId, instansiId, ...dataToCopy } = studentData;
 
-    // Validasi NISN tidak duplikat di tenant tujuan
-    if (dataToCopy.nisn) {
+    // Validasi NIK tidak duplikat di tenant tujuan
+    if (dataToCopy.nik) {
       const existingStudent = await this.studentRepository.findOne({
-        where: { nisn: dataToCopy.nisn, instansiId: toTenantId },
+        where: { nik: dataToCopy.nik },
       });
 
       if (existingStudent && existingStudent.isActive) {
         throw new BadRequestException(
-          `Siswa dengan NISN ${dataToCopy.nisn} sudah ada di tenant tujuan`,
+          `Siswa dengan NIK ${dataToCopy.nik} sudah ada di tenant tujuan`,
         );
       }
 
-      // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NISN
+      // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NIK
       // (double check untuk memastikan tidak ada siswa aktif di tenant lain)
       const activeStudentInOtherTenant = await this.studentRepository.findOne({
         where: { 
-          nisn: dataToCopy.nisn, 
+          nik: dataToCopy.nik, 
           isActive: true,
         },
       });
       
       if (activeStudentInOtherTenant && activeStudentInOtherTenant.instansiId !== toTenantId) {
         throw new BadRequestException(
-          `Siswa dengan NISN ${dataToCopy.nisn} masih aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`
+          `Siswa dengan NIK ${dataToCopy.nik} masih aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`
         );
       }
     }
@@ -745,10 +745,10 @@ export class StudentTransferService {
       const latestSnapshot = this.createCompleteStudentSnapshot(student);
       transfer.studentData = latestSnapshot;
 
-      // Validasi NISN tidak duplikat di tenant tujuan (double check sebelum transfer)
-      if (student.nisn) {
+      // Validasi NIK tidak duplikat di tenant tujuan (double check sebelum transfer)
+      if (student.nik) {
         const existingStudentInDestination = await this.studentRepository.findOne({
-          where: { nisn: student.nisn, instansiId: transfer.toTenantId },
+          where: { nik: student.nik },
         });
 
         if (existingStudentInDestination && existingStudentInDestination.isActive) {
@@ -756,7 +756,7 @@ export class StudentTransferService {
             where: { id: transfer.toTenantId },
           });
           throw new BadRequestException(
-            `Siswa dengan NISN ${student.nisn} sudah ada di tenant tujuan (${destinationTenant?.name || 'tenant tujuan'})`,
+            `Siswa dengan NIK ${student.nik} sudah ada di tenant tujuan (${destinationTenant?.name || 'tenant tujuan'})`,
           );
         }
       }
@@ -874,10 +874,10 @@ export class StudentTransferService {
     const latestSnapshot = this.createCompleteStudentSnapshot(student);
     transfer.studentData = latestSnapshot;
 
-    // Validasi NISN tidak duplikat di tenant tujuan (double check sebelum transfer)
-    if (student.nisn) {
+    // Validasi NIK tidak duplikat di tenant tujuan (double check sebelum transfer)
+    if (student.nik) {
       const existingStudentInDestination = await this.studentRepository.findOne({
-        where: { nisn: student.nisn, instansiId: transfer.toTenantId },
+        where: { nik: student.nik },
       });
 
       if (existingStudentInDestination && existingStudentInDestination.isActive) {
@@ -885,7 +885,7 @@ export class StudentTransferService {
           where: { id: transfer.toTenantId },
         });
         throw new BadRequestException(
-          `Siswa dengan NISN ${student.nisn} sudah ada di tenant tujuan (${destinationTenant?.name || 'tenant tujuan'})`,
+          `Siswa dengan NIK ${student.nik} sudah ada di tenant tujuan (${destinationTenant?.name || 'tenant tujuan'})`,
         );
       }
     }

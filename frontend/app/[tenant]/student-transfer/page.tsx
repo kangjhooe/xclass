@@ -45,7 +45,7 @@ export default function StudentTransferPage() {
   });
   const [sourceTenant, setSourceTenant] = useState<Tenant | null>(null);
   const [sourceTenantError, setSourceTenantError] = useState<string>('');
-  const [studentInfo, setStudentInfo] = useState<{ name?: string; nisn?: string } | null>(null);
+  const [studentInfo, setStudentInfo] = useState<{ name?: string; nik?: string; nisn?: string } | null>(null);
   const [studentError, setStudentError] = useState<string>('');
   const [pullRequestUploadedDocuments, setPullRequestUploadedDocuments] = useState<string[]>([]);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -657,7 +657,7 @@ export default function StudentTransferPage() {
                 options={
                   studentsData?.data?.map((student) => ({
                     value: student.id.toString(),
-                    label: `${student.name}${student.nis ? ` (NIS: ${student.nis})` : ''}${student.nisn ? ` - NISN: ${student.nisn}` : ''}`,
+                    label: `${student.name}${student.nik ? ` (NIK: ${student.nik})` : ''}${student.nis ? ` - NIS: ${student.nis}` : ''}${student.nisn ? ` - NISN: ${student.nisn}` : ''}`,
                   })) || []
                 }
               />
@@ -802,7 +802,7 @@ export default function StudentTransferPage() {
               return;
             }
             if (!pullRequestData.studentNisn || pullRequestData.studentNisn.trim() === '') {
-              showError('Masukkan NISN siswa terlebih dahulu');
+              showError('Masukkan NIK siswa terlebih dahulu');
               return;
             }
             if (!studentInfo) {
@@ -853,7 +853,7 @@ export default function StudentTransferPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                NISN Siswa <span className="text-red-500">*</span>
+                NIK Siswa <span className="text-red-500">*</span>
               </label>
               <div className="space-y-2">
                 <div className="flex gap-2">
@@ -861,7 +861,9 @@ export default function StudentTransferPage() {
                     type="text"
                     value={pullRequestData.studentNisn}
                     onChange={(e) => {
-                      setPullRequestData({ ...pullRequestData, studentNisn: e.target.value });
+                      // Hanya allow angka
+                      const value = e.target.value.replace(/\D/g, '');
+                      setPullRequestData({ ...pullRequestData, studentNisn: value });
                       setStudentError('');
                       setStudentInfo(null);
                     }}
@@ -876,6 +878,7 @@ export default function StudentTransferPage() {
                           );
                           setStudentInfo({
                             name: lookupResult.student.name,
+                            nik: lookupResult.student.nik,
                             nisn: lookupResult.student.nisn,
                           });
                           setStudentError('');
@@ -887,7 +890,9 @@ export default function StudentTransferPage() {
                         }
                       }
                     }}
-                    placeholder="Masukkan NISN siswa yang akan ditarik"
+                    placeholder="Masukkan NIK siswa (16 digit) yang akan ditarik"
+                    maxLength={16}
+                    pattern="[0-9]{16}"
                     className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       studentError ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -933,7 +938,8 @@ export default function StudentTransferPage() {
                     <p className="text-sm font-medium text-blue-800">
                       {studentInfo.name}
                     </p>
-                    <p className="text-xs text-blue-600">NISN: {studentInfo.nisn}</p>
+                    <p className="text-xs text-blue-600">NIK: {studentInfo.nik || '-'}</p>
+                    {studentInfo.nisn && <p className="text-xs text-gray-500">NISN: {studentInfo.nisn}</p>}
                   </div>
                 )}
                 {!sourceTenant && (

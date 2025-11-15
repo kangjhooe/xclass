@@ -1770,8 +1770,8 @@ export class PpdbService {
       throw new BadRequestException('Siswa sudah berada di tenant yang sama');
     }
 
-    // Find student in source tenant
-    const student = await this.studentsService.findByNisn(nisn, sourceTenant.id);
+    // Find student in source tenant by NIK (parameter nisn sebenarnya adalah NIK)
+    const student = await this.studentsService.findByNik(nisn, sourceTenant.id);
 
     // Get destination tenant info
     const destinationTenant = await this.tenantService.findOne(destinationTenantId);

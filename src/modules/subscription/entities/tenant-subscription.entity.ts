@@ -58,6 +58,9 @@ export class TenantSubscription {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   nextBillingAmount: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  lockedPricePerStudent: number; // Harga locked saat subscription dibuat (untuk pricing lock)
+
   @Column({ type: 'enum', enum: BillingCycle, default: BillingCycle.YEARLY })
   billingCycle: BillingCycle;
 

@@ -50,7 +50,17 @@ export class StudentsService {
   }
 
   async create(createStudentDto: CreateStudentDto, instansiId: number) {
-    // Check for duplicate NISN if provided
+    // Check for duplicate NIK (required identifier)
+    if (createStudentDto.nik) {
+      const existing = await this.studentsRepository.findOne({
+        where: { nik: createStudentDto.nik },
+      });
+      if (existing) {
+        throw new ConflictException(`Siswa dengan NIK ${createStudentDto.nik} sudah terdaftar`);
+      }
+    }
+
+    // Check for duplicate NISN if provided (optional)
     if (createStudentDto.nisn) {
       const existing = await this.studentsRepository.findOne({
         where: { nisn: createStudentDto.nisn, instansiId },
@@ -60,19 +70,19 @@ export class StudentsService {
       }
     }
 
-    // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NISN
+    // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NIK
     const isActive = createStudentDto.isActive ?? true;
-    if (isActive && createStudentDto.nisn) {
+    if (isActive && createStudentDto.nik) {
       const activeStudentInOtherTenant = await this.studentsRepository.findOne({
         where: { 
-          nisn: createStudentDto.nisn, 
+          nik: createStudentDto.nik, 
           isActive: true,
         },
       });
       
       if (activeStudentInOtherTenant && activeStudentInOtherTenant.instansiId !== instansiId) {
         throw new ConflictException(
-          `Siswa dengan NISN ${createStudentDto.nisn} sudah aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`
+          `Siswa dengan NIK ${createStudentDto.nik} sudah aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`
         );
       }
     }
@@ -95,7 +105,7 @@ export class StudentsService {
       return await this.studentsRepository.save(student);
     } catch (error: any) {
       if (error.code === 'ER_DUP_ENTRY' || error.code === '23505') {
-        throw new ConflictException('Data siswa dengan NISN atau identitas yang sama sudah terdaftar');
+        throw new ConflictException('Data siswa dengan NIK atau identitas yang sama sudah terdaftar');
       }
       throw new BadRequestException(`Gagal membuat data siswa: ${error.message}`);
     }
@@ -194,7 +204,17 @@ export class StudentsService {
   async update(id: number, updateStudentDto: UpdateStudentDto, instansiId: number) {
     const student = await this.findOne(id, instansiId);
     
-    // Check for duplicate NISN if provided and different from current
+    // Check for duplicate NIK if provided and different from current
+    if (updateStudentDto.nik && updateStudentDto.nik !== student.nik) {
+      const existing = await this.studentsRepository.findOne({
+        where: { nik: updateStudentDto.nik },
+      });
+      if (existing && existing.id !== id) {
+        throw new ConflictException(`Siswa dengan NIK ${updateStudentDto.nik} sudah terdaftar`);
+      }
+    }
+
+    // Check for duplicate NISN if provided and different from current (optional)
     if (updateStudentDto.nisn && updateStudentDto.nisn !== student.nisn) {
       const existing = await this.studentsRepository.findOne({
         where: { nisn: updateStudentDto.nisn, instansiId },
@@ -204,21 +224,21 @@ export class StudentsService {
       }
     }
 
-    // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NISN
-    const nisnToCheck = updateStudentDto.nisn || student.nisn;
+    // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NIK
+    const nikToCheck = updateStudentDto.nik || student.nik;
     const willBeActive = updateStudentDto.isActive !== undefined ? updateStudentDto.isActive : student.isActive;
     
-    if (willBeActive && nisnToCheck) {
+    if (willBeActive && nikToCheck) {
       const activeStudentInOtherTenant = await this.studentsRepository.findOne({
         where: { 
-          nisn: nisnToCheck, 
+          nik: nikToCheck, 
           isActive: true,
         },
       });
       
       if (activeStudentInOtherTenant && activeStudentInOtherTenant.id !== id && activeStudentInOtherTenant.instansiId !== instansiId) {
         throw new ConflictException(
-          `Siswa dengan NISN ${nisnToCheck} sudah aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`
+          `Siswa dengan NIK ${nikToCheck} sudah aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`
         );
       }
     }
@@ -236,7 +256,7 @@ export class StudentsService {
       return await this.studentsRepository.save(student);
     } catch (error: any) {
       if (error.code === 'ER_DUP_ENTRY' || error.code === '23505') {
-        throw new ConflictException('Data siswa dengan NISN atau identitas yang sama sudah terdaftar');
+        throw new ConflictException('Data siswa dengan NIK atau identitas yang sama sudah terdaftar');
       }
       throw new BadRequestException(`Gagal mengupdate data siswa: ${error.message}`);
     }
@@ -275,7 +295,27 @@ export class StudentsService {
   }
 
   /**
-   * Get student by NISN (for lifetime tracking)
+   * Get student by NIK (for lifetime tracking)
+   */
+  async findByNik(nik: string, instansiId?: number) {
+    const where: any = { nik };
+    if (instansiId) {
+      where.instansiId = instansiId;
+    }
+
+    const student = await this.studentsRepository.findOne({
+      where,
+    });
+
+    if (!student) {
+      throw new NotFoundException(`Student with NIK ${nik} not found`);
+    }
+
+    return student;
+  }
+
+  /**
+   * Get student by NISN
    */
   async findByNisn(nisn: string, instansiId?: number) {
     const where: any = { nisn };
@@ -297,8 +337,8 @@ export class StudentsService {
   /**
    * Get student lifetime data - semua data dari SD sampai SMA
    */
-  async getLifetimeData(nisn: string, instansiId?: number) {
-    const student = await this.findByNisn(nisn, instansiId);
+  async getLifetimeData(nik: string, instansiId?: number) {
+    const student = await this.findByNik(nik, instansiId);
 
     // Load all related data
     const studentWithRelations = await this.studentsRepository.findOne({
@@ -331,7 +371,7 @@ export class StudentsService {
     });
 
     if (!studentWithRelations) {
-      throw new NotFoundException(`Student with NISN ${nisn} not found`);
+      throw new NotFoundException(`Student with NIK ${nik} not found`);
     }
 
     // Sort data by date
@@ -354,6 +394,7 @@ export class StudentsService {
     return {
       student: {
         id: studentWithRelations.id,
+        nik: studentWithRelations.nik,
         nisn: studentWithRelations.nisn,
         name: studentWithRelations.name,
         academicLevel: studentWithRelations.academicLevel,

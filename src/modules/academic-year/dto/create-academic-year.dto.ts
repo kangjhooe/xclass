@@ -1,5 +1,5 @@
-
-import { IsString, IsDateString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import { IsString, IsDateString, IsOptional, IsBoolean, IsNumber, IsEnum } from 'class-validator';
+import { SemesterType } from '../entities/academic-year.entity';
 
 export class CreateAcademicYearDto {
   @IsString()
@@ -18,6 +18,10 @@ export class CreateAcademicYearDto {
   @IsNumber()
   @IsOptional()
   currentSemester?: number;
+
+  @IsEnum(SemesterType)
+  @IsOptional()
+  currentSemesterType?: SemesterType;
 
   @IsString()
   @IsOptional()

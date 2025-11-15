@@ -5,7 +5,7 @@ export class RequestStudentTransferDto {
   sourceTenantNpsn: string;
 
   @IsString()
-  studentNisn: string;
+  studentNisn: string; // NIK siswa yang akan ditransfer (field name tetap studentNisn untuk backward compatibility)
 
   @IsString()
   @IsOptional()

@@ -108,6 +108,7 @@ export class SubscriptionService {
     subscriptionPlanId: number,
     startDate: Date,
     endDate: Date,
+    initialStudentCount: number = 0,
   ) {
     const tenant = await this.tenantRepository.findOne({
       where: { id: tenantId },
@@ -131,6 +132,9 @@ export class SubscriptionService {
       );
     }
 
+    // Determine locked price based on initial student count
+    const lockedPrice = this.determineLockedPrice(initialStudentCount, plan);
+
     const subscription = this.tenantSubscriptionRepository.create({
       tenantId,
       subscriptionPlanId,
@@ -139,6 +143,11 @@ export class SubscriptionService {
       nextBillingDate: endDate,
       status: SubscriptionStatus.ACTIVE,
       billingCycle: BillingCycle.YEARLY,
+      currentStudentCount: initialStudentCount,
+      studentCountAtBilling: initialStudentCount,
+      lockedPricePerStudent: lockedPrice,
+      currentBillingAmount: plan.isFree ? 0 : initialStudentCount * lockedPrice,
+      nextBillingAmount: plan.isFree ? 0 : initialStudentCount * lockedPrice,
     });
 
     return this.tenantSubscriptionRepository.save(subscription);
@@ -158,10 +167,19 @@ export class SubscriptionService {
     const newPlan = await this.getPlan(newPlanId);
 
     subscription.subscriptionPlanId = newPlanId;
-    // Recalculate billing based on new plan
+    
+    // Update locked price based on current student count and new plan
+    const newLockedPrice = this.determineLockedPrice(
+      subscription.currentStudentCount,
+      newPlan,
+    );
+    subscription.lockedPricePerStudent = newLockedPrice;
+    
+    // Recalculate billing based on new plan and locked price
     subscription.nextBillingAmount = this.calculateBillingAmount(
       subscription.currentStudentCount,
       newPlan,
+      newLockedPrice,
     );
 
     return this.tenantSubscriptionRepository.save(subscription);
@@ -171,24 +189,61 @@ export class SubscriptionService {
     const subscription = await this.getTenantSubscription(tenantId);
     const plan = await this.getPlan(subscription.subscriptionPlanId);
 
-    subscription.currentStudentCount = studentCount;
+    const previousStudentCount = subscription.currentStudentCount;
     const increase = studentCount - subscription.studentCountAtBilling;
-    subscription.pendingStudentIncrease = Math.max(0, increase);
-
-    // Check if threshold is met
-    if (
-      plan.billingThreshold > 0 &&
-      subscription.pendingStudentIncrease >= plan.billingThreshold
-    ) {
-      // Trigger threshold billing
-      await this.processThresholdBilling(subscription);
-    } else {
-      // Update next billing amount
-      subscription.nextBillingAmount = this.calculateBillingAmount(
-        studentCount,
-        plan,
-      );
+    
+    // Check if should downgrade to free (if < 50 students)
+    if (studentCount < 50) {
+      // Auto downgrade to Free Forever
+      const freePlan = await this.subscriptionPlanRepository.findOne({
+        where: { slug: 'free-forever', isActive: true },
+      });
+      
+      if (freePlan) {
+        subscription.subscriptionPlanId = freePlan.id;
+        subscription.currentStudentCount = studentCount;
+        subscription.studentCountAtBilling = studentCount;
+        subscription.pendingStudentIncrease = 0;
+        subscription.currentBillingAmount = 0;
+        subscription.nextBillingAmount = 0;
+        subscription.lockedPricePerStudent = 0;
+        return this.tenantSubscriptionRepository.save(subscription);
+      }
     }
+
+    subscription.currentStudentCount = studentCount;
+    
+    // Calculate billing with new rules
+    const billingResult = this.calculateBillingForStudentIncrease(
+      previousStudentCount,
+      studentCount,
+      subscription.studentCountAtBilling,
+      subscription.lockedPricePerStudent || plan.pricePerStudentPerYear,
+    );
+
+    if (billingResult.shouldBill) {
+      // Process billing
+      subscription.pendingStudentIncrease = billingResult.billingStudentCount;
+      
+      // If billing amount is significant, create billing history
+      if (billingResult.billingAmount > 0) {
+        await this.processStudentIncreaseBilling(
+          subscription,
+          previousStudentCount,
+          studentCount,
+          billingResult,
+        );
+      }
+    } else {
+      // No billing, just update pending
+      subscription.pendingStudentIncrease = Math.max(0, increase);
+    }
+
+    // Update next billing amount
+    const lockedPrice = subscription.lockedPricePerStudent || plan.pricePerStudentPerYear;
+    subscription.nextBillingAmount = plan.isFree 
+      ? 0 
+      : studentCount * lockedPrice;
 
     return this.tenantSubscriptionRepository.save(subscription);
   }
@@ -254,15 +309,157 @@ export class SubscriptionService {
   private calculateBillingAmount(
     studentCount: number,
     plan: SubscriptionPlan,
+    lockedPrice?: number,
   ): number {
     if (plan.isFree) return 0;
-    return studentCount * plan.pricePerStudentPerYear;
+    const price = lockedPrice || plan.pricePerStudentPerYear;
+    return studentCount * price;
+  }
+
+  /**
+   * Determine locked price based on student count and plan
+   */
+  private determineLockedPrice(
+    studentCount: number,
+    plan: SubscriptionPlan,
+  ): number {
+    if (plan.isFree) return 0;
+    
+    // Pricing tiers:
+    // 0-49: Free (handled by isFree)
+    // 51-500: Rp 5.000
+    // 501+: Rp 4.000
+    
+    if (studentCount >= 501) {
+      return 4000; // Enterprise tier
+    } else if (studentCount >= 50) {
+      return 5000; // Standard tier
+    }
+    
+    return plan.pricePerStudentPerYear;
+  }
+
+  /**
+   * Calculate billing for student increase with new rules:
+   * - Threshold: 20 students
+   * - Exception: Cross tier (45→51, 499→502)
+   * - Pricing lock: Use locked price
+   */
+  private calculateBillingForStudentIncrease(
+    currentStudentCount: number,
+    newStudentCount: number,
+    studentCountAtBilling: number,
+    lockedPricePerStudent: number,
+    billingThreshold: number = 20,
+  ): {
+    shouldBill: boolean;
+    billingAmount: number;
+    billingStudentCount: number;
+    reason: string;
+  } {
+    const increase = newStudentCount - studentCountAtBilling;
+    
+    if (increase <= 0) {
+      return {
+        shouldBill: false,
+        billingAmount: 0,
+        billingStudentCount: 0,
+        reason: 'No increase in student count',
+      };
+    }
+
+    // Check cross tier thresholds
+    const crossesFreeToPaid = currentStudentCount < 50 && newStudentCount >= 50;
+    const crossesTier500 = currentStudentCount <= 500 && newStudentCount > 500;
+    const crossesTier500Down = currentStudentCount > 500 && newStudentCount <= 500;
+
+    // Exception 1: Cross tier Free to Paid (45→51)
+    if (crossesFreeToPaid) {
+      // Bill for all students (new total)
+      const billingAmount = newStudentCount * lockedPricePerStudent;
+      return {
+        shouldBill: true,
+        billingAmount,
+        billingStudentCount: newStudentCount,
+        reason: 'Cross tier: Free to Paid',
+      };
+    }
+
+    // Exception 2: Cross tier 500 threshold (499→502)
+    if (crossesTier500 || crossesTier500Down) {
+      // Bill for the increase, but use locked price (not new tier price)
+      const billingAmount = increase * lockedPricePerStudent;
+      return {
+        shouldBill: true,
+        billingAmount,
+        billingStudentCount: increase,
+        reason: 'Cross tier: 500 threshold (using locked price)',
+      };
+    }
+
+    // Normal billing: only if increase >= threshold
+    if (increase >= billingThreshold) {
+      const billingAmount = increase * lockedPricePerStudent;
+      return {
+        shouldBill: true,
+        billingAmount,
+        billingStudentCount: increase,
+        reason: `Increase >= ${billingThreshold} students`,
+      };
+    }
+
+    // No billing for small increases (< threshold and no cross tier)
+    return {
+      shouldBill: false,
+      billingAmount: 0,
+      billingStudentCount: 0,
+      reason: `Increase < ${billingThreshold} students (no cross tier)`,
+    };
+  }
+
+  /**
+   * Process billing for student increase
+   */
+  private async processStudentIncreaseBilling(
+    subscription: TenantSubscription,
+    previousStudentCount: number,
+    newStudentCount: number,
+    billingResult: {
+      shouldBill: boolean;
+      billingAmount: number;
+      billingStudentCount: number;
+      reason: string;
+    },
+  ) {
+    const billingHistory = this.billingHistoryRepository.create({
+      tenantSubscriptionId: subscription.id,
+      tenantId: subscription.tenantId,
+      studentCount: newStudentCount,
+      previousStudentCount: previousStudentCount,
+      billingAmount: billingResult.billingAmount,
+      previousBillingAmount: subscription.currentBillingAmount,
+      billingType: BillingType.THRESHOLD_MET,
+      pendingIncreaseBefore: subscription.pendingStudentIncrease,
+      pendingIncreaseAfter: 0,
+      thresholdTriggered: true,
+      billingDate: new Date(),
+      periodStart: new Date(),
+      periodEnd: subscription.endDate,
+    });
+
+    await this.billingHistoryRepository.save(billingHistory);
+
+    // Update subscription
+    subscription.studentCountAtBilling = newStudentCount;
+    subscription.pendingStudentIncrease = 0;
+    subscription.currentBillingAmount += billingResult.billingAmount;
   }
 
   private async processThresholdBilling(subscription: TenantSubscription) {
     const plan = await this.getPlan(subscription.subscriptionPlanId);
+    const lockedPrice = subscription.lockedPricePerStudent || plan.pricePerStudentPerYear;
     const billingAmount =
-      subscription.pendingStudentIncrease * plan.pricePerStudentPerYear;
+      subscription.pendingStudentIncrease * lockedPrice;
 
     // Create billing history record
     const billingHistory = this.billingHistoryRepository.create({

@@ -8,7 +8,10 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -122,6 +125,23 @@ export class AdminController {
   @Post('users/:id/deactivate')
   deactivateUser(@Param('id') id: string) {
     return this.adminService.deactivateUser(+id);
+  }
+
+  @Post('branding/logo')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadLogo(@UploadedFile() file: Express.Multer.File) {
+    return this.adminService.uploadLogo(file);
+  }
+
+  @Post('branding/favicon')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadFavicon(@UploadedFile() file: Express.Multer.File) {
+    return this.adminService.uploadFavicon(file);
+  }
+
+  @Get('branding')
+  getBrandingSettings() {
+    return this.adminService.getBrandingSettings();
   }
 }
 

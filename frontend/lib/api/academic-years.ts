@@ -1,11 +1,16 @@
 import apiClient from './client';
 
+export type SemesterType = 'ganjil' | 'genap';
+
 export interface AcademicYear {
   id: number;
   name: string;
   startDate: string;
   endDate: string;
   isActive?: boolean;
+  currentSemester?: number;
+  currentSemesterType?: SemesterType;
+  semesterLabel?: string;
   description?: string;
   created_at?: string;
   updated_at?: string;
@@ -16,6 +21,8 @@ export interface AcademicYearCreateData {
   startDate: string;
   endDate: string;
   isActive?: boolean;
+  currentSemester?: number;
+  currentSemesterType?: SemesterType;
   description?: string;
 }
 
@@ -25,9 +32,10 @@ export const academicYearsApi = {
     return response.data;
   },
 
-  getActive: async (tenantId: number): Promise<AcademicYear | null> => {
+  getActive: async (tenantId: number, withSemester?: boolean): Promise<AcademicYear | null> => {
     try {
-      const response = await apiClient.get(`/tenants/${tenantId}/academic-years/active`);
+      const url = `/tenants/${tenantId}/academic-years/active${withSemester ? '?withSemester=true' : ''}`;
+      const response = await apiClient.get(url);
       return response.data ?? null;
     } catch (error: any) {
       if (error?.response?.status === 404) {
@@ -35,6 +43,13 @@ export const academicYearsApi = {
       }
       throw error;
     }
+  },
+
+  setSemester: async (tenantId: number, id: number, semesterType: SemesterType): Promise<AcademicYear> => {
+    const response = await apiClient.patch(`/tenants/${tenantId}/academic-years/${id}/set-semester`, {
+      semesterType,
+    });
+    return response.data;
   },
 
   getById: async (tenantId: number, id: number): Promise<AcademicYear> => {

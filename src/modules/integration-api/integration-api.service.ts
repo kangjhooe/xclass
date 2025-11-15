@@ -588,32 +588,33 @@ export class IntegrationApiService {
     mapping?: Record<string, any>,
   ) {
     const fieldMapping = mapping?.student || {};
-    const nisn = this.mapField(data, 'nisn', fieldMapping.nisn);
+    const nik = this.mapField(data, 'nik', fieldMapping.nik);
 
-    if (!nisn) {
-      throw new Error('NISN is required for student sync');
+    if (!nik) {
+      throw new Error('NIK is required for student sync');
     }
 
     const student = await this.studentRepository.findOne({
-      where: { instansiId, nisn },
+      where: { nik },
     });
 
-    // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NISN
+    // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NIK
     const activeStudentInOtherTenant = await this.studentRepository.findOne({
       where: { 
-        nisn, 
+        nik, 
         isActive: true,
       },
     });
     
     if (activeStudentInOtherTenant && activeStudentInOtherTenant.instansiId !== instansiId) {
       // Skip sync jika siswa sudah aktif di tenant lain
-      throw new Error(`Siswa dengan NISN ${nisn} sudah aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`);
+      throw new Error(`Siswa dengan NIK ${nik} sudah aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`);
     }
 
     const studentData: Partial<Student> = {
       instansiId,
-      nisn,
+      nik,
+      nisn: this.mapField(data, 'nisn', fieldMapping.nisn),
       name: this.mapField(data, 'nama', fieldMapping.name),
       email: this.mapField(data, 'email', fieldMapping.email),
       phone: this.mapField(data, 'telepon', fieldMapping.phone),
@@ -622,7 +623,6 @@ export class IntegrationApiService {
       birthPlace: this.mapField(data, 'tempat_lahir', fieldMapping.birthPlace),
       gender: this.mapField(data, 'jenis_kelamin', fieldMapping.gender),
       religion: this.mapField(data, 'agama', fieldMapping.religion),
-      nik: this.mapField(data, 'nik', fieldMapping.nik),
       studentNumber: this.mapField(data, 'nis', fieldMapping.studentNumber),
       parentName: this.mapField(data, 'nama_ayah', fieldMapping.parentName),
       parentPhone: this.mapField(data, 'telepon_ayah', fieldMapping.parentPhone),
@@ -759,26 +759,38 @@ export class IntegrationApiService {
     mapping?: Record<string, any>,
   ) {
     const fieldMapping = mapping?.student || {};
-    const nisn = this.mapField(data, 'nisn', fieldMapping.nisn);
+    const nik = this.mapField(data, 'nik', fieldMapping.nik);
 
-    if (!nisn) {
-      throw new Error('NISN is required for student sync');
+    if (!nik) {
+      throw new Error('NIK is required for student sync');
     }
 
     const student = await this.studentRepository.findOne({
-      where: { instansiId, nisn },
+      where: { nik },
     });
+
+    // Validasi: Siswa hanya bisa aktif di 1 tenant berdasarkan NIK
+    const activeStudentInOtherTenant = await this.studentRepository.findOne({
+      where: { 
+        nik, 
+        isActive: true,
+      },
+    });
+    
+    if (activeStudentInOtherTenant && activeStudentInOtherTenant.instansiId !== instansiId) {
+      throw new Error(`Siswa dengan NIK ${nik} sudah aktif di tenant lain. Siswa hanya bisa aktif di 1 tenant.`);
+    }
 
     const studentData: Partial<Student> = {
       instansiId,
-      nisn,
+      nik,
+      nisn: this.mapField(data, 'nisn', fieldMapping.nisn),
       name: this.mapField(data, 'nama', fieldMapping.name),
       email: this.mapField(data, 'email', fieldMapping.email),
       phone: this.mapField(data, 'telepon', fieldMapping.phone),
       birthDate: this.parseDate(this.mapField(data, 'tanggal_lahir', fieldMapping.birthDate)),
       birthPlace: this.mapField(data, 'tempat_lahir', fieldMapping.birthPlace),
       gender: this.mapField(data, 'jenis_kelamin', fieldMapping.gender),
-      nik: this.mapField(data, 'nik', fieldMapping.nik),
       studentNumber: this.mapField(data, 'nis', fieldMapping.studentNumber),
       isActive: true,
     };

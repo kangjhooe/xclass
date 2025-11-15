@@ -60,7 +60,7 @@ export class Student {
   @Column({ type: 'varchar', length: 50, nullable: true })
   studentNumber: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, unique: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   nisn: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
@@ -78,7 +78,7 @@ export class Student {
   @Column()
   instansiId: number;
 
-  @Column({ type: 'varchar', length: 16, nullable: true })
+  @Column({ type: 'varchar', length: 16, nullable: true, unique: true })
   nik: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })

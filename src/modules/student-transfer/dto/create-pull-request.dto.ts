@@ -5,7 +5,7 @@ export class CreatePullRequestDto {
   sourceTenantNpsn: string; // NPSN tenant B (sumber siswa)
 
   @IsString()
-  studentNisn: string; // NISN siswa yang akan ditarik
+  studentNisn: string; // NIK siswa yang akan ditarik (field name tetap studentNisn untuk backward compatibility)
 
   @IsString()
   @IsOptional()

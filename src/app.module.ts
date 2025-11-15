@@ -62,6 +62,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ReportBuilderModule } from './modules/report-builder/report-builder.module';
 import { AuditTrailModule } from './modules/audit-trail/audit-trail.module';
 import { TenantAccessModule } from './modules/tenant-access/tenant-access.module';
+import { WilayahIndonesiaModule } from './modules/wilayah-indonesia/wilayah-indonesia.module';
 import { CacheModule } from './common/cache/cache.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
@@ -86,7 +87,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
           port: port ? parseInt(port, 10) : 3306,
           username: configService.get<string>('DB_USERNAME') || 'root',
           password: configService.get<string>('DB_PASSWORD') || '',
-          database: configService.get<string>('DB_DATABASE') || 'xclass',
+          database: configService.get<string>('DB_DATABASE') || 'class',
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           synchronize: configService.get<string>('NODE_ENV') === 'development',
           logging: configService.get<string>('NODE_ENV') === 'development',
@@ -169,6 +170,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     ReportBuilderModule,
     AuditTrailModule,
     TenantAccessModule,
+    WilayahIndonesiaModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

@@ -21,6 +21,7 @@ export function StudentForm({ initialData, onSubmit, onCancel, isLoading }: Stud
   } = useForm<StudentCreateData>({
     defaultValues: initialData || {
       name: '',
+      nik: '',
       nisn: '',
       nis: '',
       email: '',
@@ -47,9 +48,17 @@ export function StudentForm({ initialData, onSubmit, onCancel, isLoading }: Stud
 
         <div>
           <Input
-            label="NISN"
-            {...register('nisn')}
-            error={errors.nisn?.message}
+            label="NIK"
+            {...register('nik', { 
+              required: 'NIK wajib diisi',
+              pattern: {
+                value: /^\d{16}$/,
+                message: 'NIK harus 16 digit angka'
+              }
+            })}
+            error={errors.nik?.message}
+            required
+            maxLength={16}
           />
         </div>
 
@@ -58,6 +67,20 @@ export function StudentForm({ initialData, onSubmit, onCancel, isLoading }: Stud
             label="NIS"
             {...register('nis')}
             error={errors.nis?.message}
+          />
+        </div>
+
+        <div>
+          <Input
+            label="NISN"
+            {...register('nisn', {
+              pattern: {
+                value: /^\d{10}$/,
+                message: 'NISN harus 10 digit angka'
+              }
+            })}
+            error={errors.nisn?.message}
+            maxLength={10}
           />
         </div>
 

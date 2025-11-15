@@ -113,5 +113,39 @@ export const adminApi = {
   deactivateUser: (id: number) => {
     return apiClient.post(`/admin/users/${id}/deactivate`);
   },
+
+  uploadLogo: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post<{ success: boolean; url: string; path: string }>(
+      '/admin/branding/logo',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+  },
+
+  uploadFavicon: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post<{ success: boolean; url: string; path: string }>(
+      '/admin/branding/favicon',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+  },
+
+  getBrandingSettings: () => {
+    return apiClient.get<{ logo: string | null; favicon: string | null }>(
+      '/admin/branding'
+    );
+  },
 };
 

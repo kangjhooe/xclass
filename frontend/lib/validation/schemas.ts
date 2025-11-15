@@ -18,6 +18,12 @@ export function validateNISN(nisn: string): string | null {
   return nisnRegex.test(nisn) ? null : 'NISN harus 10 digit angka';
 }
 
+export function validateNIK(nik: string): string | null {
+  if (!nik) return null;
+  const nikRegex = /^\d{16}$/;
+  return nikRegex.test(nik) ? null : 'NIK harus 16 digit angka';
+}
+
 export function validateNIS(nis: string): string | null {
   if (!nis || nis.trim() === '') return 'NIS wajib diisi';
   return null;
@@ -61,6 +67,15 @@ export function validateStudent(data: any): Record<string, string> {
     errors.name = 'Nama maksimal 100 karakter';
   }
   
+  // Validate NIK (required)
+  if (!data.nik || data.nik.trim() === '') {
+    errors.nik = 'NIK wajib diisi';
+  } else {
+    const nikError = validateNIK(data.nik);
+    if (nikError) errors.nik = nikError;
+  }
+  
+  // Validate NISN (optional)
   if (data.nisn) {
     const nisnError = validateNISN(data.nisn);
     if (nisnError) errors.nisn = nisnError;

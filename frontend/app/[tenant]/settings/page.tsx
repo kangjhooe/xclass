@@ -10,6 +10,7 @@ import { Loading } from '@/components/ui/Loading';
 import { useToastStore } from '@/lib/store/toast';
 import { tenantApi, Tenant } from '@/lib/api/tenant';
 import { dataPokokApi, DataPokok, DataPokokCreateData } from '@/lib/api/data-pokok';
+import { AddressCascade } from '@/components/forms/AddressCascade';
 
 export default function SettingsPage() {
   const params = useParams();
@@ -435,83 +436,29 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="village"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Desa/Kelurahan
-                  </label>
-                  <Input
-                    id="village"
-                    name="village"
-                    type="text"
-                    value={formData.village}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="subDistrict"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Kecamatan
-                  </label>
-                  <Input
-                    id="subDistrict"
-                    name="subDistrict"
-                    type="text"
-                    value={formData.subDistrict}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="district"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Kabupaten/Kota
-                  </label>
-                  <Input
-                    id="district"
-                    name="district"
-                    type="text"
-                    value={formData.district}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="city"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Kota
-                  </label>
-                  <Input
-                    id="city"
-                    name="city"
-                    type="text"
-                    value={formData.city}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="province"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Provinsi
-                  </label>
-                  <Input
-                    id="province"
-                    name="province"
-                    type="text"
-                    value={formData.province}
-                    onChange={handleChange}
+                <div className="md:col-span-2">
+                  <AddressCascade
+                    provinceName={formData.province}
+                    regencyName={formData.district || formData.city}
+                    districtName={formData.subDistrict}
+                    villageName={formData.village}
+                    onProvinceChange={(name) => {
+                      const newData = { ...formData, province: name };
+                      setFormData(newData);
+                    }}
+                    onRegencyChange={(name) => {
+                      const newData = { ...formData, district: name, city: name };
+                      setFormData(newData);
+                    }}
+                    onDistrictChange={(name) => {
+                      const newData = { ...formData, subDistrict: name };
+                      setFormData(newData);
+                    }}
+                    onVillageChange={(name) => {
+                      const newData = { ...formData, village: name };
+                      setFormData(newData);
+                    }}
+                    showLabels={true}
                   />
                 </div>
 

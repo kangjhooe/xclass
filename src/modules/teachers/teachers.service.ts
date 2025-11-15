@@ -113,7 +113,13 @@ export class TeachersService {
   async findOne(id: number, instansiId: number) {
     const teacher = await this.teachersRepository.findOne({
       where: { id, instansiId },
-      relations: ['classRooms', 'schedules', 'subjects'],
+      relations: [
+        'classRooms',
+        'schedules',
+        'schedules.classRoom',
+        'schedules.subject',
+        'subjects',
+      ],
     });
 
     if (!teacher) {

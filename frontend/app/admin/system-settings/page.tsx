@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { systemSettingsApi, SystemSetting } from '@/lib/api/system-settings';
+import { adminApi } from '@/lib/api/admin';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
@@ -10,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Loading } from '@/components/ui/Loading';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FileUpload } from '@/components/ui/FileUpload';
 import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
 
@@ -25,10 +27,17 @@ export default function SystemSettingsPage() {
   const [editingSetting, setEditingSetting] = useState<SystemSetting | null>(null);
   const [formData, setFormData] = useState<Partial<SystemSetting>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [branding, setBranding] = useState<{ logo: string | null; favicon: string | null }>({
+    logo: null,
+    favicon: null,
+  });
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
   const { success, error: showError } = useToastStore();
 
   useEffect(() => {
     loadData();
+    loadBranding();
   }, [selectedCategory]);
 
   // Filter settings
@@ -80,6 +89,56 @@ export default function SystemSettingsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadBranding = async () => {
+    try {
+      const response = await adminApi.getBrandingSettings();
+      setBranding(response.data);
+    } catch (err: any) {
+      console.error('Error loading branding:', err);
+      // Don't show error for branding, just use defaults
+    }
+  };
+
+  const handleLogoUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    try {
+      setUploadingLogo(true);
+      const response = await adminApi.uploadLogo(files[0]);
+      setBranding((prev) => ({ ...prev, logo: response.data.url }));
+      success('Logo berhasil diunggah');
+      loadData(); // Reload settings to update app_logo
+    } catch (err: any) {
+      console.error('Error uploading logo:', err);
+      showError(err?.response?.data?.message || 'Gagal mengunggah logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleFaviconUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    try {
+      setUploadingFavicon(true);
+      const response = await adminApi.uploadFavicon(files[0]);
+      setBranding((prev) => ({ ...prev, favicon: response.data.url }));
+      success('Favicon berhasil diunggah');
+      loadData(); // Reload settings to update app_favicon
+    } catch (err: any) {
+      console.error('Error uploading favicon:', err);
+      showError(err?.response?.data?.message || 'Gagal mengunggah favicon');
+    } finally {
+      setUploadingFavicon(false);
+    }
+  };
+
+  const getFileUrl = (path: string | null): string => {
+    if (!path) return '';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+    return path.startsWith('http') ? path : `${apiUrl}${path}`;
   };
 
   const handleCreate = () => {
@@ -218,6 +277,86 @@ export default function SystemSettingsPage() {
             </Button>
           </div>
           <p className="text-gray-600">Kelola pengaturan sistem aplikasi</p>
+        </div>
+
+        {/* Branding Section */}
+        <div className="mb-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800">Branding</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Logo Upload */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Logo Aplikasi</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Logo yang ditampilkan di header dan berbagai tempat di aplikasi. Format: PNG, JPG, SVG (Maks: 10MB)
+                </p>
+              </div>
+              
+              {branding.logo && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Logo Saat Ini:</p>
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 flex items-center justify-center">
+                    <img
+                      src={getFileUrl(branding.logo)}
+                      alt="Logo"
+                      className="max-h-32 max-w-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <FileUpload
+                onUpload={handleLogoUpload}
+                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                maxSize={10}
+                disabled={uploadingLogo}
+              />
+            </div>
+
+            {/* Favicon Upload */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Favicon</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Icon yang ditampilkan di tab browser. Format: ICO, PNG, SVG (Maks: 10MB)
+                </p>
+              </div>
+
+              {branding.favicon && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Favicon Saat Ini:</p>
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 flex items-center justify-center">
+                    <img
+                      src={getFileUrl(branding.favicon)}
+                      alt="Favicon"
+                      className="w-16 h-16 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <FileUpload
+                onUpload={handleFaviconUpload}
+                accept=".ico,image/x-icon,image/vnd.microsoft.icon,image/png,image/svg+xml"
+                maxSize={10}
+                disabled={uploadingFavicon}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Filters */}

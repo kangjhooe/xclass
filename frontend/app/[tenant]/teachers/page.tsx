@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { ModulePageShell } from '@/components/layouts/ModulePageShell';
@@ -16,6 +16,32 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantIdState } from '@/lib/hooks/useTenant';
 import { useToastStore } from '@/lib/store/toast';
 import { useDebounce } from '@/lib/hooks/useDebounce';
+
+// DetailField Component
+const DetailField = ({ label, value }: { label: string; value?: ReactNode }) => {
+  const displayValue =
+    value === undefined || value === null || value === '' ? '-' : value;
+
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium text-gray-500">{label}</p>
+      <p className="text-base font-semibold text-gray-900 break-words">{displayValue}</p>
+    </div>
+  );
+};
+
+// Format Currency IDR
+const formatCurrencyIdr = (value?: number | string | null) => {
+  if (value === null || value === undefined || value === '') return '-';
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return '-';
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numeric);
+};
 
 // Subject Assignment Form Component
 function SubjectAssignmentForm({
@@ -1086,101 +1112,402 @@ export default function TeachersPage() {
                   title="Detail Guru"
                   size="lg"
                 >
-                  {selectedTeacher && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
-                          <p className="text-gray-900 font-semibold">{selectedTeacher.name}</p>
+                  {selectedTeacher ? (
+                    <div className="space-y-8 max-h-[70vh] overflow-y-auto pr-2">
+                      {/* 🧍 Data Pribadi Guru */}
+                      <section className="space-y-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">🧍</span>
+                          Data Pribadi Guru
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField label="Nama Lengkap Personal" value={selectedTeacher.name} />
+                          <DetailField label="NUPTK" value={selectedTeacher.nuptk} />
+                          <DetailField label="Page ID" value={selectedTeacher.pageId} />
+                          <DetailField label="NPK" value={selectedTeacher.npk} />
+                          <DetailField label="NIK / No. KTP" value={selectedTeacher.nik} />
+                          <DetailField label="Tempat Lahir" value={selectedTeacher.birthPlace} />
+                          <DetailField label="Tanggal Lahir (dd/mm/yyyy)" value={formatDate(selectedTeacher.birthDate)} />
+                          <DetailField 
+                            label="Jenis Kelamin" 
+                            value={selectedTeacher.gender === 'L' ? 'Laki-laki' : selectedTeacher.gender === 'P' ? 'Perempuan' : selectedTeacher.gender} 
+                          />
+                          <DetailField label="Nama Ibu Kandung" value={selectedTeacher.motherName} />
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">NIP</label>
-                          <p className="text-gray-900">{selectedTeacher.nip || '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">NIK</label>
-                          <p className="text-gray-900">{selectedTeacher.nik || '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">NUPTK</label>
-                          <p className="text-gray-900">{selectedTeacher.nuptk || '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                          <p className="text-gray-900">{selectedTeacher.email || '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
-                          <p className="text-gray-900">{selectedTeacher.phone || '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
-                          <p className="text-gray-900">{selectedTeacher.gender === 'L' ? 'Laki-laki' : selectedTeacher.gender === 'P' ? 'Perempuan' : '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label>
-                          <p className="text-gray-900">{selectedTeacher.birthDate ? formatDate(selectedTeacher.birthDate) : '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Tempat Lahir</label>
-                          <p className="text-gray-900">{selectedTeacher.birthPlace || '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Pendidikan</label>
-                          <p className="text-gray-900">{selectedTeacher.education || '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Spesialisasi</label>
-                          <p className="text-gray-900">{selectedTeacher.specialization || '-'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${
-                            selectedTeacher.isActive 
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' 
-                              : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
-                          }`}>
-                            {selectedTeacher.isActive ? 'Aktif' : 'Tidak Aktif'}
-                          </span>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
-                          <p className="text-gray-900">{selectedTeacher.address || '-'}</p>
-                        </div>
-                        {selectedTeacher.subjects && selectedTeacher.subjects.length > 0 && (
-                          <div className="col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran</label>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedTeacher.subjects.map((subject) => (
-                                <span key={subject.id} className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">
-                                  {subject.name}
-                                </span>
-                              ))}
-                            </div>
+
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-4 space-y-3">
+                          <p className="text-sm font-semibold text-gray-700">Alamat Rumah / Tempat Tinggal</p>
+                          <DetailField label="" value={selectedTeacher.address} />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                            <DetailField label="Provinsi" value={selectedTeacher.province} />
+                            <DetailField label="Kab./Kota" value={selectedTeacher.cityDistrict} />
+                            <DetailField label="Kecamatan" value={selectedTeacher.subDistrict} />
+                            <DetailField label="Desa/Kelurahan" value={selectedTeacher.village} />
+                            <DetailField label="Kode Pos" value={selectedTeacher.postalCode} />
                           </div>
-                        )}
-                      </div>
-                      <div className="flex justify-end space-x-2 pt-4">
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setIsDetailModalOpen(false);
-                            setSelectedTeacher(null);
-                          }}
-                        >
-                          Tutup
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setIsDetailModalOpen(false);
-                            handleEdit(selectedTeacher);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField label="Email" value={selectedTeacher.email} />
+                          <DetailField label="Nomor HP" value={selectedTeacher.phone} />
+                        </div>
+                      </section>
+
+                      {/* 🎓 Data Pendidikan */}
+                      <section className="space-y-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">🎓</span>
+                          Data Pendidikan
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField label="Jenjang" value={selectedTeacher.educationLevel} />
+                          <DetailField label="Kelompok Program Studi" value={selectedTeacher.studyProgramGroup} />
+                          <DetailField label="Pendidikan Terakhir" value={selectedTeacher.education} />
+                        </div>
+                      </section>
+
+                      {/* 💼 Status Kepegawaian */}
+                      <section className="space-y-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">💼</span>
+                          Status Kepegawaian
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField label="Status Kepegawaian Personal/PTK" value={selectedTeacher.employmentStatusPtk} />
+                          <DetailField label="Status Kepegawaian (PNS / Non-PNS)" value={selectedTeacher.employmentStatus} />
+                          <DetailField label="Golongan" value={selectedTeacher.employmentRank} />
+                          <DetailField label="TMT SK CPNS" value={formatDate(selectedTeacher.tmtSkCpns)} />
+                          <DetailField label="TMT SK Awal" value={formatDate(selectedTeacher.tmtSkAwal)} />
+                          <DetailField label="TMT SK Terakhir" value={formatDate(selectedTeacher.tmtSkTerakhir)} />
+                          <DetailField label="Instansi yang Mengangkat" value={selectedTeacher.appointingInstitution} />
+                          <DetailField label="Status Penugasan" value={selectedTeacher.assignmentStatus} />
+                          <DetailField label="Gaji Pokok per Bulan (Rp)" value={formatCurrencyIdr(selectedTeacher.baseSalary)} />
+                          <DetailField label="Status Tempat Tugas" value={selectedTeacher.workLocationStatus} />
+                          <DetailField label="Jenis Satminkal" value={selectedTeacher.satminkalType} />
+                          <DetailField label="NPSN Satminkal" value={selectedTeacher.satminkalNpsn} />
+                          <DetailField label="Identitas Satminkal" value={selectedTeacher.satminkalIdentity} />
+                          <DetailField label="Status Inpassing" value={selectedTeacher.inpassingStatus} />
+                          <DetailField label="TMT Inpassing" value={formatDate(selectedTeacher.tmtInpassing)} />
+                        </div>
+                      </section>
+
+                      {/* 📚 Tugas dan Mengajar */}
+                      <section className="space-y-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">📚</span>
+                          Tugas dan Mengajar
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField label="Tugas Utama sebagai Pendidik" value={selectedTeacher.mainDutyEducator} />
+                          <DetailField label="Tugas Tambahan di Madrasah Ini" value={selectedTeacher.additionalDuty} />
+                          <DetailField label="Tugas Utama di Madrasah Ini" value={selectedTeacher.mainDutySchool} />
+                          <DetailField 
+                            label="Status Keaktifan Personal" 
+                            value={
+                              <span className={`px-3 py-1 text-xs font-bold rounded-full inline-block ${
+                                selectedTeacher.isActive 
+                                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' 
+                                  : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
+                              }`}>
+                                {selectedTeacher.isActive ? 'Aktif' : 'Tidak Aktif'}
+                              </span>
+                            } 
+                          />
+                          <DetailField label="Mapel Utama yang Diampu" value={selectedTeacher.mainSubject} />
+                          <DetailField label="Total Jam Tatap Muka/Minggu" value={selectedTeacher.totalTeachingHours ? `${selectedTeacher.totalTeachingHours} jam` : '-'} />
+                          <DetailField label="Jenis Tugas" value={selectedTeacher.dutyType} />
+                          <DetailField label="Ekuivalensi Jam Tatap Muka" value={selectedTeacher.teachingHoursEquivalent ? `${selectedTeacher.teachingHoursEquivalent} jam` : '-'} />
+                          <DetailField 
+                            label="Tugas Mengajar di Satuan Pendidikan Lain (di luar Madrasah Ini)" 
+                            value={selectedTeacher.teachOtherSchool ? 'Ya' : 'Tidak'} 
+                          />
+                          {selectedTeacher.teachOtherSchool && (
+                            <>
+                              <DetailField label="Jenis Tempat Tugas Lain" value={selectedTeacher.otherWorkLocationType} />
+                              <DetailField label="NPSN Tempat Tugas Lain" value={selectedTeacher.otherWorkLocationNpsn} />
+                              <DetailField label="Mapel yang Diampu (di luar Madrasah)" value={selectedTeacher.otherSchoolSubject} />
+                              <DetailField label="Jam Tatap Muka/Minggu (di luar Madrasah)" value={selectedTeacher.otherSchoolHours ? `${selectedTeacher.otherSchoolHours} jam` : '-'} />
+                            </>
+                          )}
+                        </div>
+                      </section>
+
+                      {selectedTeacher.subjects && selectedTeacher.subjects.length > 0 && (
+                        <section className="space-y-4">
+                          <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                            <span className="text-xl" aria-hidden="true">📚</span>
+                            Mata Pelajaran
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedTeacher.subjects.map((subject) => (
+                              <span key={subject.id} className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">
+                                {subject.name}
+                              </span>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
+                      {selectedTeacher.classRooms && selectedTeacher.classRooms.length > 0 && (
+                        <section className="space-y-4">
+                          <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                            <span className="text-xl" aria-hidden="true">🏫</span>
+                            Kelas yang Diampu
+                          </h4>
+                          <div className="space-y-3">
+                            {selectedTeacher.classRooms.map((classRoom) => (
+                              <div key={classRoom.id} className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h5 className="font-semibold text-purple-900">{classRoom.name}</h5>
+                                  {classRoom.isActive !== undefined && (
+                                    <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                      classRoom.isActive 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {classRoom.isActive ? 'Aktif' : 'Tidak Aktif'}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                  {classRoom.level && (
+                                    <DetailField label="Tingkat" value={classRoom.level} />
+                                  )}
+                                  {classRoom.roomNumber && (
+                                    <DetailField label="Nomor Ruang" value={classRoom.roomNumber} />
+                                  )}
+                                  {classRoom.capacity && (
+                                    <DetailField label="Kapasitas" value={`${classRoom.capacity} siswa`} />
+                                  )}
+                                  {classRoom.academicYear && (
+                                    <DetailField label="Tahun Ajaran" value={classRoom.academicYear} />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
+                      {selectedTeacher.schedules && selectedTeacher.schedules.length > 0 && (
+                        <section className="space-y-4">
+                          <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                            <span className="text-xl" aria-hidden="true">📅</span>
+                            Jadwal Mengajar
+                          </h4>
+                          <div className="space-y-3">
+                            {selectedTeacher.schedules.map((schedule) => {
+                              const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                              const dayName = days[schedule.dayOfWeek] || `Hari ${schedule.dayOfWeek}`;
+                              return (
+                                <div key={schedule.id} className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center gap-3">
+                                      <span className="px-3 py-1 text-sm font-bold text-white bg-blue-600 rounded-lg min-w-[90px] text-center">
+                                        {dayName}
+                                      </span>
+                                      <span className="text-sm font-semibold text-gray-700">
+                                        {schedule.startTime} - {schedule.endTime}
+                                      </span>
+                                    </div>
+                                    {schedule.isActive !== undefined && (
+                                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                        schedule.isActive 
+                                          ? 'bg-green-100 text-green-800' 
+                                          : 'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {schedule.isActive ? 'Aktif' : 'Tidak Aktif'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                    {schedule.classRoom && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">Kelas:</span>
+                                        <span className="font-medium text-gray-900">
+                                          {schedule.classRoom.name}
+                                          {schedule.classRoom.level && ` (${schedule.classRoom.level})`}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {schedule.subject && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">Mata Pelajaran:</span>
+                                        <span className="font-medium text-gray-900">
+                                          {schedule.subject.name}
+                                          {schedule.subject.code && ` (${schedule.subject.code})`}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {schedule.room && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">Ruang:</span>
+                                        <span className="font-medium text-gray-900">{schedule.room}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      )}
+
+                      {/* 🧾 Informasi Sertifikasi */}
+                      <section className="space-y-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">🧾</span>
+                          Informasi Sertifikasi
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField label="Status Kepesertaan" value={selectedTeacher.certificationParticipationStatus} />
+                          <DetailField label="Status Kelulusan" value={selectedTeacher.certificationPassStatus} />
+                          <DetailField label="Tahun Lulus" value={selectedTeacher.certificationYear} />
+                          <DetailField label="Mapel yang Disertifikasi" value={selectedTeacher.certifiedSubject} />
+                          <DetailField label="NRG" value={selectedTeacher.nrg} />
+                          <DetailField label="Nomor SK NRG" value={selectedTeacher.nrgSkNumber} />
+                          <DetailField label="Tanggal SK NRG" value={formatDate(selectedTeacher.nrgSkDate)} />
+                          <DetailField label="Nomor Peserta Sertifikasi" value={selectedTeacher.certificationParticipantNumber} />
+                          <DetailField label="Jenis / Jalur Sertifikasi" value={selectedTeacher.certificationType} />
+                          <DetailField label="Tanggal Kelulusan Sertifikasi" value={formatDate(selectedTeacher.certificationPassDate)} />
+                          <DetailField label="Nomor Sertifikat Pendidik" value={selectedTeacher.educatorCertificateNumber} />
+                          <DetailField label="Tanggal Penerbitan Sertifikat" value={formatDate(selectedTeacher.certificateIssueDate)} />
+                          <DetailField label="Nama LPTK" value={selectedTeacher.lptkName} />
+                        </div>
+                      </section>
+
+                      {/* 💰 Informasi Tunjangan */}
+                      <section className="space-y-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">💰</span>
+                          Informasi Tunjangan
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField label="Status Penerima TPG" value={selectedTeacher.tpgRecipientStatus} />
+                          <DetailField label="Menerima TPG Mulai Tahun" value={selectedTeacher.tpgStartYear} />
+                          <DetailField label="Besarnya TPG per Bulan (Rp)" value={formatCurrencyIdr(selectedTeacher.tpgAmount)} />
+                          <DetailField label="Status Penerima TFG" value={selectedTeacher.tfgRecipientStatus} />
+                          <DetailField label="Menerima TFG Mulai Tahun" value={selectedTeacher.tfgStartYear} />
+                          <DetailField label="Besarnya TFG per Bulan (Rp)" value={formatCurrencyIdr(selectedTeacher.tfgAmount)} />
+                        </div>
+                      </section>
+
+                      {/* 🏅 Penghargaan dan Pelatihan */}
+                      <section className="space-y-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">🏅</span>
+                          Penghargaan dan Pelatihan
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField 
+                            label="Apakah Pernah Memperoleh Penghargaan?" 
+                            value={selectedTeacher.hasReceivedAward ? 'Ya' : 'Tidak'} 
+                          />
+                          {selectedTeacher.hasReceivedAward && (
+                            <>
+                              <DetailField label="Penghargaan Tertinggi yang Pernah Diperoleh (Khusus Pendidik)" value={selectedTeacher.highestAward} />
+                              <DetailField label="Bidang Penghargaan" value={selectedTeacher.awardField} />
+                              <DetailField label="Tingkat Penghargaan" value={selectedTeacher.awardLevel} />
+                              <DetailField label="Tahun Perolehan Penghargaan" value={selectedTeacher.awardYear} />
+                            </>
+                          )}
+                          <DetailField 
+                            label="Pelatihan Peningkatan Kompetensi yang Pernah Diikuti oleh Kepala Madrasah (khusus Kepala Madrasah)" 
+                            value={selectedTeacher.competencyTraining} 
+                          />
+                        </div>
+
+                        <div className="space-y-3">
+                          <h5 className="text-sm font-semibold text-gray-700">Keikutsertaan Pelatihan</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {selectedTeacher.trainingParticipation1 && (
+                              <DetailField label="Keikutsertaan Pelatihan (1)" value={`${selectedTeacher.trainingParticipation1}${selectedTeacher.trainingYear1 ? ` - Tahun ${selectedTeacher.trainingYear1}` : ''}`} />
+                            )}
+                            {selectedTeacher.trainingParticipation2 && (
+                              <DetailField label="Keikutsertaan Pelatihan (2)" value={`${selectedTeacher.trainingParticipation2}${selectedTeacher.trainingYear2 ? ` - Tahun ${selectedTeacher.trainingYear2}` : ''}`} />
+                            )}
+                            {selectedTeacher.trainingParticipation3 && (
+                              <DetailField label="Keikutsertaan Pelatihan (3)" value={`${selectedTeacher.trainingParticipation3}${selectedTeacher.trainingYear3 ? ` - Tahun ${selectedTeacher.trainingYear3}` : ''}`} />
+                            )}
+                            {selectedTeacher.trainingParticipation4 && (
+                              <DetailField label="Keikutsertaan Pelatihan (4)" value={`${selectedTeacher.trainingParticipation4}${selectedTeacher.trainingYear4 ? ` - Tahun ${selectedTeacher.trainingYear4}` : ''}`} />
+                            )}
+                            {selectedTeacher.trainingParticipation5 && (
+                              <DetailField label="Keikutsertaan Pelatihan (5)" value={`${selectedTeacher.trainingParticipation5}${selectedTeacher.trainingYear5 ? ` - Tahun ${selectedTeacher.trainingYear5}` : ''}`} />
+                            )}
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* 🧠 Kompetensi Kepala Madrasah (Khusus) */}
+                      {(selectedTeacher.personalityCompetency || selectedTeacher.managerialCompetency || selectedTeacher.entrepreneurshipCompetency || selectedTeacher.supervisionCompetency || selectedTeacher.socialCompetency) && (
+                        <section className="space-y-4">
+                          <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                            <span className="text-xl" aria-hidden="true">🧠</span>
+                            Kompetensi Kepala Madrasah (Khusus)
+                          </h4>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <DetailField label="Kompetensi Kepribadian" value={selectedTeacher.personalityCompetency ? `${selectedTeacher.personalityCompetency}` : '-'} />
+                            <DetailField label="Kompetensi Manajerial" value={selectedTeacher.managerialCompetency ? `${selectedTeacher.managerialCompetency}` : '-'} />
+                            <DetailField label="Kompetensi Kewirausahaan" value={selectedTeacher.entrepreneurshipCompetency ? `${selectedTeacher.entrepreneurshipCompetency}` : '-'} />
+                            <DetailField label="Kompetensi Supervisi" value={selectedTeacher.supervisionCompetency ? `${selectedTeacher.supervisionCompetency}` : '-'} />
+                            <DetailField label="Kompetensi Sosial" value={selectedTeacher.socialCompetency ? `${selectedTeacher.socialCompetency}` : '-'} />
+                          </div>
+                        </section>
+                      )}
+
+                      <section className="space-y-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">📋</span>
+                          Informasi Sistem
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <DetailField label="ID Instansi" value={selectedTeacher.instansiId} />
+                          <DetailField 
+                            label="Tanggal Dibuat" 
+                            value={formatDate(selectedTeacher.createdAt || selectedTeacher.created_at)} 
+                          />
+                          <DetailField 
+                            label="Tanggal Diupdate" 
+                            value={formatDate(selectedTeacher.updatedAt || selectedTeacher.updated_at)} 
+                          />
+                        </div>
+                      </section>
                     </div>
+                  ) : (
+                    <p className="text-center text-gray-600">Data guru tidak ditemukan.</p>
                   )}
+
+                  <div className="flex justify-end gap-2 pt-6">
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setIsDetailModalOpen(false);
+                        setSelectedTeacher(null);
+                      }}
+                    >
+                      Tutup
+                    </Button>
+                    {selectedTeacher && (
+                      <Button
+                        onClick={() => {
+                          setIsDetailModalOpen(false);
+                          handleEdit(selectedTeacher);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
                 </Modal>
 
                 {/* Subject Assignment Modal */}

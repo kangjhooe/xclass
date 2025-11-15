@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Tenant } from '../tenant/entities/tenant.entity';
+import { Student } from '../students/entities/student.entity';
+import { Teacher } from '../teachers/entities/teacher.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -17,30 +19,148 @@ export class AuthService {
     private configService: ConfigService,
     @InjectRepository(User) private userRepository: Repository<User>,
     @InjectRepository(Tenant) private tenantRepository: Repository<Tenant>,
+    @InjectRepository(Student) private studentRepository: Repository<Student>,
+    @InjectRepository(Teacher) private teacherRepository: Repository<Teacher>,
   ) {}
+
+  /**
+   * Generate random password dengan 8 huruf kecil
+   */
+  generateRandomPassword(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  }
 
   async login(loginDto: LoginDto) {
     try {
-      console.log('Login attempt for email:', loginDto.email);
-      
       let user: User | null = null;
-      try {
-        user = await this.userRepository.findOne({
-          where: { email: loginDto.email },
-        });
-      } catch (dbError) {
-        console.error('Database error:', dbError);
-        throw new UnauthorizedException('Terjadi kesalahan saat mengakses database. Silakan coba lagi.');
+      let student: Student | null = null;
+      let teacher: Teacher | null = null;
+      let identifier = '';
+
+      // Login dengan NIK (siswa atau guru)
+      if (loginDto.nik) {
+        identifier = loginDto.nik;
+        console.log('Login attempt for NIK:', loginDto.nik);
+        
+        try {
+          // Cek siswa dulu
+          student = await this.studentRepository.findOne({
+            where: { nik: loginDto.nik },
+          });
+
+          if (student) {
+            if (!student.isActive) {
+              throw new UnauthorizedException('Akun siswa tidak aktif. Silakan hubungi administrator');
+            }
+
+            // Cari atau buat user untuk siswa
+            user = await this.userRepository.findOne({
+              where: { email: student.email || `student_${student.nik}@xclass.local` },
+            });
+
+            if (!user) {
+              // Buat user baru untuk siswa jika belum ada
+              // Password default untuk pertama kali: NIK itu sendiri (untuk kemudahan)
+              // User bisa mengubah password setelah login pertama
+              const defaultPassword = student.nik; // Gunakan NIK sebagai password default
+              const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+              
+              user = this.userRepository.create({
+                name: student.name,
+                email: student.email || `student_${student.nik}@xclass.local`,
+                password: hashedPassword,
+                phone: student.phone || null,
+                role: 'student',
+                instansiId: student.instansiId,
+                isActive: true,
+              });
+              await this.userRepository.save(user);
+              
+              console.log(`User created for student ${student.nik}. Default password: NIK (${student.nik})`);
+            }
+          } else {
+            // Jika bukan siswa, cek guru
+            teacher = await this.teacherRepository.findOne({
+              where: { nik: loginDto.nik },
+            });
+
+            if (!teacher) {
+              console.log('Student or teacher not found with NIK:', loginDto.nik);
+              throw new UnauthorizedException('NIK atau password salah');
+            }
+
+            if (!teacher.isActive) {
+              throw new UnauthorizedException('Akun guru tidak aktif. Silakan hubungi administrator');
+            }
+
+            // Cari atau buat user untuk guru
+            user = await this.userRepository.findOne({
+              where: { email: teacher.email || `teacher_${teacher.nik}@xclass.local` },
+            });
+
+            if (!user) {
+              // Buat user baru untuk guru jika belum ada
+              // Password default untuk pertama kali: NIK itu sendiri (untuk kemudahan)
+              // User bisa mengubah password setelah login pertama
+              const defaultPassword = teacher.nik; // Gunakan NIK sebagai password default
+              const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+              
+              user = this.userRepository.create({
+                name: teacher.name,
+                email: teacher.email || `teacher_${teacher.nik}@xclass.local`,
+                password: hashedPassword,
+                phone: teacher.phone || null,
+                role: 'teacher',
+                instansiId: teacher.instansiId,
+                isActive: true,
+              });
+              await this.userRepository.save(user);
+              
+              console.log(`User created for teacher ${teacher.nik}. Default password: NIK (${teacher.nik})`);
+            }
+          }
+        } catch (dbError) {
+          console.error('Database error:', dbError);
+          if (dbError instanceof UnauthorizedException) {
+            throw dbError;
+          }
+          throw new UnauthorizedException('Terjadi kesalahan saat mengakses database. Silakan coba lagi.');
+        }
+      }
+      // Login dengan email (backward compatibility)
+      else if (loginDto.email) {
+        identifier = loginDto.email;
+        console.log('Login attempt for email:', loginDto.email);
+        
+        try {
+          user = await this.userRepository.findOne({
+            where: { email: loginDto.email },
+          });
+        } catch (dbError) {
+          console.error('Database error:', dbError);
+          throw new UnauthorizedException('Terjadi kesalahan saat mengakses database. Silakan coba lagi.');
+        }
+
+        if (!user) {
+          console.log('User not found:', loginDto.email);
+          throw new UnauthorizedException('Email atau password salah');
+        }
+      } else {
+        throw new BadRequestException('Email atau NIK (untuk siswa/guru) harus diisi');
       }
 
       if (!user) {
-        console.log('User not found:', loginDto.email);
-        throw new UnauthorizedException('Email atau password salah');
+        throw new UnauthorizedException('Kredensial tidak ditemukan');
       }
 
       if (!user.password) {
-        console.log('User has no password:', loginDto.email);
-        throw new UnauthorizedException('Email atau password salah');
+        console.log('User has no password:', identifier);
+        throw new UnauthorizedException('Password belum diatur. Silakan hubungi administrator');
       }
 
       // Check if password is already hashed (starts with $2a$ or $2b$)
@@ -57,16 +177,16 @@ export class AuthService {
         }
       } catch (bcryptError: any) {
         console.error('Bcrypt compare error:', bcryptError);
-        throw new UnauthorizedException('Email atau password salah');
+        throw new UnauthorizedException('Password salah');
       }
 
       if (!isPasswordValid) {
-        console.log('Invalid password for user:', loginDto.email);
-        throw new UnauthorizedException('Email atau password salah');
+        console.log('Invalid password for user:', identifier);
+        throw new UnauthorizedException('Password salah');
       }
 
       if (!user.isActive) {
-        console.log('User account inactive:', loginDto.email);
+        console.log('User account inactive:', identifier);
         throw new UnauthorizedException('Akun Anda tidak aktif. Silakan hubungi administrator');
       }
 
@@ -90,6 +210,16 @@ export class AuthService {
         payload.instansiId = user.instansiId;
       }
 
+      // Add NIK to payload for reference
+      if (student) {
+        payload.nik = student.nik;
+        payload.studentId = student.id;
+      }
+      if (teacher) {
+        payload.nik = teacher.nik;
+        payload.teacherId = teacher.id;
+      }
+
       let accessToken: string;
       try {
         accessToken = this.jwtService.sign(payload);
@@ -100,15 +230,15 @@ export class AuthService {
 
       const { password, rememberToken, ...userWithoutPassword } = user;
 
-      console.log('Login successful for user:', user.email);
+      console.log('Login successful for user:', identifier);
 
       return {
         access_token: accessToken,
         user: userWithoutPassword,
       };
     } catch (error: any) {
-      // If it's already an UnauthorizedException, re-throw it
-      if (error instanceof UnauthorizedException) {
+      // If it's already an UnauthorizedException or BadRequestException, re-throw it
+      if (error instanceof UnauthorizedException || error instanceof BadRequestException) {
         throw error;
       }
       // Log other errors and throw a generic message

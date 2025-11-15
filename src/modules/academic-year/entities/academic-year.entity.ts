@@ -6,6 +6,11 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum SemesterType {
+  GANJIL = 'ganjil',
+  GENAP = 'genap',
+}
+
 @Entity('academic_years')
 export class AcademicYear {
   @PrimaryGeneratedColumn()
@@ -28,6 +33,13 @@ export class AcademicYear {
 
   @Column({ type: 'int', default: 1 })
   currentSemester: number;
+
+  @Column({
+    type: 'enum',
+    enum: SemesterType,
+    default: SemesterType.GANJIL,
+  })
+  currentSemesterType: SemesterType;
 
   @Column({ type: 'text', nullable: true })
   description: string;

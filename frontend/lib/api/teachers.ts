@@ -16,11 +16,128 @@ export interface Teacher {
   education?: string;
   specialization?: string;
   isActive?: boolean;
+  isMainTenant?: boolean;
+  instansiId?: number;
+  createdAt?: string;
+  updatedAt?: string;
   created_at?: string;
   updated_at?: string;
+  
+  // Data Pribadi Tambahan
+  pageId?: string;
+  npk?: string;
+  motherName?: string;
+  
+  // Detail Alamat
+  province?: string;
+  cityDistrict?: string;
+  subDistrict?: string;
+  village?: string;
+  postalCode?: string;
+  
+  // Data Pendidikan
+  educationLevel?: string;
+  studyProgramGroup?: string;
+  
+  // Status Kepegawaian
+  employmentStatusPtk?: string;
+  employmentStatus?: string;
+  employmentRank?: string;
+  tmtSkCpns?: string;
+  tmtSkAwal?: string;
+  tmtSkTerakhir?: string;
+  appointingInstitution?: string;
+  assignmentStatus?: string;
+  baseSalary?: number;
+  workLocationStatus?: string;
+  satminkalType?: string;
+  satminkalNpsn?: string;
+  satminkalIdentity?: string;
+  inpassingStatus?: string;
+  tmtInpassing?: string;
+  
+  // Tugas dan Mengajar
+  mainDutyEducator?: string;
+  additionalDuty?: string;
+  mainDutySchool?: string;
+  mainSubject?: string;
+  totalTeachingHours?: number;
+  dutyType?: string;
+  teachingHoursEquivalent?: number;
+  teachOtherSchool?: boolean;
+  otherWorkLocationType?: string;
+  otherWorkLocationNpsn?: string;
+  otherSchoolSubject?: string;
+  otherSchoolHours?: number;
+  
+  // Informasi Sertifikasi
+  certificationParticipationStatus?: string;
+  certificationPassStatus?: string;
+  certificationYear?: number;
+  certifiedSubject?: string;
+  nrg?: string;
+  nrgSkNumber?: string;
+  nrgSkDate?: string;
+  certificationParticipantNumber?: string;
+  certificationType?: string;
+  certificationPassDate?: string;
+  educatorCertificateNumber?: string;
+  certificateIssueDate?: string;
+  lptkName?: string;
+  
+  // Informasi Tunjangan
+  tpgRecipientStatus?: string;
+  tpgStartYear?: number;
+  tpgAmount?: number;
+  tfgRecipientStatus?: string;
+  tfgStartYear?: number;
+  tfgAmount?: number;
+  
+  // Penghargaan dan Pelatihan
+  hasReceivedAward?: boolean;
+  highestAward?: string;
+  awardField?: string;
+  awardLevel?: string;
+  awardYear?: number;
+  competencyTraining?: string;
+  trainingParticipation1?: string;
+  trainingYear1?: number;
+  trainingParticipation2?: string;
+  trainingYear2?: number;
+  trainingParticipation3?: string;
+  trainingYear3?: number;
+  trainingParticipation4?: string;
+  trainingYear4?: number;
+  trainingParticipation5?: string;
+  trainingYear5?: number;
+  
+  // Kompetensi Kepala Madrasah
+  personalityCompetency?: number;
+  managerialCompetency?: number;
+  entrepreneurshipCompetency?: number;
+  supervisionCompetency?: number;
+  socialCompetency?: number;
+  
   subjects?: Array<{ id: number; name: string; code?: string }>;
-  classRooms?: Array<{ id: number; name: string }>;
-  schedules?: Array<{ id: number; dayOfWeek: number; startTime: string; endTime: string }>;
+  classRooms?: Array<{ 
+    id: number; 
+    name: string; 
+    level?: string;
+    roomNumber?: string;
+    capacity?: number;
+    academicYear?: string;
+    isActive?: boolean;
+  }>;
+  schedules?: Array<{ 
+    id: number; 
+    dayOfWeek: number; 
+    startTime: string; 
+    endTime: string;
+    room?: string;
+    isActive?: boolean;
+    classRoom?: { id: number; name: string; level?: string };
+    subject?: { id: number; name: string; code?: string };
+  }>;
 }
 
 export interface TeacherCreateData {

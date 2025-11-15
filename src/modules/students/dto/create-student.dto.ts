@@ -10,6 +10,7 @@ import {
   MaxLength,
   Matches,
   ValidateIf,
+  IsNotEmpty,
 } from 'class-validator';
 
 export class CreateStudentDto {
@@ -73,11 +74,10 @@ export class CreateStudentDto {
   nisn?: string;
 
   @IsString()
-  @IsOptional()
-  @MaxLength(16)
-  @ValidateIf((o) => o.nik !== undefined && o.nik !== null && o.nik !== '')
+  @IsNotEmpty({ message: 'NIK wajib diisi' })
+  @MaxLength(16, { message: 'NIK maksimal 16 karakter' })
   @Matches(/^\d{16}$/, { message: 'NIK harus 16 digit angka' })
-  nik?: string;
+  nik: string;
 
   @IsString()
   @IsOptional()

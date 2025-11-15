@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Tenant } from '../tenant/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
+import { StorageService } from '../storage/storage.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -12,6 +14,8 @@ export class AdminService {
     private tenantRepository: Repository<Tenant>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private storageService: StorageService,
+    private systemSettingsService: SystemSettingsService,
   ) {}
 
   async getDashboardStats() {
@@ -323,6 +327,117 @@ export class AdminService {
     }
 
     return this.userRepository.remove(user);
+  }
+
+  async uploadLogo(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    // Validate file type
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('File must be an image');
+    }
+
+    // Upload file to storage
+    const result = await this.storageService.uploadFile(file, 'branding');
+
+    // Save logo path to system settings
+    await this.systemSettingsService.setValue(
+      'app_logo',
+      result.url,
+      'string',
+    );
+
+    // Update description if setting exists
+    try {
+      const setting = await this.systemSettingsService.findOne('app_logo');
+      if (!setting.description) {
+        await this.systemSettingsService.update('app_logo', {
+          description: 'Logo aplikasi yang ditampilkan di header dan berbagai tempat di aplikasi',
+          category: 'Branding',
+        });
+      }
+    } catch (error) {
+      // Setting doesn't exist yet, create with description
+      await this.systemSettingsService.create({
+        key: 'app_logo',
+        value: result.url,
+        type: 'string',
+        description: 'Logo aplikasi yang ditampilkan di header dan berbagai tempat di aplikasi',
+        category: 'Branding',
+      });
+    }
+
+    return {
+      success: true,
+      url: result.url,
+      path: result.path,
+    };
+  }
+
+  async uploadFavicon(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    // Validate file type - favicon can be .ico, .png, .svg, etc.
+    const allowedMimeTypes = [
+      'image/x-icon',
+      'image/vnd.microsoft.icon',
+      'image/png',
+      'image/svg+xml',
+    ];
+    
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Favicon must be .ico, .png, or .svg file');
+    }
+
+    // Upload file to storage
+    const result = await this.storageService.uploadFile(file, 'branding');
+
+    // Save favicon path to system settings
+    await this.systemSettingsService.setValue(
+      'app_favicon',
+      result.url,
+      'string',
+    );
+
+    // Update description if setting exists
+    try {
+      const setting = await this.systemSettingsService.findOne('app_favicon');
+      if (!setting.description) {
+        await this.systemSettingsService.update('app_favicon', {
+          description: 'Favicon aplikasi yang ditampilkan di tab browser',
+          category: 'Branding',
+        });
+      }
+    } catch (error) {
+      // Setting doesn't exist yet, create with description
+      await this.systemSettingsService.create({
+        key: 'app_favicon',
+        value: result.url,
+        type: 'string',
+        description: 'Favicon aplikasi yang ditampilkan di tab browser',
+        category: 'Branding',
+      });
+    }
+
+    return {
+      success: true,
+      url: result.url,
+      path: result.path,
+    };
+  }
+
+  async getBrandingSettings() {
+    const logo = await this.systemSettingsService.getValue('app_logo', null);
+    const favicon = await this.systemSettingsService.getValue('app_favicon', null);
+
+    return {
+      logo: logo || null,
+      favicon: favicon || null,
+    };
   }
 }
 

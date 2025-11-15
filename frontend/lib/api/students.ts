@@ -3,6 +3,7 @@ import apiClient from './client';
 export interface Student {
   id: number;
   npsn?: string;
+  nik?: string;
   nisn?: string;
   studentNumber?: string;
   name: string;
@@ -36,20 +37,36 @@ export interface Student {
   // Data orangtua
   fatherName?: string;
   fatherNik?: string;
+  fatherBirthDate?: string;
+  fatherBirthPlace?: string;
+  fatherEducation?: string;
+  fatherOccupation?: string;
   fatherPhone?: string;
   fatherEmail?: string;
+  fatherIncome?: number;
   motherName?: string;
   motherNik?: string;
+  motherBirthDate?: string;
+  motherBirthPlace?: string;
+  motherEducation?: string;
+  motherOccupation?: string;
   motherPhone?: string;
   motherEmail?: string;
+  motherIncome?: number;
   // Data wali
   parentName?: string;
   parentPhone?: string;
   parentEmail?: string;
   guardianName?: string;
   guardianNik?: string;
+  guardianBirthDate?: string;
+  guardianBirthPlace?: string;
+  guardianEducation?: string;
+  guardianOccupation?: string;
   guardianPhone?: string;
   guardianEmail?: string;
+  guardianIncome?: number;
+  guardianRelationship?: string;
   // Data akademik
   studentStatus?: string;
   academicLevel?: string;
@@ -73,6 +90,7 @@ export interface Student {
 
 export interface StudentCreateData {
   npsn?: string;
+  nik?: string;
   nisn?: string;
   studentNumber?: string;
   name: string;
@@ -102,20 +120,36 @@ export interface StudentCreateData {
   // Data orangtua
   fatherName?: string;
   fatherNik?: string;
+  fatherBirthDate?: string;
+  fatherBirthPlace?: string;
+  fatherEducation?: string;
+  fatherOccupation?: string;
   fatherPhone?: string;
   fatherEmail?: string;
+  fatherIncome?: number;
   motherName?: string;
   motherNik?: string;
+  motherBirthDate?: string;
+  motherBirthPlace?: string;
+  motherEducation?: string;
+  motherOccupation?: string;
   motherPhone?: string;
   motherEmail?: string;
+  motherIncome?: number;
   // Data wali
   parentName?: string;
   parentPhone?: string;
   parentEmail?: string;
   guardianName?: string;
   guardianNik?: string;
+  guardianBirthDate?: string;
+  guardianBirthPlace?: string;
+  guardianEducation?: string;
+  guardianOccupation?: string;
   guardianPhone?: string;
   guardianEmail?: string;
+  guardianIncome?: number;
+  guardianRelationship?: string;
   // Data akademik
   studentStatus?: string;
   academicLevel?: string;

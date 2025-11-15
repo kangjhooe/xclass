@@ -37,7 +37,7 @@ export class StudentsController {
   @ApiOperation({ summary: 'Buat data siswa baru' })
   @ApiResponse({ status: 201, description: 'Data siswa berhasil dibuat' })
   @ApiResponse({ status: 400, description: 'Data tidak valid' })
-  @ApiResponse({ status: 409, description: 'NISN sudah terdaftar' })
+  @ApiResponse({ status: 409, description: 'NIK sudah terdaftar' })
   async create(@Body() createStudentDto: CreateStudentDto, @TenantId() instansiId: number) {
     return this.studentsService.create(createStudentDto, instansiId);
   }
@@ -79,7 +79,7 @@ export class StudentsController {
   @ApiOperation({ summary: 'Update data siswa' })
   @ApiResponse({ status: 200, description: 'Data siswa berhasil diupdate' })
   @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
-  @ApiResponse({ status: 409, description: 'NISN sudah terdaftar' })
+  @ApiResponse({ status: 409, description: 'NIK sudah terdaftar' })
   update(@Param('id') id: string, @Body() updateStudentDto: UpdateStudentDto, @TenantId() instansiId: number) {
     return this.studentsService.update(+id, updateStudentDto, instansiId);
   }
@@ -102,12 +102,12 @@ export class StudentsController {
     return this.studentsService.getAttendance(+id, instansiId);
   }
 
-  @Get('nisn/:nisn/lifetime')
-  @ApiOperation({ summary: 'Dapatkan riwayat lengkap siswa berdasarkan NISN (dari SD sampai SMA)' })
+  @Get('nik/:nik/lifetime')
+  @ApiOperation({ summary: 'Dapatkan riwayat lengkap siswa berdasarkan NIK (dari SD sampai SMA)' })
   @ApiResponse({ status: 200, description: 'Riwayat lengkap siswa berhasil diambil' })
   @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
-  getLifetimeData(@Param('nisn') nisn: string, @TenantId() instansiId: number) {
-    return this.studentsService.getLifetimeData(nisn, instansiId);
+  getLifetimeData(@Param('nik') nik: string, @TenantId() instansiId: number) {
+    return this.studentsService.getLifetimeData(nik, instansiId);
   }
 
   @Patch(':id/academic-level')
@@ -140,6 +140,7 @@ export class StudentsController {
     });
 
     const columns = [
+      { key: 'nik', header: 'NIK', width: 18 },
       { key: 'studentNumber', header: 'NIS', width: 15 },
       { key: 'nisn', header: 'NISN', width: 15 },
       { key: 'name', header: 'Nama', width: 30 },
@@ -175,6 +176,7 @@ export class StudentsController {
     });
 
     const columns = [
+      { key: 'nik', header: 'NIK', width: 18 },
       { key: 'studentNumber', header: 'NIS', width: 15 },
       { key: 'nisn', header: 'NISN', width: 15 },
       { key: 'name', header: 'Nama', width: 30 },
@@ -209,6 +211,7 @@ export class StudentsController {
     });
 
     const columns = [
+      { key: 'nik', header: 'NIK', width: 18 },
       { key: 'studentNumber', header: 'NIS', width: 15 },
       { key: 'nisn', header: 'NISN', width: 15 },
       { key: 'name', header: 'Nama', width: 30 },
@@ -267,6 +270,7 @@ export class StudentsController {
       sheetIndex: body.sheetIndex ? parseInt(body.sheetIndex) : undefined,
       startRow: body.startRow ? parseInt(body.startRow) : 1,
       mapping: {
+        'NIK': 'nik',
         'NIS': 'studentNumber',
         'NISN': 'nisn',
         'Nama': 'name',
@@ -278,7 +282,6 @@ export class StudentsController {
         'Alamat': 'address',
         'Status': 'isActive',
         'Status Aktif': 'isActive',
-        'NIK': 'nik',
         'Agama': 'religion',
         'Kelas': 'classId',
         'Nama Ayah': 'fatherName',
@@ -323,6 +326,7 @@ export class StudentsController {
         }
 
         const studentData: CreateStudentDto = {
+          nik: data.nik || data.NIK,
           studentNumber: data.studentNumber || data.NIS,
           nisn: data.nisn || data.NISN,
           name: data.name || data.Nama,
@@ -333,7 +337,6 @@ export class StudentsController {
           birthPlace: data.birthPlace || data['Tempat Lahir'],
           address: data.address || data.Alamat,
           isActive,
-          nik: data.nik || data.NIK,
           religion: data.religion || data.Agama,
           classId: data.classId || data.Kelas ? Number(data.classId || data.Kelas) : undefined,
           fatherName: data.fatherName || data['Nama Ayah'],

@@ -18,6 +18,7 @@ import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
+import { AddressCascade } from '@/components/forms/AddressCascade';
 
 export default function DataPokokPage() {
   const tenantId = useTenantId();
@@ -431,46 +432,19 @@ export default function DataPokokPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Desa/Kelurahan</label>
-                      <input
-                        type="text"
-                        value={formData.village}
-                        onChange={(e) => setFormData({ ...formData, village: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Kecamatan</label>
-                      <input
-                        type="text"
-                        value={formData.subDistrict}
-                        onChange={(e) => setFormData({ ...formData, subDistrict: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Kabupaten/Kota</label>
-                      <input
-                        type="text"
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Provinsi</label>
-                      <input
-                        type="text"
-                        value={formData.province}
-                        onChange={(e) => setFormData({ ...formData, province: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
+                  <AddressCascade
+                    provinceName={formData.province}
+                    regencyName={formData.district || formData.city}
+                    districtName={formData.subDistrict}
+                    villageName={formData.village}
+                    onProvinceChange={(name) => setFormData({ ...formData, province: name })}
+                    onRegencyChange={(name) => {
+                      setFormData({ ...formData, district: name, city: name });
+                    }}
+                    onDistrictChange={(name) => setFormData({ ...formData, subDistrict: name })}
+                    onVillageChange={(name) => setFormData({ ...formData, village: name })}
+                    showLabels={true}
+                  />
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Kode Pos</label>

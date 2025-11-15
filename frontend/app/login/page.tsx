@@ -39,6 +39,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setAuth, isAuthenticated, user } = useAuthStore();
+  const [loginType, setLoginType] = useState<'email' | 'nik'>('email');
   const [formData, setFormData] = useState<LoginPayload>({
     email: '',
     password: '',
@@ -119,35 +120,43 @@ export default function LoginPage() {
         return;
       }
 
+      // Determine redirect path based on user role
+      let dashboardPath = '/dashboard';
+      if (user.role === 'student') {
+        dashboardPath = '/student-portal/dashboard';
+      } else if (user.role === 'teacher') {
+        dashboardPath = '/teacher-portal/dashboard';
+      }
+
       try {
         // Try to get tenant by ID first
         const tenant = await tenantApi.getById(tenantIdentifier);
         if (tenant?.npsn) {
-          router.replace(`/${tenant.npsn}/dashboard`);
+          router.replace(`/${tenant.npsn}${dashboardPath}`);
           return;
         }
         // If no NPSN, try to resolve using identifier
         const resolvedTenant = await tenantApi.getByIdentifier(tenantIdentifier.toString());
         if (resolvedTenant?.npsn) {
-          router.replace(`/${resolvedTenant.npsn}/dashboard`);
+          router.replace(`/${resolvedTenant.npsn}${dashboardPath}`);
           return;
         }
         // Last resort: use tenant ID as string
-        router.replace(`/${tenantIdentifier}/dashboard`);
+        router.replace(`/${tenantIdentifier}${dashboardPath}`);
       } catch (tenantError) {
         console.error('Tenant resolution error, trying alternative methods:', tenantError);
         try {
           // Try to resolve using identifier API
           const resolvedTenant = await tenantApi.getByIdentifier(tenantIdentifier.toString());
           if (resolvedTenant?.npsn) {
-            router.replace(`/${resolvedTenant.npsn}/dashboard`);
+            router.replace(`/${resolvedTenant.npsn}${dashboardPath}`);
             return;
           }
         } catch (resolveError) {
           console.error('Failed to resolve tenant identifier:', resolveError);
         }
         // Last resort: use tenant ID as string (not number 1)
-        router.replace(`/${tenantIdentifier}/dashboard`);
+        router.replace(`/${tenantIdentifier}${dashboardPath}`);
       }
     };
 
@@ -165,8 +174,40 @@ export default function LoginPage() {
     setError('');
     setSuccess('');
 
+    // Validasi: minimal salah satu identifier harus diisi
+    if (loginType === 'email' && !formData.email?.trim()) {
+      setError('Email wajib diisi');
+      return;
+    }
+    if (loginType === 'nik' && !formData.nik?.trim()) {
+      setError('NIK wajib diisi');
+      return;
+    }
+
+    // Validasi format
+    if (loginType === 'nik' && formData.nik && !/^\d{16}$/.test(formData.nik)) {
+      setError('NIK harus 16 digit angka');
+      return;
+    }
+
+    if (!formData.password?.trim()) {
+      setError('Password wajib diisi');
+      return;
+    }
+
+    // Prepare login payload based on login type
+    const loginPayload: LoginPayload = {
+      password: formData.password,
+    };
+
+    if (loginType === 'email') {
+      loginPayload.email = formData.email;
+    } else if (loginType === 'nik') {
+      loginPayload.nik = formData.nik;
+    }
+
     try {
-      const response = await loginMutation.mutateAsync(formData);
+      const response = await loginMutation.mutateAsync(loginPayload);
       const { user: loggedInUser, access_token } = response;
 
       if (!loggedInUser || !access_token) {
@@ -191,35 +232,43 @@ export default function LoginPage() {
         return;
       }
 
+      // Determine redirect path based on user role
+      let dashboardPath = '/dashboard';
+      if (loggedInUser.role === 'student') {
+        dashboardPath = '/student-portal/dashboard';
+      } else if (loggedInUser.role === 'teacher') {
+        dashboardPath = '/teacher-portal/dashboard';
+      }
+
       try {
         // Try to get tenant by ID first
         const tenant = await tenantApi.getById(tenantIdentifier);
         if (tenant?.npsn) {
-          router.push(`/${tenant.npsn}/dashboard`);
+          router.push(`/${tenant.npsn}${dashboardPath}`);
           return;
         }
         // If no NPSN, try to resolve using identifier
         const resolvedTenant = await tenantApi.getByIdentifier(tenantIdentifier.toString());
         if (resolvedTenant?.npsn) {
-          router.push(`/${resolvedTenant.npsn}/dashboard`);
+          router.push(`/${resolvedTenant.npsn}${dashboardPath}`);
           return;
         }
         // Last resort: use tenant ID as string
-        router.push(`/${tenantIdentifier}/dashboard`);
+        router.push(`/${tenantIdentifier}${dashboardPath}`);
       } catch (tenantError) {
         console.error('Tenant resolution error, trying alternative methods:', tenantError);
         try {
           // Try to resolve using identifier API
           const resolvedTenant = await tenantApi.getByIdentifier(tenantIdentifier.toString());
           if (resolvedTenant?.npsn) {
-            router.push(`/${resolvedTenant.npsn}/dashboard`);
+            router.push(`/${resolvedTenant.npsn}${dashboardPath}`);
             return;
           }
         } catch (resolveError) {
           console.error('Failed to resolve tenant identifier:', resolveError);
         }
         // Last resort: use tenant ID as string (not number 1)
-        router.push(`/${tenantIdentifier}/dashboard`);
+        router.push(`/${tenantIdentifier}${dashboardPath}`);
       }
     } catch (err: unknown) {
       console.error('Login error details (raw):', err);
@@ -418,31 +467,102 @@ export default function LoginPage() {
                 )}
 
                 <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+                  {/* Login Type Selector */}
                   <div className="space-y-2">
-                    <label htmlFor="email" className="text-sm font-semibold text-slate-700">
-                      Email
+                    <label className="text-sm font-semibold text-slate-700">
+                      Masuk sebagai
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoginType('email');
+                          setFormData({ ...formData, nik: undefined });
+                        }}
+                        className={`rounded-xl border py-2 px-3 text-sm font-medium transition ${
+                          loginType === 'email'
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        Email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoginType('nik');
+                          setFormData({ ...formData, email: '' });
+                        }}
+                        className={`rounded-xl border py-2 px-3 text-sm font-medium transition ${
+                          loginType === 'nik'
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        NIK (Siswa/Guru)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Identifier Input */}
+                  <div className="space-y-2">
+                    <label
+                      htmlFor={loginType === 'email' ? 'email' : 'nik'}
+                      className="text-sm font-semibold text-slate-700"
+                    >
+                      {loginType === 'email' ? 'Email' : 'NIK'}
                     </label>
                     <div className="group relative">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition group-focus-within:text-blue-500">
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
-                          />
-                        </svg>
+                        {loginType === 'email' ? (
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                            />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+                            />
+                          </svg>
+                        )}
                       </div>
-                      <input
-                        type="email"
-                        id="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full rounded-2xl border border-slate-200 bg-white/90 py-3 pl-12 pr-4 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
-                        placeholder="nama@email.com"
-                        required
-                        autoComplete="email"
-                      />
+                      {loginType === 'email' ? (
+                        <input
+                          type="email"
+                          id="email"
+                          value={formData.email || ''}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          className="w-full rounded-2xl border border-slate-200 bg-white/90 py-3 pl-12 pr-4 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+                          placeholder="nama@email.com"
+                          required
+                          autoComplete="email"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          id="nik"
+                          value={formData.nik || ''}
+                          onChange={(e) => {
+                            // Hanya allow angka
+                            const value = e.target.value.replace(/\D/g, '');
+                            setFormData({ ...formData, nik: value });
+                          }}
+                          className="w-full rounded-2xl border border-slate-200 bg-white/90 py-3 pl-12 pr-4 text-slate-700 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+                          placeholder="Masukkan NIK (16 digit)"
+                          required
+                          pattern="[0-9]{16}"
+                          maxLength={16}
+                          inputMode="numeric"
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -553,6 +673,14 @@ export default function LoginPage() {
                   >
                     Pilih tenant secara manual
                   </button>
+                  {loginType === 'nik' && (
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left">
+                      <p className="text-xs text-blue-800 font-medium mb-1">Info Login Pertama Kali:</p>
+                      <p className="text-xs text-blue-700">
+                        Password default untuk pertama kali adalah NIK Anda. Setelah login, segera ubah password Anda.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

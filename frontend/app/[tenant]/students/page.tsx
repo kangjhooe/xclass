@@ -11,12 +11,14 @@ import { Modal } from '@/components/ui/Modal';
 import { SkeletonTable, SkeletonStats } from '@/components/ui/Skeleton';
 import { ImportButton } from '@/components/ui/ImportButton';
 import { studentsApi, Student, StudentCreateData } from '@/lib/api/students';
+import { classesApi } from '@/lib/api/classes';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId, useTenantIdState } from '@/lib/hooks/useTenant';
 import { useActiveAcademicYear } from '@/lib/hooks/useAcademicYear';
 import apiClient from '@/lib/api/client';
-import { validateEmail, validatePhone, validateNISN } from '@/lib/validation/schemas';
+import { validateEmail, validatePhone, validateNISN, validateNIK } from '@/lib/validation/schemas';
+import { AddressCascade } from '@/components/forms/AddressCascade';
 
 const DetailField = ({ label, value }: { label: string; value?: ReactNode }) => {
   const displayValue =
@@ -131,6 +133,48 @@ export default function StudentsPage() {
     class_id: undefined,
     status: 'active',
     academicYear: '',
+    nik: '',
+    religion: '',
+    bloodType: '',
+    rt: '',
+    rw: '',
+    village: '',
+    subDistrict: '',
+    district: '',
+    city: '',
+    province: '',
+    postalCode: '',
+    // Data Ayah
+    fatherName: '',
+    fatherNik: '',
+    fatherBirthDate: '',
+    fatherBirthPlace: '',
+    fatherEducation: '',
+    fatherOccupation: '',
+    fatherPhone: '',
+    fatherEmail: '',
+    fatherIncome: undefined,
+    // Data Ibu
+    motherName: '',
+    motherNik: '',
+    motherBirthDate: '',
+    motherBirthPlace: '',
+    motherEducation: '',
+    motherOccupation: '',
+    motherPhone: '',
+    motherEmail: '',
+    motherIncome: undefined,
+    // Data Wali
+    guardianName: '',
+    guardianNik: '',
+    guardianBirthDate: '',
+    guardianBirthPlace: '',
+    guardianEducation: '',
+    guardianOccupation: '',
+    guardianPhone: '',
+    guardianEmail: '',
+    guardianIncome: undefined,
+    guardianRelationship: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [exportingFormat, setExportingFormat] = useState<'excel' | 'pdf' | null>(null);
@@ -145,6 +189,16 @@ export default function StudentsPage() {
   } = useActiveAcademicYear(tenantId, { enabled: isTenantReady });
   const activeAcademicYearName = activeAcademicYear?.name || '';
   const isExporting = exportingFormat !== null;
+
+  // Fetch classes for dropdown
+  const { data: classesData, isLoading: classesLoading } = useQuery({
+    queryKey: ['classes', tenantId, activeAcademicYearName || 'all'],
+    queryFn: () =>
+      classesApi.getAll(tenantId!, {
+        academicYear: activeAcademicYearName || undefined,
+      }),
+    enabled: !!tenantId && !tenantLoading && !academicYearLoading,
+  });
 
   useEffect(() => {
     if (!activeAcademicYearName) {
@@ -435,6 +489,46 @@ export default function StudentsPage() {
       if (data.npsn) backendData.npsn = data.npsn;
       if (data.nik) backendData.nik = data.nik;
       if (data.religion) backendData.religion = data.religion;
+      if (data.bloodType) backendData.bloodType = data.bloodType;
+      if (data.rt) backendData.rt = data.rt;
+      if (data.rw) backendData.rw = data.rw;
+      if (data.village) backendData.village = data.village;
+      if (data.subDistrict) backendData.subDistrict = data.subDistrict;
+      if (data.district) backendData.district = data.district;
+      if (data.city) backendData.city = data.city;
+      if (data.province) backendData.province = data.province;
+      if (data.postalCode) backendData.postalCode = data.postalCode;
+      // Data Ayah
+      if (data.fatherName) backendData.fatherName = data.fatherName;
+      if (data.fatherNik) backendData.fatherNik = data.fatherNik;
+      if (data.fatherBirthDate) backendData.fatherBirthDate = data.fatherBirthDate;
+      if (data.fatherBirthPlace) backendData.fatherBirthPlace = data.fatherBirthPlace;
+      if (data.fatherEducation) backendData.fatherEducation = data.fatherEducation;
+      if (data.fatherOccupation) backendData.fatherOccupation = data.fatherOccupation;
+      if (data.fatherPhone) backendData.fatherPhone = data.fatherPhone;
+      if (data.fatherEmail) backendData.fatherEmail = data.fatherEmail;
+      if (data.fatherIncome !== undefined) backendData.fatherIncome = data.fatherIncome;
+      // Data Ibu
+      if (data.motherName) backendData.motherName = data.motherName;
+      if (data.motherNik) backendData.motherNik = data.motherNik;
+      if (data.motherBirthDate) backendData.motherBirthDate = data.motherBirthDate;
+      if (data.motherBirthPlace) backendData.motherBirthPlace = data.motherBirthPlace;
+      if (data.motherEducation) backendData.motherEducation = data.motherEducation;
+      if (data.motherOccupation) backendData.motherOccupation = data.motherOccupation;
+      if (data.motherPhone) backendData.motherPhone = data.motherPhone;
+      if (data.motherEmail) backendData.motherEmail = data.motherEmail;
+      if (data.motherIncome !== undefined) backendData.motherIncome = data.motherIncome;
+      // Data Wali
+      if (data.guardianName) backendData.guardianName = data.guardianName;
+      if (data.guardianNik) backendData.guardianNik = data.guardianNik;
+      if (data.guardianBirthDate) backendData.guardianBirthDate = data.guardianBirthDate;
+      if (data.guardianBirthPlace) backendData.guardianBirthPlace = data.guardianBirthPlace;
+      if (data.guardianEducation) backendData.guardianEducation = data.guardianEducation;
+      if (data.guardianOccupation) backendData.guardianOccupation = data.guardianOccupation;
+      if (data.guardianPhone) backendData.guardianPhone = data.guardianPhone;
+      if (data.guardianEmail) backendData.guardianEmail = data.guardianEmail;
+      if (data.guardianIncome !== undefined) backendData.guardianIncome = data.guardianIncome;
+      if (data.guardianRelationship) backendData.guardianRelationship = data.guardianRelationship;
       return studentsApi.create(tenantId, backendData);
     },
     onSuccess: () => {
@@ -488,6 +582,46 @@ export default function StudentsPage() {
       if (data.npsn !== undefined) backendData.npsn = data.npsn;
       if (data.nik !== undefined) backendData.nik = data.nik;
       if (data.religion !== undefined) backendData.religion = data.religion;
+      if (data.bloodType !== undefined) backendData.bloodType = data.bloodType;
+      if (data.rt !== undefined) backendData.rt = data.rt;
+      if (data.rw !== undefined) backendData.rw = data.rw;
+      if (data.village !== undefined) backendData.village = data.village;
+      if (data.subDistrict !== undefined) backendData.subDistrict = data.subDistrict;
+      if (data.district !== undefined) backendData.district = data.district;
+      if (data.city !== undefined) backendData.city = data.city;
+      if (data.province !== undefined) backendData.province = data.province;
+      if (data.postalCode !== undefined) backendData.postalCode = data.postalCode;
+      // Data Ayah
+      if (data.fatherName !== undefined) backendData.fatherName = data.fatherName;
+      if (data.fatherNik !== undefined) backendData.fatherNik = data.fatherNik;
+      if (data.fatherBirthDate !== undefined) backendData.fatherBirthDate = data.fatherBirthDate;
+      if (data.fatherBirthPlace !== undefined) backendData.fatherBirthPlace = data.fatherBirthPlace;
+      if (data.fatherEducation !== undefined) backendData.fatherEducation = data.fatherEducation;
+      if (data.fatherOccupation !== undefined) backendData.fatherOccupation = data.fatherOccupation;
+      if (data.fatherPhone !== undefined) backendData.fatherPhone = data.fatherPhone;
+      if (data.fatherEmail !== undefined) backendData.fatherEmail = data.fatherEmail;
+      if (data.fatherIncome !== undefined) backendData.fatherIncome = data.fatherIncome;
+      // Data Ibu
+      if (data.motherName !== undefined) backendData.motherName = data.motherName;
+      if (data.motherNik !== undefined) backendData.motherNik = data.motherNik;
+      if (data.motherBirthDate !== undefined) backendData.motherBirthDate = data.motherBirthDate;
+      if (data.motherBirthPlace !== undefined) backendData.motherBirthPlace = data.motherBirthPlace;
+      if (data.motherEducation !== undefined) backendData.motherEducation = data.motherEducation;
+      if (data.motherOccupation !== undefined) backendData.motherOccupation = data.motherOccupation;
+      if (data.motherPhone !== undefined) backendData.motherPhone = data.motherPhone;
+      if (data.motherEmail !== undefined) backendData.motherEmail = data.motherEmail;
+      if (data.motherIncome !== undefined) backendData.motherIncome = data.motherIncome;
+      // Data Wali
+      if (data.guardianName !== undefined) backendData.guardianName = data.guardianName;
+      if (data.guardianNik !== undefined) backendData.guardianNik = data.guardianNik;
+      if (data.guardianBirthDate !== undefined) backendData.guardianBirthDate = data.guardianBirthDate;
+      if (data.guardianBirthPlace !== undefined) backendData.guardianBirthPlace = data.guardianBirthPlace;
+      if (data.guardianEducation !== undefined) backendData.guardianEducation = data.guardianEducation;
+      if (data.guardianOccupation !== undefined) backendData.guardianOccupation = data.guardianOccupation;
+      if (data.guardianPhone !== undefined) backendData.guardianPhone = data.guardianPhone;
+      if (data.guardianEmail !== undefined) backendData.guardianEmail = data.guardianEmail;
+      if (data.guardianIncome !== undefined) backendData.guardianIncome = data.guardianIncome;
+      if (data.guardianRelationship !== undefined) backendData.guardianRelationship = data.guardianRelationship;
       return studentsApi.update(tenantId, id, backendData);
     },
     onSuccess: () => {
@@ -517,6 +651,48 @@ export default function StudentsPage() {
       class_id: undefined,
       status: 'active',
       academicYear: activeAcademicYearName || '',
+      nik: '',
+      religion: '',
+      bloodType: '',
+      rt: '',
+      rw: '',
+      village: '',
+      subDistrict: '',
+      district: '',
+      city: '',
+      province: '',
+      postalCode: '',
+      // Data Ayah
+      fatherName: '',
+      fatherNik: '',
+      fatherBirthDate: '',
+      fatherBirthPlace: '',
+      fatherEducation: '',
+      fatherOccupation: '',
+      fatherPhone: '',
+      fatherEmail: '',
+      fatherIncome: undefined,
+      // Data Ibu
+      motherName: '',
+      motherNik: '',
+      motherBirthDate: '',
+      motherBirthPlace: '',
+      motherEducation: '',
+      motherOccupation: '',
+      motherPhone: '',
+      motherEmail: '',
+      motherIncome: undefined,
+      // Data Wali
+      guardianName: '',
+      guardianNik: '',
+      guardianBirthDate: '',
+      guardianBirthPlace: '',
+      guardianEducation: '',
+      guardianOccupation: '',
+      guardianPhone: '',
+      guardianEmail: '',
+      guardianIncome: undefined,
+      guardianRelationship: '',
     });
     setFormErrors({});
     setSelectedStudent(null);
@@ -542,6 +718,10 @@ export default function StudentsPage() {
         : Number(classIdValue);
 
     setSelectedStudent(student);
+    const fatherBirthDateValue = pickStudentValue(student, ['father_birth_date', 'fatherBirthDate']);
+    const motherBirthDateValue = pickStudentValue(student, ['mother_birth_date', 'motherBirthDate']);
+    const guardianBirthDateValue = pickStudentValue(student, ['guardian_birth_date', 'guardianBirthDate']);
+    
     setFormData({
       name: (pickStudentValue(student, ['name']) as string) || '',
       nisn: (pickStudentValue(student, ['nisn']) as string) || '',
@@ -558,6 +738,48 @@ export default function StudentsPage() {
           : undefined,
       status: resolvedStatus,
       academicYear: (pickStudentValue(student, ['academicYear', 'academic_year']) as string) || '',
+      nik: (pickStudentValue(student, ['nik']) as string) || '',
+      religion: (pickStudentValue(student, ['religion']) as string) || '',
+      bloodType: (pickStudentValue(student, ['blood_type', 'bloodType']) as string) || '',
+      rt: (pickStudentValue(student, ['rt']) as string) || '',
+      rw: (pickStudentValue(student, ['rw']) as string) || '',
+      village: (pickStudentValue(student, ['village', 'desa', 'kelurahan']) as string) || '',
+      subDistrict: (pickStudentValue(student, ['sub_district', 'subDistrict', 'kecamatan']) as string) || '',
+      district: (pickStudentValue(student, ['district', 'kabupaten']) as string) || '',
+      city: (pickStudentValue(student, ['city', 'kota']) as string) || '',
+      province: (pickStudentValue(student, ['province']) as string) || '',
+      postalCode: (pickStudentValue(student, ['postal_code', 'postalCode']) as string) || '',
+      // Data Ayah
+      fatherName: (pickStudentValue(student, ['father_name', 'fatherName']) as string) || '',
+      fatherNik: (pickStudentValue(student, ['father_nik', 'fatherNik']) as string) || '',
+      fatherBirthDate: normalizeDateInput(fatherBirthDateValue),
+      fatherBirthPlace: (pickStudentValue(student, ['father_birth_place', 'fatherBirthPlace']) as string) || '',
+      fatherEducation: (pickStudentValue(student, ['father_education', 'fatherEducation']) as string) || '',
+      fatherOccupation: (pickStudentValue(student, ['father_occupation', 'fatherOccupation']) as string) || '',
+      fatherPhone: (pickStudentValue(student, ['father_phone', 'fatherPhone']) as string) || '',
+      fatherEmail: (pickStudentValue(student, ['father_email', 'fatherEmail']) as string) || '',
+      fatherIncome: pickStudentValue(student, ['father_income', 'fatherIncome']) as number | undefined,
+      // Data Ibu
+      motherName: (pickStudentValue(student, ['mother_name', 'motherName']) as string) || '',
+      motherNik: (pickStudentValue(student, ['mother_nik', 'motherNik']) as string) || '',
+      motherBirthDate: normalizeDateInput(motherBirthDateValue),
+      motherBirthPlace: (pickStudentValue(student, ['mother_birth_place', 'motherBirthPlace']) as string) || '',
+      motherEducation: (pickStudentValue(student, ['mother_education', 'motherEducation']) as string) || '',
+      motherOccupation: (pickStudentValue(student, ['mother_occupation', 'motherOccupation']) as string) || '',
+      motherPhone: (pickStudentValue(student, ['mother_phone', 'motherPhone']) as string) || '',
+      motherEmail: (pickStudentValue(student, ['mother_email', 'motherEmail']) as string) || '',
+      motherIncome: pickStudentValue(student, ['mother_income', 'motherIncome']) as number | undefined,
+      // Data Wali
+      guardianName: (pickStudentValue(student, ['guardian_name', 'guardianName']) as string) || '',
+      guardianNik: (pickStudentValue(student, ['guardian_nik', 'guardianNik']) as string) || '',
+      guardianBirthDate: normalizeDateInput(guardianBirthDateValue),
+      guardianBirthPlace: (pickStudentValue(student, ['guardian_birth_place', 'guardianBirthPlace']) as string) || '',
+      guardianEducation: (pickStudentValue(student, ['guardian_education', 'guardianEducation']) as string) || '',
+      guardianOccupation: (pickStudentValue(student, ['guardian_occupation', 'guardianOccupation']) as string) || '',
+      guardianPhone: (pickStudentValue(student, ['guardian_phone', 'guardianPhone']) as string) || '',
+      guardianEmail: (pickStudentValue(student, ['guardian_email', 'guardianEmail']) as string) || '',
+      guardianIncome: pickStudentValue(student, ['guardian_income', 'guardianIncome']) as number | undefined,
+      guardianRelationship: (pickStudentValue(student, ['guardian_relationship', 'guardianRelationship']) as string) || '',
     });
     setIsModalOpen(true);
   };
@@ -568,6 +790,14 @@ export default function StudentsPage() {
     // Validate name (required)
     if (!formData.name || formData.name.trim().length < 2) {
       errors.name = 'Nama wajib diisi dan minimal 2 karakter';
+    }
+
+    // Validate NIK (required, must be 16 digits)
+    if (!formData.nik || formData.nik.trim() === '') {
+      errors.nik = 'NIK wajib diisi';
+    } else {
+      const nikError = validateNIK(formData.nik);
+      if (nikError) errors.nik = nikError;
     }
 
     // Validate NISN (if provided, must be 10 digits)
@@ -679,6 +909,7 @@ export default function StudentsPage() {
   const filteredStudents = data?.data?.filter((student: Student) => {
     const matchesSearch = !searchQuery || 
       student.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.nik?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.nis?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.nisn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.email?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -990,7 +1221,7 @@ export default function StudentsPage() {
                         </div>
                         <input
                           type="text"
-                          placeholder="Cari siswa (nama, NIS, NISN, email)..."
+                          placeholder="Cari siswa (nama, NIK, NIS, NISN, email)..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-2xl leading-5 bg-white/50 backdrop-blur-sm placeholder-gray-400 focus:outline-none focus:placeholder-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium transition-all duration-200 hover:border-gray-300"
@@ -1036,6 +1267,7 @@ export default function StudentsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 border-b-2 border-white/20">
+                          <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">NIK</TableHead>
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">NIS</TableHead>
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">NISN</TableHead>
                           <TableHead className="font-bold text-white py-4 px-6 text-sm uppercase tracking-wider">Nama</TableHead>
@@ -1056,7 +1288,10 @@ export default function StudentsPage() {
                             } hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 hover:shadow-md border-b border-gray-100/50 group`}
                           >
                             <TableCell className="px-6 py-4 whitespace-nowrap">
-                              <span className="text-sm font-medium text-gray-900">{student.nis || '-'}</span>
+                              <span className="text-sm font-medium text-gray-900">{student.nik || '-'}</span>
+                            </TableCell>
+                            <TableCell className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-sm font-medium text-gray-900">{student.nis || student.studentNumber || '-'}</span>
                             </TableCell>
                             <TableCell className="px-6 py-4 whitespace-nowrap">
                               <span className="text-sm text-gray-700">{student.nisn || '-'}</span>
@@ -1216,16 +1451,44 @@ export default function StudentsPage() {
                   </div>
 
                   <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      NIK <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nik}
+                      onChange={(e) => {
+                        // Hanya allow angka
+                        const value = e.target.value.replace(/\D/g, '');
+                        handleFieldChange('nik', value);
+                      }}
+                      maxLength={16}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                        formErrors.nik ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="16 digit angka"
+                      required
+                    />
+                    {formErrors.nik && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.nik}</p>
+                    )}
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">NISN</label>
                     <input
                       type="text"
                       value={formData.nisn}
-                      onChange={(e) => handleFieldChange('nisn', e.target.value)}
+                      onChange={(e) => {
+                        // Hanya allow angka
+                        const value = e.target.value.replace(/\D/g, '');
+                        handleFieldChange('nisn', value);
+                      }}
                       maxLength={10}
                       className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
                         formErrors.nisn ? 'border-red-500' : 'border-gray-300'
                       }`}
-                      placeholder="10 digit angka"
+                      placeholder="10 digit angka (opsional)"
                     />
                     {formErrors.nisn && (
                       <p className="mt-1 text-sm text-red-600">{formErrors.nisn}</p>
@@ -1315,6 +1578,56 @@ export default function StudentsPage() {
                     />
                   </div>
 
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Agama</label>
+                    <select
+                      value={formData.religion}
+                      onChange={(e) => handleFieldChange('religion', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                    >
+                      <option value="">Pilih Agama</option>
+                      <option value="Islam">Islam</option>
+                      <option value="Kristen">Kristen</option>
+                      <option value="Katolik">Katolik</option>
+                      <option value="Hindu">Hindu</option>
+                      <option value="Buddha">Buddha</option>
+                      <option value="Konghucu">Konghucu</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Golongan Darah</label>
+                    <select
+                      value={formData.bloodType}
+                      onChange={(e) => handleFieldChange('bloodType', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                    >
+                      <option value="">Pilih Golongan Darah</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="AB">AB</option>
+                      <option value="O">O</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Kelas</label>
+                    <select
+                      value={formData.class_id || ''}
+                      onChange={(e) => handleFieldChange('class_id', e.target.value ? Number(e.target.value) : undefined)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                      disabled={classesLoading}
+                    >
+                      <option value="">Pilih Kelas</option>
+                      {classesData?.data?.map((classRoom) => (
+                        <option key={classRoom.id} value={classRoom.id}>
+                          {classRoom.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
                     <select
@@ -1325,6 +1638,370 @@ export default function StudentsPage() {
                       <option value="active">Aktif</option>
                       <option value="inactive">Tidak Aktif</option>
                     </select>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Alamat Lengkap</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">RT</label>
+                      <input
+                        type="text"
+                        value={formData.rt}
+                        onChange={(e) => handleFieldChange('rt', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="RT"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">RW</label>
+                      <input
+                        type="text"
+                        value={formData.rw}
+                        onChange={(e) => handleFieldChange('rw', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="RW"
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <AddressCascade
+                        provinceName={formData.province}
+                        regencyName={formData.district || formData.city}
+                        districtName={formData.subDistrict}
+                        villageName={formData.village}
+                        onProvinceChange={(name) => handleFieldChange('province', name)}
+                        onRegencyChange={(name) => {
+                          handleFieldChange('district', name);
+                          handleFieldChange('city', name);
+                        }}
+                        onDistrictChange={(name) => handleFieldChange('subDistrict', name)}
+                        onVillageChange={(name) => handleFieldChange('village', name)}
+                        showLabels={true}
+                        className="col-span-2"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Kode Pos</label>
+                      <input
+                        type="text"
+                        value={formData.postalCode}
+                        onChange={(e) => handleFieldChange('postalCode', e.target.value)}
+                        maxLength={5}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Kode Pos"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Ayah */}
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Data Ayah Kandung</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Nama Ayah</label>
+                      <input
+                        type="text"
+                        value={formData.fatherName}
+                        onChange={(e) => handleFieldChange('fatherName', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Nama lengkap ayah"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">NIK Ayah</label>
+                      <input
+                        type="text"
+                        value={formData.fatherNik}
+                        onChange={(e) => handleFieldChange('fatherNik', e.target.value)}
+                        maxLength={16}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="16 digit angka"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tempat Lahir</label>
+                      <input
+                        type="text"
+                        value={formData.fatherBirthPlace}
+                        onChange={(e) => handleFieldChange('fatherBirthPlace', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Tempat lahir ayah"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tanggal Lahir</label>
+                      <input
+                        type="date"
+                        value={formData.fatherBirthDate}
+                        onChange={(e) => handleFieldChange('fatherBirthDate', e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Pendidikan Terakhir</label>
+                      <input
+                        type="text"
+                        value={formData.fatherEducation}
+                        onChange={(e) => handleFieldChange('fatherEducation', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="SD/SMP/SMA/S1/dll"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Pekerjaan</label>
+                      <input
+                        type="text"
+                        value={formData.fatherOccupation}
+                        onChange={(e) => handleFieldChange('fatherOccupation', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Pekerjaan ayah"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">No. Telepon</label>
+                      <input
+                        type="tel"
+                        value={formData.fatherPhone}
+                        onChange={(e) => handleFieldChange('fatherPhone', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="08xxxxxxxxxx"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={formData.fatherEmail}
+                        onChange={(e) => handleFieldChange('fatherEmail', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Penghasilan per Bulan (Rp)</label>
+                      <input
+                        type="number"
+                        value={formData.fatherIncome || ''}
+                        onChange={(e) => handleFieldChange('fatherIncome', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Ibu */}
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Data Ibu Kandung</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Nama Ibu</label>
+                      <input
+                        type="text"
+                        value={formData.motherName}
+                        onChange={(e) => handleFieldChange('motherName', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Nama lengkap ibu"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">NIK Ibu</label>
+                      <input
+                        type="text"
+                        value={formData.motherNik}
+                        onChange={(e) => handleFieldChange('motherNik', e.target.value)}
+                        maxLength={16}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="16 digit angka"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tempat Lahir</label>
+                      <input
+                        type="text"
+                        value={formData.motherBirthPlace}
+                        onChange={(e) => handleFieldChange('motherBirthPlace', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Tempat lahir ibu"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tanggal Lahir</label>
+                      <input
+                        type="date"
+                        value={formData.motherBirthDate}
+                        onChange={(e) => handleFieldChange('motherBirthDate', e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Pendidikan Terakhir</label>
+                      <input
+                        type="text"
+                        value={formData.motherEducation}
+                        onChange={(e) => handleFieldChange('motherEducation', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="SD/SMP/SMA/S1/dll"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Pekerjaan</label>
+                      <input
+                        type="text"
+                        value={formData.motherOccupation}
+                        onChange={(e) => handleFieldChange('motherOccupation', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Pekerjaan ibu"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">No. Telepon</label>
+                      <input
+                        type="tel"
+                        value={formData.motherPhone}
+                        onChange={(e) => handleFieldChange('motherPhone', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="08xxxxxxxxxx"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={formData.motherEmail}
+                        onChange={(e) => handleFieldChange('motherEmail', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Penghasilan per Bulan (Rp)</label>
+                      <input
+                        type="number"
+                        value={formData.motherIncome || ''}
+                        onChange={(e) => handleFieldChange('motherIncome', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Wali */}
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Data Wali (Jika Ada)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Nama Wali</label>
+                      <input
+                        type="text"
+                        value={formData.guardianName}
+                        onChange={(e) => handleFieldChange('guardianName', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Nama lengkap wali"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">NIK Wali</label>
+                      <input
+                        type="text"
+                        value={formData.guardianNik}
+                        onChange={(e) => handleFieldChange('guardianNik', e.target.value)}
+                        maxLength={16}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="16 digit angka"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Hubungan dengan Siswa</label>
+                      <input
+                        type="text"
+                        value={formData.guardianRelationship}
+                        onChange={(e) => handleFieldChange('guardianRelationship', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Contoh: Paman, Bibi, Kakek, Nenek, dll"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tempat Lahir</label>
+                      <input
+                        type="text"
+                        value={formData.guardianBirthPlace}
+                        onChange={(e) => handleFieldChange('guardianBirthPlace', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Tempat lahir wali"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tanggal Lahir</label>
+                      <input
+                        type="date"
+                        value={formData.guardianBirthDate}
+                        onChange={(e) => handleFieldChange('guardianBirthDate', e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Pendidikan Terakhir</label>
+                      <input
+                        type="text"
+                        value={formData.guardianEducation}
+                        onChange={(e) => handleFieldChange('guardianEducation', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="SD/SMP/SMA/S1/dll"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Pekerjaan</label>
+                      <input
+                        type="text"
+                        value={formData.guardianOccupation}
+                        onChange={(e) => handleFieldChange('guardianOccupation', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Pekerjaan wali"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">No. Telepon</label>
+                      <input
+                        type="tel"
+                        value={formData.guardianPhone}
+                        onChange={(e) => handleFieldChange('guardianPhone', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="08xxxxxxxxxx"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={formData.guardianEmail}
+                        onChange={(e) => handleFieldChange('guardianEmail', e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Penghasilan per Bulan (Rp)</label>
+                      <input
+                        type="number"
+                        value={formData.guardianIncome || ''}
+                        onChange={(e) => handleFieldChange('guardianIncome', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1389,9 +2066,9 @@ export default function StudentsPage() {
                     </h4>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <DetailField label="NIK" value={pickStudentValue(detailStudent, ['nik']) || '-'} />
                       <DetailField label="NIS" value={pickStudentValue(detailStudent, ['nis', 'student_number', 'studentNumber']) || '-'} />
                       <DetailField label="NISN" value={pickStudentValue(detailStudent, ['nisn']) || '-'} />
-                      <DetailField label="NIK" value={nik || '-'} />
                       <DetailField label="Nama Lengkap" value={pickStudentValue(detailStudent, ['name']) || '-'} />
                       <DetailField label="Jenis Kelamin (L/P)" value={formatGender(genderValue as string)} />
                       <DetailField label="Tempat Lahir" value={birthPlaceValue || '-'} />

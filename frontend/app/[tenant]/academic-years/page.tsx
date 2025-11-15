@@ -5,7 +5,7 @@ import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { academicYearsApi, AcademicYear, AcademicYearCreateData } from '@/lib/api/academic-years';
+import { academicYearsApi, AcademicYear, AcademicYearCreateData, SemesterType } from '@/lib/api/academic-years';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
@@ -19,6 +19,8 @@ export default function AcademicYearsPage() {
     startDate: '',
     endDate: '',
     isActive: false,
+    currentSemester: 1,
+    currentSemesterType: 'ganjil',
     description: '',
   });
 
@@ -41,6 +43,13 @@ export default function AcademicYearsPage() {
       queryClient.invalidateQueries({ queryKey: ['academic-years', tenantId] });
       setIsModalOpen(false);
       resetForm();
+      alert('Tahun pelajaran berhasil dibuat!');
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          'Gagal membuat tahun pelajaran. Silakan coba lagi.';
+      alert(`Error: ${errorMessage}`);
     },
   });
 
@@ -56,6 +65,13 @@ export default function AcademicYearsPage() {
       setIsModalOpen(false);
       setSelectedAcademicYear(null);
       resetForm();
+      alert('Tahun pelajaran berhasil diperbarui!');
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          'Gagal memperbarui tahun pelajaran. Silakan coba lagi.';
+      alert(`Error: ${errorMessage}`);
     },
   });
 
@@ -68,6 +84,32 @@ export default function AcademicYearsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academic-years', tenantId] });
+      alert('Tahun pelajaran berhasil dihapus!');
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          'Gagal menghapus tahun pelajaran. Silakan coba lagi.';
+      alert(`Error: ${errorMessage}`);
+    },
+  });
+
+  const setSemesterMutation = useMutation({
+    mutationFn: ({ id, semesterType }: { id: number; semesterType: SemesterType }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return academicYearsApi.setSemester(tenantId, id, semesterType);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academic-years', tenantId] });
+      alert('Semester berhasil diubah!');
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          'Gagal mengubah semester. Silakan coba lagi.';
+      alert(`Error: ${errorMessage}`);
     },
   });
 
@@ -77,6 +119,8 @@ export default function AcademicYearsPage() {
       startDate: '',
       endDate: '',
       isActive: false,
+      currentSemester: 1,
+      currentSemesterType: 'ganjil',
       description: '',
     });
     setSelectedAcademicYear(null);
@@ -89,9 +133,25 @@ export default function AcademicYearsPage() {
       startDate: academicYear.startDate,
       endDate: academicYear.endDate,
       isActive: academicYear.isActive ?? false,
+      currentSemester: academicYear.currentSemester ?? 1,
+      currentSemesterType: academicYear.currentSemesterType ?? 'ganjil',
       description: academicYear.description || '',
     });
     setIsModalOpen(true);
+  };
+
+  const handleSetSemester = (id: number, currentType: SemesterType) => {
+    if (!tenantId) {
+      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
+      return;
+    }
+
+    const newType: SemesterType = currentType === 'ganjil' ? 'genap' : 'ganjil';
+    const confirmMessage = `Apakah Anda yakin ingin mengubah semester menjadi ${newType === 'ganjil' ? 'Ganjil' : 'Genap'}?`;
+    
+    if (confirm(confirmMessage)) {
+      setSemesterMutation.mutate({ id, semesterType: newType });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -155,6 +215,7 @@ export default function AcademicYearsPage() {
                   <TableHead>Nama</TableHead>
                   <TableHead>Tanggal Mulai</TableHead>
                   <TableHead>Tanggal Selesai</TableHead>
+                  <TableHead>Semester</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Deskripsi</TableHead>
                   <TableHead>Aksi</TableHead>
@@ -166,6 +227,28 @@ export default function AcademicYearsPage() {
                     <TableCell className="font-medium">{academicYear.name}</TableCell>
                     <TableCell>{formatDate(academicYear.startDate)}</TableCell>
                     <TableCell>{formatDate(academicYear.endDate)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          academicYear.currentSemesterType === 'ganjil' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {academicYear.currentSemesterType === 'ganjil' ? 'Ganjil' : 'Genap'}
+                        </span>
+                        {academicYear.isActive && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSetSemester(academicYear.id, academicYear.currentSemesterType || 'ganjil')}
+                            disabled={setSemesterMutation.isPending}
+                            title="Ubah Semester"
+                          >
+                            {setSemesterMutation.isPending ? '...' : 'Ubah'}
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {academicYear.isActive ? (
                         <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
@@ -209,7 +292,7 @@ export default function AcademicYearsPage() {
                 ))}
                 {data?.data?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       Tidak ada data tahun pelajaran
                     </TableCell>
                   </TableRow>
@@ -272,16 +355,34 @@ export default function AcademicYearsPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={formData.isActive ? 'true' : 'false'}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="false">Tidak Aktif</option>
-                  <option value="true">Aktif</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={formData.isActive ? 'true' : 'false'}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="false">Tidak Aktif</option>
+                    <option value="true">Aktif</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Semester</label>
+                  <select
+                    value={formData.currentSemesterType || 'ganjil'}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      currentSemesterType: e.target.value as SemesterType,
+                      currentSemester: e.target.value === 'ganjil' ? 1 : 2
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="ganjil">Ganjil</option>
+                    <option value="genap">Genap</option>
+                  </select>
+                </div>
               </div>
 
               <div>

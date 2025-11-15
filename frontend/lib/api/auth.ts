@@ -1,7 +1,8 @@
 import apiClient from './client';
 
 export interface LoginPayload {
-  email: string;
+  email?: string;
+  nik?: string; // Untuk siswa atau guru
   password: string;
 }
 

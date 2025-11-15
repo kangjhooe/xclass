@@ -16,6 +16,7 @@ export interface DisciplinaryAction {
   student?: {
     id: number;
     name: string;
+    nik?: string;
     nisn?: string;
     nis?: string;
   };

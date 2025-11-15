@@ -6,12 +6,16 @@ import { Tenant } from '../tenant/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
 import { TenantModule } from '../tenant/tenant.module';
 import { UsersModule } from '../users/users.module';
+import { StorageModule } from '../storage/storage.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Tenant, User]),
     TenantModule,
     UsersModule,
+    StorageModule,
+    SystemSettingsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
