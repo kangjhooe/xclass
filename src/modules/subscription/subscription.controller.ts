@@ -157,5 +157,63 @@ export class SubscriptionController {
       days ? +days : 30,
     );
   }
+
+  // Manual trigger for maintenance tasks
+  @Post('maintenance/check-trials')
+  async checkAndConvertTrials() {
+    await this.subscriptionService.checkAndConvertTrials();
+    return { message: 'Trial conversion check completed' };
+  }
+
+  @Post('maintenance/check-warnings')
+  async checkAndSendWarnings() {
+    await this.subscriptionService.checkAndSendWarnings();
+    return { message: 'Warning check completed' };
+  }
+
+  @Post('maintenance/check-expired')
+  async checkAndHandleExpired() {
+    await this.subscriptionService.checkAndHandleExpiredSubscriptions();
+    return { message: 'Expired subscriptions check completed' };
+  }
+
+  @Post('maintenance/run-all')
+  async runAllMaintenanceTasks() {
+    await this.subscriptionService.checkAndConvertTrials();
+    await this.subscriptionService.checkAndSendWarnings();
+    await this.subscriptionService.checkAndHandleExpiredSubscriptions();
+    return { message: 'All maintenance tasks completed' };
+  }
+
+  // Reset warning (for testing or re-sending)
+  @Post('tenants/:tenantId/reset-warning')
+  async resetWarning(@Param('tenantId') tenantId: string) {
+    const subscription = await this.subscriptionService.getTenantSubscription(+tenantId);
+    subscription.warningSent = false;
+    subscription.warningSentAt = null;
+    await this.subscriptionService.updateSubscription(+tenantId, subscription);
+    return { message: 'Warning reset successfully' };
+  }
+
+  // Get subscription with computed fields
+  @Get('tenants/:tenantId/details')
+  async getSubscriptionDetails(@Param('tenantId') tenantId: string) {
+    const subscription = await this.subscriptionService.getTenantSubscription(+tenantId);
+    const isInTrial = this.subscriptionService.isInTrial(subscription);
+    const isEndingSoon = this.subscriptionService.isEndingSoon(subscription);
+    const daysUntilEnd = this.subscriptionService.getDaysUntilEffectiveEnd(subscription);
+    
+    return {
+      ...subscription,
+      computed: {
+        isInTrial,
+        isEndingSoon,
+        daysUntilEnd,
+        effectiveEndDate: subscription.isTrial ? subscription.trialEndDate : subscription.endDate,
+        needsWarning: isEndingSoon && !subscription.warningSent,
+        inGracePeriod: subscription.gracePeriodEndDate && new Date() < subscription.gracePeriodEndDate,
+      },
+    };
+  }
 }
 

@@ -39,6 +39,13 @@ export { Toast } from './Toast';
 // Navigation
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 export { Dropdown, DropdownItem, DropdownSeparator } from './Dropdown';
+export { Breadcrumbs, type BreadcrumbItem } from './Breadcrumbs';
+export { BackToTop } from './BackToTop';
+export { ThemeToggle } from './ThemeToggle';
+export { LanguageSwitcher } from './LanguageSwitcher';
+export { AccessibilityControls } from './AccessibilityControls';
+export { BottomSheet } from './BottomSheet';
+export { MobileStickyCTA } from './MobileStickyCTA';
 
 // Form Controls
 export { Switch } from './Switch';

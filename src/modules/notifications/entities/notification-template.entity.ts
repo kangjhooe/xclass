@@ -9,6 +9,7 @@ import {
 export enum TemplateType {
   EMAIL = 'email',
   SMS = 'sms',
+  WHATSAPP = 'whatsapp',
   PUSH = 'push',
 }
 

@@ -32,6 +32,10 @@ import {
   Sparkles,
   PlayCircle,
 } from 'lucide-react';
+import { BackToTop } from '@/components/ui/BackToTop';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { AccessibilityControls } from '@/components/ui/AccessibilityControls';
 
 type VisibilityMap = Record<string, boolean>;
 
@@ -71,7 +75,7 @@ const keyFeatures = [
 ];
 
 const benefits = [
-  { icon: Clock, text: 'Implementasi 14 hari' },
+  { icon: Clock, text: 'Aktif langsung setelah daftar' },
   { icon: TrendingUp, text: 'Peningkatan efisiensi 40%' },
   { icon: Award, text: 'Sertifikasi ISO 27001' },
   { icon: Globe, text: 'Cloud-native & scalable' },
@@ -86,9 +90,9 @@ const experienceMetrics = [
     detail: 'terimplementasi penuh, dari SD hingga SMK',
   },
   {
-    label: 'Waktu Implementasi',
-    value: '14 hari',
-    detail: 'deploy cepat dengan migrasi data otomatis',
+    label: 'Waktu Aktivasi',
+    value: 'Instan',
+    detail: 'langsung aktif setelah pendaftaran selesai',
   },
   {
     label: 'Kepuasan Pengguna',
@@ -155,20 +159,20 @@ const moduleShowcase = [
 
 const transformationTimeline = [
   {
-    step: 'Kickoff Strategis',
-    detail: 'Workshop blueprint 360° melibatkan pimpinan sekolah dan tim IT.',
+    step: 'Daftar & Verifikasi',
+    detail: 'Isi formulir pendaftaran dan verifikasi email instansi Anda.',
   },
   {
-    step: 'Migrasi Data Cerdas',
-    detail: 'Transformasi data lama dengan validasi otomatis dan quality check.',
+    step: 'Aktivasi Instan',
+    detail: 'Sistem langsung aktif dan siap digunakan setelah verifikasi.',
   },
   {
-    step: 'Implementasi Multi Tenant',
-    detail: 'Deploy terpisah per sekolah/cabang dengan kontrol pusat.',
+    step: 'Setup Awal',
+    detail: 'Lengkapi data sekolah, siswa, dan guru melalui dashboard.',
   },
   {
-    step: 'Enablement & Scaling',
-    detail: 'Onboarding interaktif, micro learning, dan monitoring adopsi.',
+    step: 'Mulai Menggunakan',
+    detail: 'Akses semua fitur CLASS dan mulai operasional sekolah digital.',
   },
 ];
 
@@ -205,20 +209,64 @@ const defaultTestimonials = [
 
 const faqs = [
   {
-    question: 'Berapa lama waktu implementasi CLASS?',
-    answer: 'Rata-rata 14 hari kerja, mulai dari migrasi data hingga training pengguna. Tim kami akan mendampingi setiap tahap.',
+    question: 'Berapa lama waktu aktivasi CLASS?',
+    answer: 'Sistem langsung aktif setelah pendaftaran dan verifikasi email. Tidak perlu menunggu, langsung bisa digunakan untuk mengelola sekolah Anda.',
   },
   {
     question: 'Apakah data sekolah aman di cloud?',
-    answer: 'Ya, kami menggunakan enkripsi AES-256, backup harian otomatis, dan sertifikasi ISO 27001 untuk keamanan data.',
+    answer: 'Ya, kami menggunakan enkripsi AES-256, backup harian otomatis, dan sertifikasi ISO 27001 untuk keamanan data. Setiap tenant memiliki database terpisah dengan isolasi data yang ketat.',
   },
   {
     question: 'Bisakah diintegrasikan dengan sistem yang sudah ada?',
-    answer: 'Tentu! CLASS menyediakan API dan webhook untuk integrasi dengan sistem fingerprint, payment gateway, dan aplikasi pihak ketiga.',
+    answer: 'Tentu! CLASS menyediakan API dan webhook untuk integrasi dengan sistem fingerprint, payment gateway, LMS, dan aplikasi pihak ketiga. Tim teknis kami siap membantu proses integrasi.',
   },
   {
     question: 'Bagaimana dengan dukungan teknis?',
-    answer: 'Kami menyediakan support 24/7 via chat, email, dan telepon. Plus dokumentasi lengkap dan video tutorial.',
+    answer: 'Kami menyediakan support 24/7 via chat, email, dan telepon. Plus dokumentasi lengkap, video tutorial, dan panduan step-by-step untuk setiap fitur.',
+  },
+  {
+    question: 'Berapa biaya penggunaan CLASS?',
+    answer: 'Gratis selamanya untuk sekolah dengan kurang dari 50 siswa. Untuk sekolah dengan 51+ siswa, biaya mulai dari Rp 4.000 - Rp 5.000 per siswa per tahun. Semua paket termasuk trial 1 bulan gratis.',
+  },
+  {
+    question: 'Apakah ada batasan jumlah pengguna atau modul?',
+    answer: 'Tidak ada batasan! Semua fitur dan 24+ modul tersedia untuk semua tenant, terlepas dari tier pricing. Perbedaan hanya pada jumlah siswa yang dapat dikelola.',
+  },
+  {
+    question: 'Bagaimana cara migrasi data dari sistem lama?',
+    answer: 'Anda dapat mengimpor data melalui Excel/CSV atau menggunakan API. Tim kami juga menyediakan layanan migrasi data profesional untuk memastikan semua data terpindah dengan akurat.',
+  },
+  {
+    question: 'Apakah CLASS bisa digunakan untuk sekolah dengan banyak cabang?',
+    answer: 'Ya! CLASS dirancang dengan arsitektur multi-tenant, sehingga setiap cabang dapat memiliki database terpisah namun tetap terpusat dalam satu platform. Ideal untuk yayasan atau sekolah dengan banyak unit.',
+  },
+  {
+    question: 'Bagaimana sistem pembayaran dan billing?',
+    answer: 'Billing dilakukan per tahun berdasarkan jumlah siswa. Penambahan kurang dari 20 siswa tidak dikenakan biaya tambahan. Harga terkunci saat subscription pertama dibuat, sehingga tidak akan berubah meskipun jumlah siswa bertambah.',
+  },
+  {
+    question: 'Apakah ada aplikasi mobile untuk siswa dan orang tua?',
+    answer: 'Ya, CLASS menyediakan aplikasi mobile untuk iOS dan Android yang memungkinkan siswa dan orang tua mengakses informasi akademik, kehadiran, nilai, dan komunikasi sekolah secara real-time.',
+  },
+  {
+    question: 'Bagaimana dengan pelatihan untuk staf sekolah?',
+    answer: 'Kami menyediakan video tutorial lengkap, dokumentasi interaktif, dan sesi pelatihan online. Tim support kami juga siap membantu melalui chat atau video call untuk memastikan semua pengguna dapat menggunakan sistem dengan optimal.',
+  },
+  {
+    question: 'Apakah CLASS mendukung kurikulum Merdeka dan Kurikulum 2013?',
+    answer: 'Ya, CLASS mendukung berbagai kurikulum termasuk Kurikulum Merdeka, Kurikulum 2013, dan kurikulum internasional. Sistem dapat dikonfigurasi sesuai kebutuhan sekolah Anda.',
+  },
+  {
+    question: 'Bagaimana cara backup dan restore data?',
+    answer: 'Backup dilakukan otomatis setiap hari secara real-time. Anda juga dapat melakukan backup manual kapan saja melalui dashboard. Restore data dapat dilakukan dengan mudah melalui antarmuka admin.',
+  },
+  {
+    question: 'Apakah ada limit untuk penyimpanan file dan dokumen?',
+    answer: 'Setiap tenant mendapatkan penyimpanan cloud yang cukup besar. Jika diperlukan lebih banyak, dapat diupgrade dengan mudah. Tidak ada limit untuk jumlah file yang dapat diunggah.',
+  },
+  {
+    question: 'Bagaimana dengan keamanan akses dan hak pengguna?',
+    answer: 'CLASS memiliki sistem role-based access control (RBAC) yang memungkinkan Anda mengatur hak akses untuk setiap pengguna. Mulai dari super admin, admin sekolah, guru, hingga siswa dan orang tua, semuanya dapat dikonfigurasi sesuai kebutuhan.',
   },
 ];
 
@@ -324,16 +372,18 @@ export default function Home() {
             </div>
           </Link>
           <div className="flex flex-wrap items-center justify-center gap-3 sm:flex-nowrap sm:justify-end">
+            <ThemeToggle variant="button" className="hidden sm:flex" />
+            <LanguageSwitcher variant="button" className="hidden sm:flex" />
             <Link
               href="/login"
-              className="group inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+              className="group inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 min-h-[44px]"
             >
               Masuk
               <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
             </Link>
             <Link
               href="/register"
-              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:shadow-blue-500/50 hover:brightness-110 hover:scale-105"
+              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:shadow-blue-500/50 hover:brightness-110 hover:scale-105 min-h-[44px]"
             >
               Daftar
               <Sparkles className="h-3 w-3" />
@@ -812,7 +862,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative border-t border-white/10 bg-slate-950/70 py-24">
+        <section className="relative border-t border-slate-200 bg-white py-24">
           <div
             data-animate-on-view="success"
             className={`mx-auto max-w-6xl px-6 transition-all duration-700 ${
@@ -821,9 +871,9 @@ export default function Home() {
           >
             <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-200">Cerita Keberhasilan</p>
-                <h2 className="mt-4 text-3xl font-bold text-white md:text-4xl">Dipercaya sekolah inovatif seluruh Indonesia.</h2>
-                <p className="mt-4 max-w-xl text-base text-slate-200/80">
+                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Cerita Keberhasilan</p>
+                <h2 className="mt-4 text-3xl font-bold text-slate-900 md:text-4xl">Dipercaya sekolah inovatif seluruh Indonesia.</h2>
+                <p className="mt-4 max-w-xl text-base text-slate-600">
                   CLASS membantu mengorkestrasi pertumbuhan sekolah, meningkatkan kolaborasi guru, dan memberikan
                   pengalaman baru bagi orang tua.
                 </p>
@@ -833,24 +883,24 @@ export default function Home() {
                     <div
                       key={`${testimonial.tenantName}-${index}`}
                       style={{ transitionDelay: `${index * 0.12 + 0.1}s` }}
-                      className={`group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.05] p-6 shadow-lg shadow-blue-500/10 transition-all duration-700 ${
+                      className={`group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-blue-500/5 transition-all duration-700 ${
                         sectionVisibility('success') ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
-                      } hover:border-white/20 hover:bg-white/[0.08] hover:shadow-blue-500/20 hover:scale-[1.02] animate-float-slow`}
+                      } hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-blue-500/20 hover:scale-[1.02] animate-float-slow`}
                     >
                       <div className="flex items-center gap-1 mb-4">
                         {[...Array(testimonial.rating)].map((_, i) => (
                           <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
-                      <p className="text-sm text-slate-200/80 leading-relaxed">{testimonial.quote}</p>
+                      <p className="text-sm text-slate-700 leading-relaxed">{testimonial.quote}</p>
                       <div className="mt-6 flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-semibold text-white shadow-md">
                           {testimonial.avatar}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-white">{testimonial.reviewerName}</p>
-                          <p className="text-xs uppercase tracking-[0.2em] text-blue-200/80">{testimonial.reviewerRole}</p>
-                          <p className="text-xs text-slate-400/60 mt-1">{testimonial.tenantName}</p>
+                          <p className="text-sm font-semibold text-slate-900">{testimonial.reviewerName}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-blue-600">{testimonial.reviewerRole}</p>
+                          <p className="text-xs text-slate-500 mt-1">{testimonial.tenantName}</p>
                         </div>
                       </div>
                     </div>
@@ -860,26 +910,26 @@ export default function Home() {
 
               <div className="space-y-6">
                 <div
-                  className={`rounded-3xl border border-white/15 bg-white/[0.07] p-8 shadow-xl shadow-blue-500/10 transition duration-700 ${
+                  className={`rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-blue-500/5 transition duration-700 ${
                     sectionVisibility('success') ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
                   }`}
                   style={{ transitionDelay: '0.35s' }}
                 >
-                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-200/90">Blueprint Transformasi</p>
-                  <h3 className="mt-4 text-2xl font-semibold text-white">Landasan eksekusi digital yang terukur.</h3>
-                  <p className="mt-3 text-sm text-slate-200/80">
-                    Langkah implementasi CLASS dibuat modular agar mudah disesuaikan dengan kesiapan organisasi sekolah.
+                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Blueprint Transformasi</p>
+                  <h3 className="mt-4 text-2xl font-semibold text-slate-900">Landasan eksekusi digital yang terukur.</h3>
+                  <p className="mt-3 text-sm text-slate-600">
+                    Setup CLASS sangat mudah dan cepat. Semua fitur tersedia langsung setelah aktivasi akun.
                   </p>
 
                   <div className="mt-6 space-y-5">
                     {transformationTimeline.map((timeline, idx) => (
                       <div className="flex gap-4" key={timeline.step}>
-                        <div className="mt-1 flex h-8 w-8 flex-none items-center justify-center rounded-full border border-blue-300/30 bg-blue-400/20 text-sm font-semibold text-blue-100">
+                        <div className="mt-1 flex h-8 w-8 flex-none items-center justify-center rounded-full border border-blue-300 bg-blue-50 text-sm font-semibold text-blue-600">
                           {idx + 1}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-white">{timeline.step}</p>
-                          <p className="text-xs text-slate-200/70">{timeline.detail}</p>
+                          <p className="text-sm font-semibold text-slate-900">{timeline.step}</p>
+                          <p className="text-xs text-slate-600">{timeline.detail}</p>
                         </div>
                       </div>
                     ))}
@@ -887,20 +937,20 @@ export default function Home() {
                 </div>
 
                 <div
-                  className={`rounded-3xl border border-white/10 bg-gradient-to-br from-blue-500/20 via-indigo-500/20 to-purple-500/30 p-8 shadow-lg shadow-blue-500/20 transition duration-700 ${
+                  className={`rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-8 shadow-lg shadow-blue-500/10 transition duration-700 ${
                     sectionVisibility('success') ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
                   }`}
                   style={{ transitionDelay: '0.55s' }}
                 >
-                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-200/90">Integrasi Ekosistem</p>
-                  <p className="mt-4 text-base text-slate-100">
+                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Integrasi Ekosistem</p>
+                  <p className="mt-4 text-base text-slate-700">
                     Tersedia API, webhook, dan marketplace add-on untuk menghubungkan CLASS dengan LMS, fingerprint,
                     pembayaran, hingga pelaporan pemerintah.
                   </p>
                   <div className="mt-6">
                     <Link
                       href="/register"
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-white transition hover:text-blue-100"
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700"
                     >
                       Jadwalkan sesi konsultasi
                       <span className="transition group-hover:translate-x-1">→</span>
@@ -912,7 +962,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative border-t border-white/10 bg-gradient-to-b from-slate-950/90 via-slate-950/80 to-slate-950/90 py-24">
+        <section className="relative border-t border-slate-200 bg-gradient-to-b from-slate-50 via-white to-blue-50/30 py-24">
           <div
             data-animate-on-view="faq"
             className={`mx-auto max-w-4xl px-6 transition-all duration-700 ${
@@ -920,8 +970,8 @@ export default function Home() {
             }`}
           >
             <div className="text-center mb-16">
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-200">Pertanyaan Umum</p>
-              <h2 className="mt-5 text-3xl font-bold text-white md:text-4xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Pertanyaan Umum</p>
+              <h2 className="mt-5 text-3xl font-bold text-slate-900 md:text-4xl">
                 Semua yang perlu Anda ketahui tentang CLASS
               </h2>
             </div>
@@ -933,22 +983,22 @@ export default function Home() {
                   <div
                     key={faq.question}
                     style={{ transitionDelay: `${index * 0.1}s` }}
-                    className={`rounded-2xl border border-white/10 bg-white/[0.05] transition-all duration-500 ${
+                    className={`rounded-2xl border border-slate-200 bg-white transition-all duration-500 ${
                       sectionVisibility('faq') ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
-                    } ${isOpen ? 'bg-white/[0.08] border-white/20' : ''}`}
+                    } ${isOpen ? 'bg-blue-50/50 border-blue-300 shadow-md' : 'hover:border-blue-300 hover:shadow-sm'}`}
                   >
                     <button
                       onClick={() => setOpenFaqs(prev => ({ ...prev, [index]: !prev[index] }))}
-                      className="w-full px-6 py-5 text-left flex items-center justify-between gap-4 group"
+                      className="w-full px-6 py-5 text-left flex items-center justify-between gap-4 group min-h-[44px]"
                     >
-                      <span className="text-base font-semibold text-white pr-4">{faq.question}</span>
-                      <div className={`flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-                        <ArrowRight className="h-4 w-4 text-white rotate-90" />
+                      <span className="text-base font-semibold text-slate-900 pr-4">{faq.question}</span>
+                      <div className={`flex-shrink-0 h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center transition-transform group-hover:bg-blue-100 ${isOpen ? 'rotate-180 bg-blue-100' : ''}`}>
+                        <ArrowRight className="h-4 w-4 text-slate-600 rotate-90" />
                       </div>
                     </button>
                     {isOpen && (
                       <div className="px-6 pb-5">
-                        <p className="text-sm text-slate-300/80 leading-relaxed">{faq.answer}</p>
+                        <p className="text-sm text-slate-700 leading-relaxed">{faq.answer}</p>
                       </div>
                     )}
                   </div>
@@ -958,35 +1008,35 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative border-t border-white/10 bg-gradient-to-r from-blue-600/20 via-indigo-600/15 to-purple-600/20 py-24">
+        <section className="relative border-t border-slate-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 py-24">
           <div
             data-animate-on-view="cta"
-            className={`mx-auto max-w-6xl rounded-[3rem] border border-white/10 bg-slate-950/80 px-6 py-16 text-center shadow-2xl shadow-blue-500/30 backdrop-blur-xl transition duration-700 md:px-16 ${
+            className={`mx-auto max-w-6xl rounded-[3rem] border border-blue-200 bg-white px-6 py-16 text-center shadow-2xl shadow-blue-500/20 backdrop-blur-xl transition duration-700 md:px-16 ${
               sectionVisibility('cta') ? 'animate-section opacity-100' : 'opacity-0 translate-y-10'
             }`}
           >
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-2 text-xs font-medium uppercase tracking-widest text-blue-200 mb-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-300 bg-blue-50 px-4 py-2 text-xs font-medium uppercase tracking-widest text-blue-600 mb-6">
               <Sparkles className="h-3 w-3" />
               Siap Naik Kelas?
             </div>
-            <h2 className="mt-6 text-3xl font-bold text-white md:text-4xl">
+            <h2 className="mt-6 text-3xl font-bold text-slate-900 md:text-4xl">
               Mulai perjalanan digital sekolah Anda dengan orkestrasi tenant yang rapi dan pengalaman pengguna memikat.
             </h2>
-            <p className="mt-4 text-base text-slate-200/80 md:text-lg">
-              Tim kami akan mendampingi dari analisis kebutuhan, migrasi data, hingga aktivasi penuh seluruh modul.
+            <p className="mt-4 text-base text-slate-600 md:text-lg">
+              Daftar sekarang dan langsung mulai menggunakan semua fitur CLASS. Setup mudah, aktivasi instan.
             </p>
 
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
                 href="/register"
-                className="group inline-flex items-center justify-center gap-3 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:shadow-blue-500/50 hover:scale-105"
+                className="group inline-flex items-center justify-center gap-3 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:shadow-blue-500/50 hover:scale-105 min-h-[44px]"
               >
-                Request Live Demo
+                Daftar Sekarang
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center gap-3 rounded-full border border-white/15 bg-white/5 px-10 py-4 text-base font-semibold text-white/80 transition hover:border-white/40 hover:text-white hover:bg-white/10"
+                className="inline-flex items-center justify-center gap-3 rounded-full border border-slate-300 bg-white px-10 py-4 text-base font-semibold text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 min-h-[44px]"
               >
                 <PlayCircle className="h-4 w-4" />
                 Masuk sebagai Sekolah
@@ -998,13 +1048,13 @@ export default function Home() {
                 <div
                   key={metric.label}
                   style={{ transitionDelay: `${index * 0.1 + 0.2}s` }}
-                  className={`rounded-3xl border border-white/10 bg-white/[0.05] p-5 transition-all duration-700 ${
+                  className={`rounded-3xl border border-slate-200 bg-white p-5 transition-all duration-700 ${
                     sectionVisibility('cta') ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
-                  } hover:border-white/20 hover:bg-white/[0.08] hover:scale-[1.02] animate-float-slower`}
+                  } hover:border-blue-300 hover:bg-blue-50/50 hover:scale-[1.02] animate-float-slower`}
                 >
-                  <p className="text-xs uppercase tracking-[0.3em] text-blue-200/80">{metric.label}</p>
-                  <p className="mt-3 text-2xl font-semibold text-white">{metric.value}</p>
-                  <p className="mt-1 text-xs text-slate-300/80">{metric.detail}</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-blue-600">{metric.label}</p>
+                  <p className="mt-3 text-2xl font-semibold text-slate-900">{metric.value}</p>
+                  <p className="mt-1 text-xs text-slate-600">{metric.detail}</p>
                 </div>
               ))}
             </div>
@@ -1012,51 +1062,51 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-white/10 bg-slate-950/90 py-16">
+      <footer className="border-t border-slate-200 bg-white py-16">
         <div className="mx-auto max-w-6xl px-6">
           <div className="grid gap-12 md:grid-cols-4 mb-12">
             <div className="md:col-span-2">
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 text-white shadow-lg shadow-blue-500/40 animate-float-slow">
                   <GraduationCap className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">CLASS</p>
+                  <p className="text-sm text-slate-600">Comprehensive Learning and School System</p>
+                </div>
               </div>
-              <div>
-                <p className="text-lg font-semibold text-white">CLASS</p>
-                <p className="text-sm text-slate-300/80">Comprehensive Learning and School System</p>
-              </div>
-            </div>
-              <p className="text-sm text-slate-400 max-w-md">
+              <p className="text-sm text-slate-600 max-w-md">
                 Platform manajemen sekolah terintegrasi yang membantu ribuan institusi pendidikan di Indonesia mencapai transformasi digital yang sukses.
               </p>
             </div>
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200 mb-4">Platform</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600 mb-4">Platform</h3>
               <ul className="space-y-2">
-                <li><Link href="/login" className="text-sm text-slate-400 hover:text-white transition">Masuk</Link></li>
-                <li><Link href="/register" className="text-sm text-slate-400 hover:text-white transition">Daftar</Link></li>
-                <li><Link href="#" className="text-sm text-slate-400 hover:text-white transition">Fitur</Link></li>
-                <li><Link href="#" className="text-sm text-slate-400 hover:text-white transition">Harga</Link></li>
+                <li><Link href="/login" className="text-sm text-slate-600 hover:text-blue-600 transition">Masuk</Link></li>
+                <li><Link href="/register" className="text-sm text-slate-600 hover:text-blue-600 transition">Daftar</Link></li>
+                <li><Link href="#" className="text-sm text-slate-600 hover:text-blue-600 transition">Fitur</Link></li>
+                <li><Link href="#" className="text-sm text-slate-600 hover:text-blue-600 transition">Harga</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200 mb-4">Dukungan</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600 mb-4">Dukungan</h3>
               <ul className="space-y-2">
-                <li><Link href="/panduan" className="text-sm text-slate-400 hover:text-white transition">Panduan Penggunaan</Link></li>
-                <li><Link href="#" className="text-sm text-slate-400 hover:text-white transition">Dokumentasi</Link></li>
-                <li><Link href="#" className="text-sm text-slate-400 hover:text-white transition">Kontak</Link></li>
-                <li><Link href="#" className="text-sm text-slate-400 hover:text-white transition">Status</Link></li>
+                <li><Link href="/panduan" className="text-sm text-slate-600 hover:text-blue-600 transition">Panduan Penggunaan</Link></li>
+                <li><Link href="#" className="text-sm text-slate-600 hover:text-blue-600 transition">Dokumentasi</Link></li>
+                <li><Link href="#" className="text-sm text-slate-600 hover:text-blue-600 transition">Kontak</Link></li>
+                <li><Link href="#" className="text-sm text-slate-600 hover:text-blue-600 transition">Status</Link></li>
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-white/10 flex flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
-            <p className="text-sm text-slate-400">
+          <div className="pt-8 border-t border-slate-200 flex flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
+            <p className="text-sm text-slate-600">
               © {new Date().getFullYear()} CLASS. Membantu sekolah Indonesia melesat dengan pengalaman digital berkelas dunia.
             </p>
             <div className="flex items-center gap-4">
-              <Link href="#" className="text-slate-400 hover:text-white transition">
+              <Link href="#" className="text-slate-600 hover:text-blue-600 transition">
                 <Globe className="h-5 w-5" />
               </Link>
-              <Link href="#" className="text-slate-400 hover:text-white transition">
+              <Link href="#" className="text-slate-600 hover:text-blue-600 transition">
                 <MessageSquare className="h-5 w-5" />
               </Link>
             </div>
@@ -1064,15 +1114,8 @@ export default function Home() {
         </div>
       </footer>
 
-      {showScrollTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-8 right-8 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 text-white shadow-lg shadow-blue-500/50 transition-all hover:scale-110 hover:shadow-blue-500/70 animate-float-slow"
-          aria-label="Scroll to top"
-        >
-          <ArrowUp className="h-5 w-5" />
-        </button>
-      )}
+      <BackToTop />
+      <AccessibilityControls />
 
       <style jsx>{`
         @keyframes float {

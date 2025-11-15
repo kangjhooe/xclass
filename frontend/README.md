@@ -1,5 +1,7 @@
 # CLASS Frontend - Next.js
 
+**Version: 0.1**
+
 Frontend aplikasi CLASS menggunakan Next.js 14 dengan React dan TypeScript.
 
 ## Struktur Proyek

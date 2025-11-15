@@ -1,5 +1,7 @@
 ## Pulse Dashboard
 
+**Version: 0.1**
+
 Production-ready Next.js app router starter featuring authentication, Prisma, and a modern dashboard UI built with shadcn/ui and Tailwind CSS.
 
 ### Features

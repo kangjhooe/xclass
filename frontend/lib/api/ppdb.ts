@@ -405,5 +405,32 @@ export const ppdbApi = {
     });
     return response.data;
   },
+
+  // Public PPDB Info (no auth required)
+  // tenantIdentifier can be NPSN (string) or numeric ID
+  getPublicInfo: async (tenantIdentifier: string | number): Promise<{
+    totalRegistrations: number;
+    acceptedCount: number;
+    pendingCount: number;
+    registeredCount: number;
+    availableSchedules: Array<{
+      id: number;
+      scheduleDate: string;
+      startTime: string;
+      endTime: string;
+      location: string;
+      maxParticipants: number;
+      currentParticipants: number;
+      notes: string;
+    }>;
+    byPath: Record<string, number>;
+  }> => {
+    const response = await apiClient.get('/public/ppdb/info', {
+      headers: {
+        'X-Tenant-NPSN': tenantIdentifier.toString(),
+      },
+    });
+    return response.data;
+  },
 };
 

@@ -1,5 +1,7 @@
 # Common Module - Tenant Management
 
+**Version: 0.1**
+
 Modul ini menyediakan fitur untuk multi-tenant management di aplikasi NestJS.
 
 ## Komponen

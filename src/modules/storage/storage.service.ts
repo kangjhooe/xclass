@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { StorageQuotaService } from './storage-quota.service';
 
 @Injectable()
 export class StorageService {
@@ -23,7 +24,10 @@ export class StorageService {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   ];
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private storageQuotaService: StorageQuotaService,
+  ) {
     this.uploadPath = this.configService.get<string>('UPLOAD_PATH') || './storage/app/public';
     this.ensureDirectoryExists(this.uploadPath);
   }
@@ -46,6 +50,14 @@ export class StorageService {
     // Validate file size
     if (file.size > this.maxFileSize) {
       throw new BadRequestException(`File size exceeds maximum allowed size of ${this.maxFileSize / 1024 / 1024}MB`);
+    }
+
+    // Check storage quota if tenant ID provided
+    if (instansiId) {
+      const quotaCheck = await this.storageQuotaService.canUpload(instansiId, file.size);
+      if (!quotaCheck.allowed) {
+        throw new BadRequestException(quotaCheck.reason || 'Storage quota exceeded');
+      }
     }
 
     // Validate MIME type
@@ -72,6 +84,11 @@ export class StorageService {
     // Save file
     fs.writeFileSync(filePath, file.buffer);
 
+    // Update storage usage after upload
+    if (instansiId) {
+      await this.storageQuotaService.updateStorageUsage(instansiId);
+    }
+
     // Generate URL
     const url = `/storage/${instansiId ? `tenants/${instansiId}/` : ''}${subfolder ? `${subfolder}/` : ''}${uniqueFilename}`;
 
@@ -82,10 +99,15 @@ export class StorageService {
     };
   }
 
-  async deleteFile(filePath: string): Promise<void> {
+  async deleteFile(filePath: string, instansiId?: number): Promise<void> {
     const fullPath = path.join(this.uploadPath, filePath);
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
+      
+      // Update storage usage after delete
+      if (instansiId) {
+        await this.storageQuotaService.updateStorageUsage(instansiId);
+      }
     }
   }
 

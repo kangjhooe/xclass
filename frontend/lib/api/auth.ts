@@ -17,6 +17,7 @@ export interface RegisterPayload {
   password_confirmation: string;
   picName: string;
   picWhatsapp: string;
+  recaptcha_token?: string;
 }
 
 export interface RegisterPpdbPayload {

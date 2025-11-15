@@ -12,16 +12,16 @@ type StepKey = 1 | 2;
 
 const heroHighlights = [
   {
-    title: 'Blueprint Digitalisasi',
-    description: 'Kurasi modul sesuai kebutuhan sekolah dengan arsitektur multi-tenant.',
+    title: 'Aktivasi Instan',
+    description: 'Sistem langsung aktif setelah pendaftaran dan verifikasi email.',
   },
   {
-    title: 'Implementasi Kilat',
-    description: 'Aktifkan sistem dalam 14 hari dengan migrasi data cerdas.',
+    title: 'Setup Mudah',
+    description: 'Lengkapi data sekolah melalui dashboard yang intuitif dan user-friendly.',
   },
   {
     title: 'Pendampingan 24/7',
-    description: 'Tim success siap membantu onboarding dan pengembangan lanjutan.',
+    description: 'Tim support siap membantu onboarding dan pengembangan lanjutan.',
   },
 ];
 
@@ -237,16 +237,43 @@ export default function RegisterPage() {
     }
   };
 
+  const { getToken: getRecaptchaToken } = useRecaptcha();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setErrors({});
 
+    // Rate limiting check
+    const rateLimit = checkRateLimit('register', 5, 60000);
+    if (!rateLimit.allowed) {
+      setError(getRateLimitMessage('register', 5, 60000) || 'Terlalu banyak percobaan. Silakan coba lagi nanti.');
+      return;
+    }
+
     if (!validateStep2()) {
       return;
     }
 
-    await registerMutation.mutateAsync(formData);
+    try {
+      // Get reCAPTCHA token
+      const recaptchaToken = await getRecaptchaToken('register');
+      
+      // Track registration start
+      trackRegistration('started');
+      
+      // Submit with CSRF protection
+      await registerMutation.mutateAsync({
+        ...formData,
+        recaptcha_token: recaptchaToken,
+      });
+
+      trackRegistration('completed');
+      trackFormSubmit('register', true);
+    } catch (err: any) {
+      trackFormSubmit('register', false);
+      // Error handling is done in mutation
+    }
   };
 
   const loading = registerMutation.isPending;
@@ -296,7 +323,7 @@ export default function RegisterPage() {
               isMounted ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
             } transition duration-700 delay-100`}
           >
-            Mulai dari data instansi hingga aktivasi akun PIC, hanya dua langkah untuk bergabung ke ekosistem CLASS.
+            Daftar sekarang dan langsung aktif. Lengkapi data instansi dan kontak, sistem siap digunakan dalam hitungan menit.
           </p>
 
           <div className="mt-10 space-y-4">

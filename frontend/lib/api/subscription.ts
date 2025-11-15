@@ -39,6 +39,7 @@ export interface TenantSubscription {
   pendingStudentIncrease: number;
   currentBillingAmount: number;
   nextBillingAmount: number;
+  lockedPricePerStudent?: number;
   billingCycle: BillingCycle;
   status: SubscriptionStatus;
   startDate: Date;
@@ -49,6 +50,15 @@ export interface TenantSubscription {
   paidAt?: Date;
   paymentNotes?: string;
   notes?: string;
+  // Trial fields
+  isTrial?: boolean;
+  trialStartDate?: Date;
+  trialEndDate?: Date;
+  // Warning fields
+  warningSent?: boolean;
+  warningSentAt?: Date;
+  // Grace period
+  gracePeriodEndDate?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -212,6 +222,63 @@ export const subscriptionApi = {
     return apiClient.get<TenantSubscription[]>(
       '/admin/subscriptions/expiring',
       { params: { days } },
+    );
+  },
+
+  // Maintenance tasks
+  checkTrials: () => {
+    return apiClient.post('/admin/subscriptions/maintenance/check-trials');
+  },
+
+  checkWarnings: () => {
+    return apiClient.post('/admin/subscriptions/maintenance/check-warnings');
+  },
+
+  checkExpired: () => {
+    return apiClient.post('/admin/subscriptions/maintenance/check-expired');
+  },
+
+  runAllMaintenance: () => {
+    return apiClient.post('/admin/subscriptions/maintenance/run-all');
+  },
+
+  // Additional methods
+  resetWarning: (tenantId: number) => {
+    return apiClient.post(`/admin/subscriptions/tenants/${tenantId}/reset-warning`);
+  },
+
+  getSubscriptionDetails: (tenantId: number) => {
+    return apiClient.get<TenantSubscription & {
+      computed: {
+        isInTrial: boolean;
+        isEndingSoon: boolean;
+        daysUntilEnd: number;
+        effectiveEndDate?: Date;
+        needsWarning: boolean;
+        inGracePeriod: boolean;
+      };
+    }>(`/admin/subscriptions/tenants/${tenantId}/details`);
+  },
+
+  // Payment Gateway
+  createPayment: (
+    tenantId: number,
+    data: {
+      paymentMethod: 'qris' | 'virtual_account' | 'e_wallet';
+      amount: number;
+      bankCode?: string; // For Virtual Account: BCA, BNI, BRI, MANDIRI, PERMATA
+      channelCode?: string; // For E-Wallet: OVO, DANA, LINKAJA, SHOPEEPAY
+    },
+  ) => {
+    return apiClient.post(
+      `/subscriptions/tenants/${tenantId}/payment`,
+      data,
+    );
+  },
+
+  getPaymentStatus: (tenantId: number, transactionId: number) => {
+    return apiClient.get(
+      `/subscriptions/tenants/${tenantId}/payment/${transactionId}`,
     );
   },
 };

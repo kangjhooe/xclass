@@ -63,6 +63,11 @@ export function OptimizedImage({
     onError?.();
   };
 
+  // Convert to WebP if supported (Next.js Image handles this automatically)
+  // But we can add explicit format preference
+  const imageFormat = typeof window !== 'undefined' && 
+    window.HTMLImageElement.prototype.decode ? 'webp' : undefined;
+
   // If fill is true, width and height are not needed
   if (fill) {
     return (
@@ -83,6 +88,7 @@ export function OptimizedImage({
           quality={quality}
           placeholder={placeholder}
           blurDataURL={blurDataURL}
+          loading={priority ? 'eager' : 'lazy'}
           className={cn(
             'transition-opacity duration-300',
             isLoading && 'opacity-0',
@@ -150,6 +156,7 @@ export function OptimizedImage({
         quality={quality}
         placeholder={placeholder}
         blurDataURL={blurDataURL}
+        loading={priority ? 'eager' : 'lazy'}
         className={cn(
           'transition-opacity duration-300',
           isLoading && 'opacity-0',

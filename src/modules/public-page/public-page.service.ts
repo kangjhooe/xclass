@@ -5,9 +5,14 @@ import { News } from './entities/news.entity';
 import { Gallery } from './entities/gallery.entity';
 import { Menu } from './entities/menu.entity';
 import { TenantProfile } from './entities/tenant-profile.entity';
+import { ContactForm, ContactFormStatus } from './entities/contact-form.entity';
+import { PPDBForm, PPDBFormStatus } from './entities/ppdb-form.entity';
 import { Student } from '../students/entities/student.entity';
 import { Teacher } from '../teachers/entities/teacher.entity';
 import { AcademicYear } from '../academic-year/entities/academic-year.entity';
+import { PpdbRegistration, RegistrationStatus } from '../ppdb/entities/ppdb-registration.entity';
+import { PpdbInterviewSchedule, ScheduleStatus } from '../ppdb/entities/ppdb-interview-schedule.entity';
+import { Download } from './entities/download.entity';
 
 @Injectable()
 export class PublicPageService {
@@ -20,12 +25,22 @@ export class PublicPageService {
     private menuRepository: Repository<Menu>,
     @InjectRepository(TenantProfile)
     private tenantProfileRepository: Repository<TenantProfile>,
+    @InjectRepository(ContactForm)
+    private contactFormRepository: Repository<ContactForm>,
+    @InjectRepository(PPDBForm)
+    private ppdbFormRepository: Repository<PPDBForm>,
     @InjectRepository(Student)
     private studentRepository: Repository<Student>,
     @InjectRepository(Teacher)
     private teacherRepository: Repository<Teacher>,
     @InjectRepository(AcademicYear)
     private academicYearRepository: Repository<AcademicYear>,
+    @InjectRepository(PpdbRegistration)
+    private ppdbRegistrationRepository: Repository<PpdbRegistration>,
+    @InjectRepository(PpdbInterviewSchedule)
+    private ppdbInterviewScheduleRepository: Repository<PpdbInterviewSchedule>,
+    @InjectRepository(Download)
+    private downloadRepository: Repository<Download>,
   ) {}
 
   // News methods
@@ -146,6 +161,234 @@ export class PublicPageService {
       teacherCount,
       yearCount,
     };
+  }
+
+  // Contact Form methods
+  async submitContactForm(
+    instansiId: number,
+    data: {
+      name: string;
+      email: string;
+      phone?: string;
+      subject: string;
+      message: string;
+      metadata?: Record<string, any>;
+    },
+  ): Promise<ContactForm> {
+    const form = this.contactFormRepository.create({
+      instansiId,
+      ...data,
+      status: ContactFormStatus.NEW,
+    });
+
+    return await this.contactFormRepository.save(form);
+  }
+
+  async getContactForms(
+    instansiId: number,
+    filters?: {
+      status?: ContactFormStatus;
+      startDate?: Date;
+      endDate?: Date;
+    },
+  ): Promise<ContactForm[]> {
+    const query = this.contactFormRepository
+      .createQueryBuilder('form')
+      .where('form.instansiId = :instansiId', { instansiId });
+
+    if (filters?.status) {
+      query.andWhere('form.status = :status', { status: filters.status });
+    }
+
+    if (filters?.startDate) {
+      query.andWhere('form.createdAt >= :startDate', { startDate: filters.startDate });
+    }
+
+    if (filters?.endDate) {
+      query.andWhere('form.createdAt <= :endDate', { endDate: filters.endDate });
+    }
+
+    return await query.orderBy('form.createdAt', 'DESC').getMany();
+  }
+
+  async replyToContactForm(
+    instansiId: number,
+    formId: number,
+    reply: string,
+    repliedBy: number,
+  ): Promise<ContactForm> {
+    const form = await this.contactFormRepository.findOne({
+      where: { id: formId, instansiId },
+    });
+
+    if (!form) {
+      throw new Error('Contact form not found');
+    }
+
+    form.reply = reply;
+    form.repliedAt = new Date();
+    form.repliedBy = repliedBy;
+    form.status = ContactFormStatus.REPLIED;
+
+    return await this.contactFormRepository.save(form);
+  }
+
+  // PPDB Form methods
+  async submitPPDBForm(instansiId: number, data: any): Promise<PPDBForm> {
+    const form = this.ppdbFormRepository.create({
+      instansiId,
+      ...data,
+      status: PPDBFormStatus.SUBMITTED,
+    });
+
+    return await this.ppdbFormRepository.save(form);
+  }
+
+  async getPPDBForms(
+    instansiId: number,
+    filters?: {
+      status?: PPDBFormStatus;
+      startDate?: Date;
+      endDate?: Date;
+    },
+  ): Promise<PPDBForm[]> {
+    const query = this.ppdbFormRepository
+      .createQueryBuilder('form')
+      .where('form.instansiId = :instansiId', { instansiId });
+
+    if (filters?.status) {
+      query.andWhere('form.status = :status', { status: filters.status });
+    }
+
+    if (filters?.startDate) {
+      query.andWhere('form.createdAt >= :startDate', { startDate: filters.startDate });
+    }
+
+    if (filters?.endDate) {
+      query.andWhere('form.createdAt <= :endDate', { endDate: filters.endDate });
+    }
+
+    return await query.orderBy('form.createdAt', 'DESC').getMany();
+  }
+
+  async reviewPPDBForm(
+    instansiId: number,
+    formId: number,
+    status: PPDBFormStatus,
+    reviewNotes: string,
+    reviewedBy: number,
+  ): Promise<PPDBForm> {
+    const form = await this.ppdbFormRepository.findOne({
+      where: { id: formId, instansiId },
+    });
+
+    if (!form) {
+      throw new Error('PPDB form not found');
+    }
+
+    form.status = status;
+    form.reviewNotes = reviewNotes;
+    form.reviewedAt = new Date();
+    form.reviewedBy = reviewedBy;
+
+    return await this.ppdbFormRepository.save(form);
+  }
+
+  // Public PPDB Info methods
+  async getPublicPpdbInfo(instansiId: number) {
+    // Get total registrations
+    const totalRegistrations = await this.ppdbRegistrationRepository.count({
+      where: { instansiId },
+    });
+
+    // Get registrations by status (public-friendly stats)
+    const acceptedCount = await this.ppdbRegistrationRepository.count({
+      where: { instansiId, status: RegistrationStatus.ACCEPTED },
+    });
+
+    const pendingCount = await this.ppdbRegistrationRepository.count({
+      where: { instansiId, status: RegistrationStatus.PENDING },
+    });
+
+    const registeredCount = await this.ppdbRegistrationRepository.count({
+      where: { instansiId, status: RegistrationStatus.REGISTERED },
+    });
+
+    // Get available interview schedules
+    const availableSchedules = await this.ppdbInterviewScheduleRepository.find({
+      where: {
+        instansiId,
+        status: ScheduleStatus.AVAILABLE,
+      },
+      order: { scheduleDate: 'ASC', startTime: 'ASC' },
+      take: 10, // Limit to 10 upcoming schedules
+    });
+
+    // Get registrations by path
+    const byPath = await this.ppdbRegistrationRepository
+      .createQueryBuilder('registration')
+      .select('registration.registrationPath', 'path')
+      .addSelect('COUNT(*)', 'count')
+      .where('registration.instansiId = :instansiId', { instansiId })
+      .groupBy('registration.registrationPath')
+      .getRawMany();
+
+    return {
+      totalRegistrations,
+      acceptedCount,
+      pendingCount,
+      registeredCount,
+      availableSchedules: availableSchedules.map(schedule => ({
+        id: schedule.id,
+        scheduleDate: schedule.scheduleDate,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+        location: schedule.location,
+        maxParticipants: schedule.maxParticipants,
+        currentParticipants: schedule.currentParticipants,
+        notes: schedule.notes,
+      })),
+      byPath: byPath.reduce((acc, item) => {
+        acc[item.path] = parseInt(item.count);
+        return acc;
+      }, {}),
+    };
+  }
+
+  // Download methods
+  async getAllDownloads(instansiId: number, category?: string) {
+    const where: any = { instansiId, isActive: true };
+    if (category) {
+      where.category = category;
+    }
+    return this.downloadRepository.find({
+      where,
+      order: { order: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
+  async getDownloadById(instansiId: number, id: number) {
+    const download = await this.downloadRepository.findOne({
+      where: { id, instansiId, isActive: true },
+    });
+
+    if (download) {
+      // Increment download count
+      download.downloadCount += 1;
+      await this.downloadRepository.save(download);
+    }
+
+    return download;
+  }
+
+  async getDownloadCategories(instansiId: number) {
+    const downloads = await this.downloadRepository.find({
+      where: { instansiId, isActive: true },
+      select: ['category'],
+    });
+
+    const categories = [...new Set(downloads.map(d => d.category).filter(Boolean))];
+    return categories;
   }
 }
 

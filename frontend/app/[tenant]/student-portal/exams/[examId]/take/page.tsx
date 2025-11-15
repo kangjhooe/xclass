@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useParams } from 'next/navigation';
-import TenantLayout from '@/components/layouts/TenantLayout';
+import StudentLayout from '@/components/layouts/StudentLayout';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { examsApi, ExamQuestion, ExamAttempt } from '@/lib/api/exams';
@@ -252,7 +252,7 @@ export default function TakeExamPage() {
 
   if (!studentId) {
     return (
-      <TenantLayout>
+      <StudentLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -267,38 +267,38 @@ export default function TakeExamPage() {
             </Button>
           </div>
         </div>
-      </TenantLayout>
+      </StudentLayout>
     );
   }
 
   if (startAttemptMutation.isPending || !attempt) {
     return (
-      <TenantLayout>
+      <StudentLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mb-4"></div>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
             <p className="text-gray-600">Memuat ujian...</p>
           </div>
         </div>
-      </TenantLayout>
+      </StudentLayout>
     );
   }
 
   if (isSubmitting) {
     return (
-      <TenantLayout>
+      <StudentLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mb-4"></div>
             <p className="text-gray-600">Mengirim jawaban...</p>
           </div>
         </div>
-      </TenantLayout>
+      </StudentLayout>
     );
   }
 
   return (
-    <TenantLayout>
+    <StudentLayout>
       <div className="space-y-6">
         {/* Header with Timer */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-6">
@@ -561,7 +561,7 @@ export default function TakeExamPage() {
           </div>
         </div>
       </Modal>
-    </TenantLayout>
+    </StudentLayout>
   );
 }
 

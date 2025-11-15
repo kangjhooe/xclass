@@ -8,6 +8,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store/auth';
 import { authApi, LoginPayload, LoginResponse } from '@/lib/api/auth';
 import { tenantApi } from '@/lib/api/tenant';
+import { checkRateLimit, getRateLimitMessage } from '@/lib/utils/rateLimit';
+import { trackLogin, trackFormSubmit } from '@/lib/analytics/ga';
 
 type VisibilityMap = Record<string, boolean>;
 
@@ -174,6 +176,14 @@ export default function LoginPage() {
     setError('');
     setSuccess('');
 
+    // Rate limiting check
+    const rateLimitKey = `login_${loginType}_${formData.email || formData.nik || 'unknown'}`;
+    const rateLimit = checkRateLimit(rateLimitKey, 5, 300000); // 5 attempts per 5 minutes
+    if (!rateLimit.allowed) {
+      setError(getRateLimitMessage(rateLimitKey, 5, 300000) || 'Terlalu banyak percobaan login. Silakan coba lagi nanti.');
+      return;
+    }
+
     // Validasi: minimal salah satu identifier harus diisi
     if (loginType === 'email' && !formData.email?.trim()) {
       setError('Email wajib diisi');
@@ -207,8 +217,13 @@ export default function LoginPage() {
     }
 
     try {
+      // Track login attempt
+      trackLogin(loginType);
+      
       const response = await loginMutation.mutateAsync(loginPayload);
       const { user: loggedInUser, access_token } = response;
+
+      trackFormSubmit('login', true);
 
       if (!loggedInUser || !access_token) {
         throw new Error('Response dari server tidak valid');
@@ -309,6 +324,7 @@ export default function LoginPage() {
       }
 
       setError(fallbackMessage);
+      trackFormSubmit('login', false);
     }
   };
 

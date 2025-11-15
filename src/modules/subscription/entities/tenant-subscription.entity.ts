@@ -11,6 +11,7 @@ import {
 import { Tenant } from '../../tenant/entities/tenant.entity';
 import { SubscriptionPlan } from './subscription-plan.entity';
 import { SubscriptionBillingHistory } from './subscription-billing-history.entity';
+import { PaymentGatewayTransaction } from './payment-gateway-transaction.entity';
 
 export enum SubscriptionStatus {
   ACTIVE = 'active',
@@ -95,11 +96,38 @@ export class TenantSubscription {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  // Trial fields
+  @Column({ type: 'boolean', default: false })
+  isTrial: boolean;
+
+  @Column({ type: 'date', nullable: true })
+  trialStartDate: Date;
+
+  @Column({ type: 'date', nullable: true })
+  trialEndDate: Date;
+
+  // Warning fields
+  @Column({ type: 'boolean', default: false })
+  warningSent: boolean;
+
+  @Column({ type: 'date', nullable: true })
+  warningSentAt: Date;
+
+  // Grace period fields
+  @Column({ type: 'date', nullable: true })
+  gracePeriodEndDate: Date;
+
   @OneToMany(
     () => SubscriptionBillingHistory,
     (billing) => billing.tenantSubscription,
   )
   billingHistory: SubscriptionBillingHistory[];
+
+  @OneToMany(
+    () => PaymentGatewayTransaction,
+    (payment) => payment.tenantSubscription,
+  )
+  paymentTransactions: PaymentGatewayTransaction[];
 
   @CreateDateColumn()
   createdAt: Date;

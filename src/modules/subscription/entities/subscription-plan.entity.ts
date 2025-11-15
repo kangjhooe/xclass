@@ -44,6 +44,9 @@ export class SubscriptionPlan {
   @Column({ type: 'json', nullable: true })
   features: string[];
 
+  @Column({ type: 'int', default: 0, comment: 'Storage limit in GB for this plan' })
+  storageLimitGB: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

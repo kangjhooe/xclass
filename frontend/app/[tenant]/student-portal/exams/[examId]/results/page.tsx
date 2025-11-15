@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useParams } from 'next/navigation';
-import TenantLayout from '@/components/layouts/TenantLayout';
+import StudentLayout from '@/components/layouts/StudentLayout';
 import { Button } from '@/components/ui/Button';
 import { examsApi, ExamAttempt, ExamQuestion } from '@/lib/api/exams';
 import { formatDate } from '@/lib/utils/date';
@@ -60,21 +60,21 @@ export default function ExamResultsPage() {
 
   if (attemptsLoading || examLoading || questionsLoading) {
     return (
-      <TenantLayout>
+      <StudentLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mb-4"></div>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
             <p className="text-gray-600">Memuat hasil ujian...</p>
           </div>
         </div>
-      </TenantLayout>
+      </StudentLayout>
     );
   }
 
   if (!attempt || !exam) {
     return (
-      <TenantLayout>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+      <StudentLayout>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -86,7 +86,7 @@ export default function ExamResultsPage() {
             Kembali ke Daftar Ujian
           </Button>
         </div>
-      </TenantLayout>
+      </StudentLayout>
     );
   }
 
@@ -105,7 +105,7 @@ export default function ExamResultsPage() {
   };
 
   return (
-    <TenantLayout>
+    <StudentLayout>
       <div className="space-y-6">
         {/* Results Summary */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-8">
@@ -255,7 +255,7 @@ export default function ExamResultsPage() {
           </div>
         )}
       </div>
-    </TenantLayout>
+    </StudentLayout>
   );
 }
 

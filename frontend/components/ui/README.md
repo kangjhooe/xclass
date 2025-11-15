@@ -1,5 +1,7 @@
 # UI Components Library
 
+**Version: 0.1**
+
 Koleksi komponen UI yang reusable, modern, dan menarik untuk aplikasi CLASS.
 
 ## 📦 Komponen yang Tersedia

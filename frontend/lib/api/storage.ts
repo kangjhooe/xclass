@@ -75,3 +75,83 @@ export const storageApi = {
     return `${apiUrl}/storage/${path}`;
   },
 };
+
+// Storage Quota Types
+export interface StorageQuota {
+  usageBytes: number;
+  limitBytes: number;
+  usageGB: number;
+  limitGB: number;
+  availableGB: number;
+  usagePercent: number;
+  baseLimitGB: number;
+  upgradeGB: number;
+  isWarning: boolean;
+  isCritical: boolean;
+  isFull: boolean;
+  canUpload: boolean;
+}
+
+export interface StorageUpgradePackage {
+  gb: number;
+  price: number;
+  pricePerGB: number;
+}
+
+export enum StorageUpgradeType {
+  PACKAGE = 'package',
+  CUSTOM = 'custom',
+}
+
+export interface StorageUpgrade {
+  id: number;
+  tenantId: number;
+  tenantSubscriptionId?: number;
+  upgradeType: StorageUpgradeType;
+  additionalStorageGB: number;
+  pricePerYear: number;
+  proRatedPrice: number;
+  status: 'pending' | 'active' | 'expired' | 'cancelled';
+  startDate: string;
+  endDate: string;
+  isPaid: boolean;
+  paidAt?: string;
+  paymentNotes?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateStorageUpgradeRequest {
+  upgradeType: StorageUpgradeType;
+  additionalGB: number;
+}
+
+// Storage Quota API
+export const storageQuotaApi = {
+  getQuota: async (tenantId: number): Promise<StorageQuota> => {
+    const response = await apiClient.get(`/tenants/${tenantId}/storage/quota`);
+    return response.data.data;
+  },
+
+  getUpgradePackages: async (tenantId: number): Promise<StorageUpgradePackage[]> => {
+    const response = await apiClient.get(`/tenants/${tenantId}/storage/quota/packages`);
+    return response.data.data;
+  },
+
+  createUpgrade: async (
+    tenantId: number,
+    data: CreateStorageUpgradeRequest
+  ): Promise<StorageUpgrade> => {
+    const response = await apiClient.post(
+      `/tenants/${tenantId}/storage/quota/upgrade`,
+      data
+    );
+    return response.data.data;
+  },
+
+  getActiveUpgrades: async (tenantId: number): Promise<StorageUpgrade[]> => {
+    const response = await apiClient.get(`/tenants/${tenantId}/storage/quota/upgrades`);
+    return response.data.data;
+  },
+};

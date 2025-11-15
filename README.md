@@ -1,5 +1,7 @@
 # CLASS - School Management System
 
+**Version: 0.1**
+
 Aplikasi manajemen sekolah berbasis NestJS (backend) dan Next.js (frontend).
 
 ## 🚀 Tech Stack

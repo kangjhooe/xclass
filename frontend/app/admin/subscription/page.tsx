@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Loading } from '@/components/ui/Loading';
 import { formatDate } from '@/lib/utils/date';
+import { PaymentGatewayModal } from '@/components/subscription/PaymentGatewayModal';
 
 export default function SubscriptionPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -34,6 +35,8 @@ export default function SubscriptionPage() {
     total: 0,
     totalPages: 0,
   });
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedSubscriptionForPayment, setSelectedSubscriptionForPayment] = useState<TenantSubscription | null>(null);
 
   useEffect(() => {
     loadData();
@@ -192,12 +195,33 @@ export default function SubscriptionPage() {
                   Tambah Plan
                 </Button>
               ) : (
-                <Button onClick={handleCreateSubscription} className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg">
-                  <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Tambah Subscription
-                </Button>
+                <>
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        await subscriptionApi.runAllMaintenance();
+                        alert('Maintenance tasks completed');
+                        loadData();
+                      } catch (error) {
+                        console.error('Error running maintenance:', error);
+                        alert('Gagal menjalankan maintenance tasks');
+                      }
+                    }}
+                    variant="outline"
+                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                  >
+                    <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Run Maintenance
+                  </Button>
+                  <Button onClick={handleCreateSubscription} className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg">
+                    <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Tambah Subscription
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -304,8 +328,48 @@ export default function SubscriptionPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {subscriptions.map((sub) => {
                     const tenant = tenants.find((t) => t.id === sub.tenantId);
+                    const effectiveEndDate = sub.isTrial && sub.trialEndDate ? sub.trialEndDate : sub.endDate;
+                    const daysUntilEnd = effectiveEndDate 
+                      ? Math.ceil((new Date(effectiveEndDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                      : 0;
+                    const isEndingSoon = daysUntilEnd <= 7 && daysUntilEnd > 0;
+                    const needsWarning = isEndingSoon && !sub.warningSent;
+                    
                     return (
-                      <tr key={sub.id} className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-200">
+                      <>
+                        {needsWarning && (
+                          <tr className="bg-yellow-50 border-yellow-200">
+                            <td colSpan={7} className="px-6 py-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                  </svg>
+                                  <span className="text-sm font-semibold text-yellow-800">
+                                    {tenant?.name || 'Tenant'} - {sub.isTrial ? 'Trial' : 'Subscription'} akan berakhir dalam {daysUntilEnd} hari
+                                  </span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={async () => {
+                                    try {
+                                      await subscriptionApi.resetWarning(sub.tenantId);
+                                      await subscriptionApi.checkWarnings();
+                                      loadData();
+                                    } catch (error) {
+                                      console.error('Error resetting warning:', error);
+                                    }
+                                  }}
+                                  className="border-yellow-600 text-yellow-700 hover:bg-yellow-100"
+                                >
+                                  Kirim Ulang Warning
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        <tr key={sub.id} className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-200">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
                             {tenant?.name || '-'}
@@ -318,29 +382,86 @@ export default function SubscriptionPage() {
                           {sub.subscriptionPlan?.name || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full shadow-sm ${
-                              sub.status === SubscriptionStatus.ACTIVE
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                                : sub.status === SubscriptionStatus.EXPIRED
-                                ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white'
-                                : 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white'
-                            }`}
-                          >
-                            {sub.status}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full shadow-sm ${
+                                sub.status === SubscriptionStatus.ACTIVE
+                                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                                  : sub.status === SubscriptionStatus.EXPIRED
+                                  ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white'
+                                  : 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white'
+                              }`}
+                            >
+                              {sub.status}
+                            </span>
+                            {sub.isTrial && sub.trialEndDate && new Date(sub.trialEndDate) > new Date() && (
+                              <span className="px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                Trial
+                              </span>
+                            )}
+                            {sub.warningSent && (
+                              <span className="px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Warning Sent
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {sub.currentStudentCount}
+                          <div>
+                            <div className="font-medium">{sub.currentStudentCount}</div>
+                            {sub.lockedPricePerStudent && (
+                              <div className="text-xs text-gray-400">
+                                @ Rp {sub.lockedPricePerStudent.toLocaleString('id-ID')}/siswa
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          Rp {sub.nextBillingAmount.toLocaleString('id-ID')}
+                          <div>
+                            {sub.isTrial ? (
+                              <div>
+                                <div className="text-green-600 font-semibold">GRATIS (Trial)</div>
+                                <div className="text-xs text-gray-400">
+                                  Setelah trial: Rp {sub.nextBillingAmount.toLocaleString('id-ID')}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="font-medium">
+                                Rp {sub.nextBillingAmount.toLocaleString('id-ID')}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(sub.endDate)}
+                          <div>
+                            {sub.isTrial && sub.trialEndDate ? (
+                              <div>
+                                <div className="font-medium text-blue-600">
+                                  Trial: {formatDate(sub.trialEndDate)}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  Billing: {formatDate(sub.endDate)}
+                                </div>
+                              </div>
+                            ) : (
+                              formatDate(sub.endDate)
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex gap-2">
+                            {!sub.isPaid && sub.nextBillingAmount > 0 && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedSubscriptionForPayment(sub);
+                                  setIsPaymentModalOpen(true);
+                                }}
+                                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                              >
+                                Bayar
+                              </Button>
+                            )}
                             {sub.status === SubscriptionStatus.ACTIVE ? (
                               <Button
                                 variant="outline"
@@ -570,6 +691,22 @@ export default function SubscriptionPage() {
             </div>
           </div>
         </Modal>
+
+        {/* Payment Gateway Modal */}
+        {selectedSubscriptionForPayment && (
+          <PaymentGatewayModal
+            isOpen={isPaymentModalOpen}
+            onClose={() => {
+              setIsPaymentModalOpen(false);
+              setSelectedSubscriptionForPayment(null);
+            }}
+            tenantId={selectedSubscriptionForPayment.tenantId}
+            amount={selectedSubscriptionForPayment.nextBillingAmount || selectedSubscriptionForPayment.currentBillingAmount}
+            onPaymentSuccess={() => {
+              loadData();
+            }}
+          />
+        )}
       </div>
     </AdminLayout>
   );

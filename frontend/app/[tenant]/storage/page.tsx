@@ -5,14 +5,19 @@ import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { storageApi, StorageFile, StorageFileCreateData } from '@/lib/api/storage';
+import { storageApi, StorageFile, StorageFileCreateData, storageQuotaApi, StorageQuota, StorageUpgradePackage, StorageUpgradeType, CreateStorageUpgradeRequest } from '@/lib/api/storage';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
+import { AlertCircle, HardDrive, TrendingUp, Package, Zap } from 'lucide-react';
 
 export default function StoragePage() {
   const tenantId = useTenantId();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeType, setUpgradeType] = useState<'package' | 'custom'>('package');
+  const [selectedPackage, setSelectedPackage] = useState<StorageUpgradePackage | null>(null);
+  const [customGB, setCustomGB] = useState<number>(10);
   const [selectedFile, setSelectedFile] = useState<StorageFile | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [uploadData, setUploadData] = useState<StorageFileCreateData>({
@@ -28,6 +33,35 @@ export default function StoragePage() {
     queryKey: ['storage', tenantId],
     queryFn: () => storageApi.getAll(tenantId!),
     enabled: !!tenantId,
+  });
+
+  const { data: quota, isLoading: quotaLoading } = useQuery({
+    queryKey: ['storage-quota', tenantId],
+    queryFn: () => storageQuotaApi.getQuota(tenantId!),
+    enabled: !!tenantId,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const { data: upgradePackages } = useQuery({
+    queryKey: ['storage-upgrade-packages', tenantId],
+    queryFn: () => storageQuotaApi.getUpgradePackages(tenantId!),
+    enabled: !!tenantId,
+  });
+
+  const upgradeMutation = useMutation({
+    mutationFn: (data: CreateStorageUpgradeRequest) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return storageQuotaApi.createUpgrade(tenantId, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['storage-quota', tenantId] });
+      setIsUpgradeModalOpen(false);
+      setSelectedPackage(null);
+      setCustomGB(10);
+      setUpgradeType('package');
+    },
   });
 
   const uploadMutation = useMutation({
@@ -127,6 +161,93 @@ export default function StoragePage() {
             </Button>
           </div>
         </div>
+
+        {/* Storage Quota Section */}
+        {quota && (
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <HardDrive className="w-6 h-6 text-blue-600" />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">Storage Quota</h2>
+                  <p className="text-sm text-gray-600">
+                    {quota.usageGB.toFixed(2)} GB / {quota.limitGB.toFixed(2)} GB digunakan
+                    {quota.upgradeGB > 0 && ` (+${quota.upgradeGB.toFixed(2)} GB upgrade)`}
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setIsUpgradeModalOpen(true)}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Upgrade Storage
+              </Button>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  {quota.availableGB.toFixed(2)} GB tersedia
+                </span>
+                <span className={`text-sm font-bold ${
+                  quota.isCritical ? 'text-red-600' : 
+                  quota.isWarning ? 'text-yellow-600' : 
+                  'text-green-600'
+                }`}>
+                  {quota.usagePercent.toFixed(1)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    quota.isFull ? 'bg-red-500' :
+                    quota.isCritical ? 'bg-red-400' :
+                    quota.isWarning ? 'bg-yellow-400' :
+                    'bg-gradient-to-r from-blue-500 to-green-500'
+                  }`}
+                  style={{ width: `${Math.min(quota.usagePercent, 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Warning Messages */}
+            {quota.isFull && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-800">Storage Penuh</p>
+                  <p className="text-sm text-red-600 mt-1">
+                    Storage quota Anda sudah penuh. Silakan upgrade storage atau hapus file yang tidak diperlukan.
+                  </p>
+                </div>
+              </div>
+            )}
+            {quota.isCritical && !quota.isFull && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-yellow-800">Storage Hampir Penuh</p>
+                  <p className="text-sm text-yellow-600 mt-1">
+                    Storage quota Anda sudah mencapai {quota.usagePercent.toFixed(1)}%. Pertimbangkan untuk upgrade storage.
+                  </p>
+                </div>
+              </div>
+            )}
+            {quota.isWarning && !quota.isCritical && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-800">Storage Mencapai 80%</p>
+                  <p className="text-sm text-blue-600 mt-1">
+                    Storage quota Anda sudah mencapai {quota.usagePercent.toFixed(1)}%.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
@@ -323,6 +444,206 @@ export default function StoragePage() {
                 }}
               >
                 Tutup
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Upgrade Storage Modal */}
+        <Modal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => {
+            setIsUpgradeModalOpen(false);
+            setSelectedPackage(null);
+            setCustomGB(10);
+            setUpgradeType('package');
+          }}
+          title="Upgrade Storage"
+          size="lg"
+        >
+          <div className="space-y-6">
+            {/* Upgrade Type Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Pilih Tipe Upgrade
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setUpgradeType('package')}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    upgradeType === 'package'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Package className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                  <p className="font-medium">Paket (Lebih Hemat)</p>
+                  <p className="text-xs text-gray-600 mt-1">Harga lebih murah per GB</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUpgradeType('custom')}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    upgradeType === 'custom'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Zap className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                  <p className="font-medium">Custom (Fleksibel)</p>
+                  <p className="text-xs text-gray-600 mt-1">Pilih jumlah GB sendiri</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Package Selection */}
+            {upgradeType === 'package' && upgradePackages && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Pilih Paket
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {upgradePackages.map((pkg) => (
+                    <button
+                      key={pkg.gb}
+                      type="button"
+                      onClick={() => setSelectedPackage(pkg)}
+                      className={`p-4 rounded-lg border-2 transition-all text-left ${
+                        selectedPackage?.gb === pkg.gb
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-lg">+{pkg.gb} GB</span>
+                        {selectedPackage?.gb === pkg.gb && (
+                          <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-2xl font-bold text-blue-600">
+                        Rp {pkg.price.toLocaleString('id-ID')}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Rp {pkg.pricePerGB.toLocaleString('id-ID')}/GB/tahun
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom GB Input */}
+            {upgradeType === 'custom' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Jumlah GB Tambahan
+                </label>
+                <input
+                  type="number"
+                  min={10}
+                  step={1}
+                  value={customGB}
+                  onChange={(e) => setCustomGB(Math.max(10, parseInt(e.target.value) || 10))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  Minimal 10 GB. Harga: Rp {(customGB * 5000).toLocaleString('id-ID')}/tahun
+                  (Rp 5.000/GB/tahun)
+                </p>
+              </div>
+            )}
+
+            {/* Summary */}
+            {(selectedPackage || (upgradeType === 'custom' && customGB >= 10)) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Ringkasan Upgrade</p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Tambahan Storage:</span>
+                    <span className="font-medium">
+                      +{upgradeType === 'package' ? selectedPackage?.gb : customGB} GB
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Harga per Tahun:</span>
+                    <span className="font-medium">
+                      Rp{' '}
+                      {(
+                        upgradeType === 'package'
+                          ? selectedPackage?.price || 0
+                          : customGB * 5000
+                      ).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-blue-200">
+                    <div className="flex justify-between font-bold">
+                      <span>Total (Pro-rated):</span>
+                      <span className="text-blue-600">
+                        Rp{' '}
+                        {(
+                          upgradeType === 'package'
+                            ? selectedPackage?.price || 0
+                            : customGB * 5000
+                        ).toLocaleString('id-ID')}
+                        /tahun
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      * Harga akan dihitung pro-rated untuk sisa periode subscription
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {upgradeMutation.isPending && (
+              <div className="text-center py-4">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-2 text-sm text-gray-600">Memproses upgrade...</p>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsUpgradeModalOpen(false);
+                  setSelectedPackage(null);
+                  setCustomGB(10);
+                  setUpgradeType('package');
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (upgradeType === 'package' && selectedPackage) {
+                    upgradeMutation.mutate({
+                      upgradeType: StorageUpgradeType.PACKAGE,
+                      additionalGB: selectedPackage.gb,
+                    });
+                  } else if (upgradeType === 'custom' && customGB >= 10) {
+                    upgradeMutation.mutate({
+                      upgradeType: StorageUpgradeType.CUSTOM,
+                      additionalGB: customGB,
+                    });
+                  }
+                }}
+                disabled={
+                  (upgradeType === 'package' && !selectedPackage) ||
+                  (upgradeType === 'custom' && customGB < 10) ||
+                  upgradeMutation.isPending
+                }
+                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+              >
+                Upgrade Sekarang
               </Button>
             </div>
           </div>

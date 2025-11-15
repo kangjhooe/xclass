@@ -32,6 +32,15 @@ export class Tenant {
   @Column({ type: 'json', nullable: true })
   settings: Record<string, any>;
 
+  @Column({ type: 'bigint', default: 0, comment: 'Storage usage in bytes' })
+  storageUsageBytes: number;
+
+  @Column({ type: 'bigint', default: 0, comment: 'Storage limit in bytes (base + upgrade)' })
+  storageLimitBytes: number;
+
+  @Column({ type: 'bigint', default: 0, comment: 'Additional storage from upgrades in bytes' })
+  storageUpgradeBytes: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

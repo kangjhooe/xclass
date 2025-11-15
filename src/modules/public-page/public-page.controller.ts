@@ -1,8 +1,10 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
   Query,
+  Body,
 } from '@nestjs/common';
 import { PublicPageService } from './public-page.service';
 import { TenantId } from '../../common/decorators/tenant.decorator';
@@ -80,6 +82,56 @@ export class PublicPageController {
   @Get('profile')
   getTenantProfile(@TenantId() instansiId: number) {
     return this.publicPageService.getTenantProfile(instansiId);
+  }
+
+  // Contact Form (Public - no auth required)
+  @Post('contact')
+  submitContactForm(
+    @TenantId() instansiId: number,
+    @Body() body: {
+      name: string;
+      email: string;
+      phone?: string;
+      subject: string;
+      message: string;
+      metadata?: Record<string, any>;
+    },
+  ) {
+    return this.publicPageService.submitContactForm(instansiId, body);
+  }
+
+  // PPDB Form (Public - no auth required)
+  @Post('ppdb')
+  submitPPDBForm(@TenantId() instansiId: number, @Body() body: any) {
+    return this.publicPageService.submitPPDBForm(instansiId, body);
+  }
+
+  // Public PPDB Info
+  @Get('ppdb/info')
+  getPublicPpdbInfo(@TenantId() instansiId: number) {
+    return this.publicPageService.getPublicPpdbInfo(instansiId);
+  }
+
+  // Downloads
+  @Get('downloads')
+  getAllDownloads(
+    @TenantId() instansiId: number,
+    @Query('category') category?: string,
+  ) {
+    return this.publicPageService.getAllDownloads(instansiId, category);
+  }
+
+  @Get('downloads/categories')
+  getDownloadCategories(@TenantId() instansiId: number) {
+    return this.publicPageService.getDownloadCategories(instansiId);
+  }
+
+  @Get('downloads/:id')
+  getDownloadById(
+    @TenantId() instansiId: number,
+    @Param('id') id: string,
+  ) {
+    return this.publicPageService.getDownloadById(instansiId, +id);
   }
 }
 

@@ -2,9 +2,13 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
+  Optional,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, LessThan } from 'typeorm';
+import { Repository, MoreThan, LessThan, LessThanOrEqual } from 'typeorm';
 import { SubscriptionPlan } from './entities/subscription-plan.entity';
 import {
   TenantSubscription,
@@ -13,9 +17,13 @@ import {
 } from './entities/tenant-subscription.entity';
 import { SubscriptionBillingHistory, BillingType } from './entities/subscription-billing-history.entity';
 import { Tenant } from '../tenant/entities/tenant.entity';
+import { StorageQuotaService } from '../storage/storage-quota.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SubscriptionService {
+  private readonly logger = new Logger(SubscriptionService.name);
+
   constructor(
     @InjectRepository(SubscriptionPlan)
     private subscriptionPlanRepository: Repository<SubscriptionPlan>,
@@ -25,6 +33,12 @@ export class SubscriptionService {
     private billingHistoryRepository: Repository<SubscriptionBillingHistory>,
     @InjectRepository(Tenant)
     private tenantRepository: Repository<Tenant>,
+    @Inject(forwardRef(() => StorageQuotaService))
+    @Optional()
+    private storageQuotaService?: StorageQuotaService,
+    @Inject(forwardRef(() => NotificationsService))
+    @Optional()
+    private notificationsService?: NotificationsService,
   ) {}
 
   // Subscription Plans
@@ -119,6 +133,28 @@ export class SubscriptionService {
 
     const plan = await this.getPlan(subscriptionPlanId);
 
+    // Validate dates
+    if (startDate >= endDate) {
+      throw new BadRequestException('Start date must be before end date');
+    }
+
+    // Validate student count
+    if (initialStudentCount < 0) {
+      throw new BadRequestException('Student count cannot be negative');
+    }
+
+    if (plan.maxStudents && initialStudentCount > plan.maxStudents) {
+      throw new BadRequestException(
+        `Student count (${initialStudentCount}) exceeds plan maximum (${plan.maxStudents})`,
+      );
+    }
+
+    if (initialStudentCount < plan.minStudents) {
+      throw new BadRequestException(
+        `Student count (${initialStudentCount}) is below plan minimum (${plan.minStudents})`,
+      );
+    }
+
     // Check if tenant already has active subscription
     const existing = await this.tenantSubscriptionRepository.findOne({
       where: {
@@ -135,22 +171,47 @@ export class SubscriptionService {
     // Determine locked price based on initial student count
     const lockedPrice = this.determineLockedPrice(initialStudentCount, plan);
 
+    // Setup trial period for paid plans (1 month free trial)
+    const now = new Date();
+    const trialEndDate = new Date(now);
+    trialEndDate.setMonth(trialEndDate.getMonth() + 1);
+    
+    const isTrial = !plan.isFree && initialStudentCount >= 50;
+    const actualStartDate = isTrial ? trialEndDate : startDate;
+    const actualEndDate = isTrial 
+      ? new Date(trialEndDate.getTime() + (endDate.getTime() - startDate.getTime()))
+      : endDate;
+
     const subscription = this.tenantSubscriptionRepository.create({
       tenantId,
       subscriptionPlanId,
-      startDate,
-      endDate,
-      nextBillingDate: endDate,
+      startDate: actualStartDate,
+      endDate: actualEndDate,
+      nextBillingDate: actualEndDate,
       status: SubscriptionStatus.ACTIVE,
       billingCycle: BillingCycle.YEARLY,
       currentStudentCount: initialStudentCount,
       studentCountAtBilling: initialStudentCount,
       lockedPricePerStudent: lockedPrice,
-      currentBillingAmount: plan.isFree ? 0 : initialStudentCount * lockedPrice,
+      currentBillingAmount: plan.isFree ? 0 : (isTrial ? 0 : initialStudentCount * lockedPrice),
       nextBillingAmount: plan.isFree ? 0 : initialStudentCount * lockedPrice,
+      // Trial fields
+      isTrial,
+      trialStartDate: isTrial ? now : null,
+      trialEndDate: isTrial ? trialEndDate : null,
+      warningSent: false,
+      warningSentAt: null,
+      gracePeriodEndDate: null,
     });
 
-    return this.tenantSubscriptionRepository.save(subscription);
+    const savedSubscription = await this.tenantSubscriptionRepository.save(subscription);
+
+    // Update storage limit based on student count
+    if (this.storageQuotaService) {
+      await this.storageQuotaService.updateStorageLimitForTenant(tenantId);
+    }
+
+    return savedSubscription;
   }
 
   async updateSubscription(
@@ -245,7 +306,14 @@ export class SubscriptionService {
       ? 0 
       : studentCount * lockedPrice;
 
-    return this.tenantSubscriptionRepository.save(subscription);
+    const savedSubscription = await this.tenantSubscriptionRepository.save(subscription);
+
+    // Update storage limit based on new student count
+    if (this.storageQuotaService) {
+      await this.storageQuotaService.updateStorageLimitForTenant(tenantId);
+    }
+
+    return savedSubscription;
   }
 
   async suspendSubscription(tenantId: number) {
@@ -484,6 +552,356 @@ export class SubscriptionService {
     subscription.studentCountAtBilling = subscription.currentStudentCount;
     subscription.pendingStudentIncrease = 0;
     subscription.currentBillingAmount += billingAmount;
+  }
+
+  /**
+   * Check and convert trial subscriptions to paid
+   */
+  async checkAndConvertTrials(): Promise<void> {
+    const now = new Date();
+    const subscriptions = await this.tenantSubscriptionRepository.find({
+      where: {
+        isTrial: true,
+        status: SubscriptionStatus.ACTIVE,
+      },
+      relations: ['tenant', 'subscriptionPlan'],
+    });
+
+    for (const subscription of subscriptions) {
+      if (subscription.trialEndDate && subscription.trialEndDate <= now) {
+        await this.convertTrialToPaid(subscription.id);
+      }
+    }
+  }
+
+  /**
+   * Convert trial subscription to paid
+   */
+  async convertTrialToPaid(subscriptionId: number): Promise<TenantSubscription> {
+    const subscription = await this.tenantSubscriptionRepository.findOne({
+      where: { id: subscriptionId },
+      relations: ['tenant', 'subscriptionPlan'],
+    });
+
+    if (!subscription || !subscription.isTrial) {
+      throw new BadRequestException('Subscription is not in trial period');
+    }
+
+    const plan = await this.getPlan(subscription.subscriptionPlanId);
+    const lockedPrice = subscription.lockedPricePerStudent || plan.pricePerStudentPerYear;
+
+    // Convert to paid
+    subscription.isTrial = false;
+    subscription.currentBillingAmount = subscription.currentStudentCount * lockedPrice;
+    subscription.nextBillingAmount = subscription.currentStudentCount * lockedPrice;
+    subscription.trialEndDate = null;
+
+    // Set grace period end date (7 days after trial ends)
+    const gracePeriodEnd = new Date();
+    gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 7);
+    subscription.gracePeriodEndDate = gracePeriodEnd;
+
+    const saved = await this.tenantSubscriptionRepository.save(subscription);
+
+    this.logger.log(
+      `Trial converted to paid for tenant ${subscription.tenantId}, subscription ${subscriptionId}`,
+    );
+
+    return saved;
+  }
+
+  /**
+   * Check subscriptions that need warnings and send notifications
+   */
+  async checkAndSendWarnings(): Promise<void> {
+    const now = new Date();
+    const warningDate = new Date(now);
+    warningDate.setDate(warningDate.getDate() + 7); // 7 days from now
+
+    // Find subscriptions that need warnings
+    const subscriptions = await this.tenantSubscriptionRepository.find({
+      where: [
+        // Trial ending soon
+        {
+          isTrial: true,
+          status: SubscriptionStatus.ACTIVE,
+          warningSent: false,
+          trialEndDate: LessThanOrEqual(warningDate),
+        },
+        // Billing ending soon
+        {
+          isTrial: false,
+          status: SubscriptionStatus.ACTIVE,
+          warningSent: false,
+          endDate: LessThanOrEqual(warningDate),
+        },
+      ],
+      relations: ['tenant', 'subscriptionPlan'],
+    });
+
+    for (const subscription of subscriptions) {
+      await this.sendWarningNotification(subscription);
+    }
+
+    this.logger.log(`Checked ${subscriptions.length} subscriptions for warnings`);
+  }
+
+  /**
+   * Send warning notification for subscription
+   */
+  async sendWarningNotification(subscription: TenantSubscription): Promise<void> {
+    if (!this.notificationsService) {
+      this.logger.warn('NotificationsService not available, skipping warning');
+      return;
+    }
+
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: subscription.tenantId },
+    });
+
+    if (!tenant || !tenant.email) {
+      this.logger.warn(`No email found for tenant ${subscription.tenantId}`);
+      return;
+    }
+
+    const plan = await this.getPlan(subscription.subscriptionPlanId);
+    const effectiveEndDate = subscription.isTrial
+      ? subscription.trialEndDate
+      : subscription.endDate;
+    
+    const daysUntilEnd = effectiveEndDate
+      ? Math.ceil((effectiveEndDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+
+    let subject: string;
+    let content: string;
+
+    if (subscription.isTrial) {
+      subject = `Peringatan: Trial Period Akan Berakhir - ${tenant.name}`;
+      content = this.generateTrialWarningEmail(
+        tenant.name,
+        effectiveEndDate,
+        daysUntilEnd,
+        subscription.nextBillingAmount,
+        subscription.currentStudentCount,
+        subscription.lockedPricePerStudent || plan.pricePerStudentPerYear,
+      );
+    } else {
+      subject = `Peringatan: Subscription Akan Berakhir - ${tenant.name}`;
+      content = this.generateBillingWarningEmail(
+        tenant.name,
+        effectiveEndDate,
+        daysUntilEnd,
+        subscription.nextBillingAmount,
+      );
+    }
+
+    try {
+      // Send email notification
+      await this.notificationsService.sendEmail(
+        subscription.tenantId,
+        0, // System user
+        tenant.email,
+        subject,
+        content,
+      );
+
+      // Create in-app notification for all tenant admins
+      try {
+        const { User } = await import('../users/entities/user.entity');
+        const usersRepo = this.tenantRepository.manager.getRepository(User);
+        
+        const adminUsers = await usersRepo.find({
+          where: {
+            instansiId: subscription.tenantId,
+            role: 'admin_tenant',
+          },
+        });
+
+        for (const user of adminUsers) {
+          try {
+            await this.notificationsService.sendInApp(
+              subscription.tenantId,
+              user.id,
+              subscription.isTrial ? 'Trial Period Akan Berakhir' : 'Subscription Akan Berakhir',
+              subscription.isTrial
+                ? `Trial period akan berakhir dalam ${daysUntilEnd} hari. Setelah trial berakhir, subscription akan dikenakan biaya sebesar Rp ${subscription.nextBillingAmount.toLocaleString('id-ID')}/tahun.`
+                : `Subscription akan berakhir dalam ${daysUntilEnd} hari. Biaya renewal: Rp ${subscription.nextBillingAmount.toLocaleString('id-ID')}/tahun.`,
+            );
+          } catch (inAppError) {
+            this.logger.warn(`Failed to send in-app notification to user ${user.id}: ${inAppError.message}`);
+          }
+        }
+      } catch (inAppError) {
+        this.logger.warn(`Failed to send in-app notifications: ${inAppError.message}`);
+        // Don't fail the whole process if in-app notification fails
+      }
+
+      // Mark warning as sent
+      subscription.warningSent = true;
+      subscription.warningSentAt = new Date();
+      await this.tenantSubscriptionRepository.save(subscription);
+
+      this.logger.log(`Warning sent to tenant ${subscription.tenantId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send warning to tenant ${subscription.tenantId}: ${error.message}`,
+      );
+      // Don't throw - continue processing other subscriptions
+    }
+  }
+
+  /**
+   * Generate trial warning email content
+   */
+  private generateTrialWarningEmail(
+    tenantName: string,
+    trialEndDate: Date,
+    daysUntilEnd: number,
+    billingAmount: number,
+    studentCount: number,
+    pricePerStudent: number,
+  ): string {
+    const formattedDate = trialEndDate.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">Peringatan: Trial Period Akan Berakhir</h2>
+        <p>Yth. ${tenantName},</p>
+        <p>Trial period Anda akan berakhir dalam <strong>${daysUntilEnd} hari</strong> (${formattedDate}).</p>
+        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Detail Subscription:</h3>
+          <ul style="list-style: none; padding: 0;">
+            <li><strong>Jumlah Siswa:</strong> ${studentCount}</li>
+            <li><strong>Harga per Siswa:</strong> Rp ${pricePerStudent.toLocaleString('id-ID')}/tahun</li>
+            <li><strong>Total Billing:</strong> Rp ${billingAmount.toLocaleString('id-ID')}/tahun</li>
+            <li><strong>Trial Berakhir:</strong> ${formattedDate}</li>
+          </ul>
+        </div>
+        <p>Setelah trial berakhir, subscription akan dikenakan biaya sebesar <strong>Rp ${billingAmount.toLocaleString('id-ID')}</strong> per tahun.</p>
+        <p>Silakan siapkan pembayaran untuk melanjutkan layanan.</p>
+        <p style="margin-top: 30px;">Terima kasih,<br>Tim XClass</p>
+      </div>
+    `;
+  }
+
+  /**
+   * Generate billing warning email content
+   */
+  private generateBillingWarningEmail(
+    tenantName: string,
+    endDate: Date,
+    daysUntilEnd: number,
+    billingAmount: number,
+  ): string {
+    const formattedDate = endDate.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">Peringatan: Subscription Akan Berakhir</h2>
+        <p>Yth. ${tenantName},</p>
+        <p>Subscription Anda akan berakhir dalam <strong>${daysUntilEnd} hari</strong> (${formattedDate}).</p>
+        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Detail Renewal:</h3>
+          <ul style="list-style: none; padding: 0;">
+            <li><strong>Biaya Renewal:</strong> Rp ${billingAmount.toLocaleString('id-ID')}/tahun</li>
+            <li><strong>Tanggal Berakhir:</strong> ${formattedDate}</li>
+          </ul>
+        </div>
+        <p>Silakan lakukan pembayaran untuk memperpanjang subscription.</p>
+        <p style="margin-top: 30px;">Terima kasih,<br>Tim XClass</p>
+      </div>
+    `;
+  }
+
+  /**
+   * Check and handle expired subscriptions (grace period)
+   */
+  async checkAndHandleExpiredSubscriptions(): Promise<void> {
+    const now = new Date();
+    
+    // Find subscriptions that are expired but not yet suspended
+    const expiredSubscriptions = await this.tenantSubscriptionRepository.find({
+      where: {
+        status: SubscriptionStatus.ACTIVE,
+        endDate: LessThan(now),
+      },
+      relations: ['tenant', 'subscriptionPlan'],
+    });
+
+    for (const subscription of expiredSubscriptions) {
+      // Set grace period if not set yet (7 days)
+      if (!subscription.gracePeriodEndDate) {
+        const gracePeriodEnd = new Date(subscription.endDate);
+        gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 7);
+        subscription.gracePeriodEndDate = gracePeriodEnd;
+        await this.tenantSubscriptionRepository.save(subscription);
+      }
+
+      // Suspend if grace period ended
+      if (
+        subscription.gracePeriodEndDate &&
+        subscription.gracePeriodEndDate < now
+      ) {
+        subscription.status = SubscriptionStatus.SUSPENDED;
+        await this.tenantSubscriptionRepository.save(subscription);
+        this.logger.log(
+          `Subscription ${subscription.id} suspended after grace period`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Helper: Check if subscription is in trial
+   */
+  isInTrial(subscription: TenantSubscription): boolean {
+    if (!subscription.isTrial || !subscription.trialEndDate) return false;
+    return new Date() < subscription.trialEndDate;
+  }
+
+  /**
+   * Helper: Check if subscription is ending soon (7 days)
+   */
+  isEndingSoon(subscription: TenantSubscription): boolean {
+    const effectiveEndDate = subscription.isTrial
+      ? subscription.trialEndDate
+      : subscription.endDate;
+    
+    if (!effectiveEndDate) return false;
+    
+    const daysUntilEnd = Math.ceil(
+      (effectiveEndDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+    );
+    
+    return daysUntilEnd <= 7 && daysUntilEnd > 0;
+  }
+
+  /**
+   * Helper: Get days until effective end (trial or billing)
+   */
+  getDaysUntilEffectiveEnd(subscription: TenantSubscription): number {
+    const effectiveEndDate = subscription.isTrial
+      ? subscription.trialEndDate
+      : subscription.endDate;
+    
+    if (!effectiveEndDate) return 0;
+    
+    const days = Math.ceil(
+      (effectiveEndDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+    );
+    
+    return Math.max(0, days);
   }
 }
 
