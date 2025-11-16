@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
 import { authApi, RegisterPayload } from '@/lib/api/auth';
+import { useRecaptcha } from '@/lib/utils/recaptcha';
+import { checkRateLimit, getRateLimitMessage } from '@/lib/utils/rateLimit';
+import { trackRegistration, trackFormSubmit } from '@/lib/analytics/ga';
 
 type VisibilityMap = Record<string, boolean>;
 
