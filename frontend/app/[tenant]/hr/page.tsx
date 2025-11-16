@@ -6,13 +6,14 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { hrApi, Employee, EmployeeCreateData, Attendance, AttendanceCreateData } from '@/lib/api/hr';
+import { PositionsSection } from './positions-section';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function HrPage() {
   const tenantId = useTenantId();
-  const [activeTab, setActiveTab] = useState<'employees' | 'attendance'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'positions'>('employees');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -186,7 +187,7 @@ export default function HrPage() {
               </h1>
               <p className="text-gray-600">Manajemen sumber daya manusia</p>
             </div>
-            {activeTab === 'employees' ? (
+            {activeTab === 'employees' && (
               <Button
                 onClick={() => {
                   resetForm();
@@ -199,7 +200,8 @@ export default function HrPage() {
                 </svg>
                 Tambah Karyawan
               </Button>
-            ) : (
+            )}
+            {activeTab === 'attendance' && (
               <Button
                 onClick={() => {
                   resetAttendanceForm();
@@ -282,10 +284,20 @@ export default function HrPage() {
             >
               Absensi
             </button>
+            <button
+              onClick={() => setActiveTab('positions')}
+              className={`flex-1 px-6 py-4 text-center font-semibold transition-all duration-200 ${
+                activeTab === 'positions'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Jabatan
+            </button>
           </div>
         </div>
 
-        {activeTab === 'employees' ? (
+        {activeTab === 'employees' && (
           <>
             {employeesLoading ? (
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
@@ -537,7 +549,8 @@ export default function HrPage() {
               </form>
             </Modal>
           </>
-        ) : (
+        )}
+        {activeTab === 'attendance' && (
           <>
             {attendanceLoading ? (
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
@@ -720,6 +733,9 @@ export default function HrPage() {
               </form>
             </Modal>
           </>
+        )}
+        {activeTab === 'positions' && (
+          <PositionsSection />
         )}
       </div>
     </TenantLayout>
