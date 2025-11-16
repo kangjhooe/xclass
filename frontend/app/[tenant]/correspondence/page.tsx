@@ -1114,7 +1114,6 @@ export default function CorrespondencePage() {
             </Button>
           </div>
         </form>
-        )}
       </Modal>
 
       <Modal
@@ -1702,7 +1701,8 @@ export default function CorrespondencePage() {
               </Button>
             </div>
           </form>
-        </Modal>
+        )}
+      </Modal>
 
       {/* Sequence Management Modal */}
       <Modal

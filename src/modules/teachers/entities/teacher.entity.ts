@@ -4,7 +4,9 @@ import {
   Column,
   OneToMany,
   ManyToMany,
+  ManyToOne,
   JoinTable,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -25,6 +27,7 @@ import { QuestionShare } from '../../exams/entities/question-share.entity';
 import { GradeConversion } from '../../exams/entities/grade-conversion.entity';
 import { Stimulus } from '../../exams/entities/stimulus.entity';
 import { ExamSchedule } from '../../exams/entities/exam-schedule.entity';
+import { Position } from '../../hr/entities/position.entity';
 
 @Entity('teachers')
 export class Teacher {
@@ -319,11 +322,18 @@ export class Teacher {
   @Column()
   instansiId: number;
 
+  @Column({ name: 'position_id', nullable: true })
+  positionId: number;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToOne(() => Position, { nullable: true })
+  @JoinColumn({ name: 'position_id' })
+  position: Position;
 
   @OneToMany(() => ClassRoom, (classRoom) => classRoom.homeroomTeacher)
   classRooms: ClassRoom[];

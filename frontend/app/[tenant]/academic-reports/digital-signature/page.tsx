@@ -60,11 +60,13 @@ export default function DigitalSignaturePage() {
     },
   });
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    const file = files[0];
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
-      setFormData({ ...formData, signatureImage: base64String });
+      setFormData((prev) => ({ ...prev, signatureImage: base64String }));
     };
     reader.readAsDataURL(file);
   };
@@ -249,7 +251,7 @@ export default function DigitalSignaturePage() {
             resetForm();
           }}
           title="Tambah Signature Baru"
-          size="large"
+          size="xl"
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <Select
@@ -278,8 +280,9 @@ export default function DigitalSignaturePage() {
               </label>
               <FileUpload
                 accept="image/*"
-                onFileSelect={handleFileUpload}
-                maxSize={2 * 1024 * 1024} // 2MB
+                onUpload={handleFileUpload}
+                maxSize={2} // 2MB
+                multiple={false}
               />
               {formData.signatureImage && (
                 <div className="mt-3">

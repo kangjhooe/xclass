@@ -5,6 +5,7 @@ import { Employee } from './entities/employee.entity';
 import { Payroll } from './entities/payroll.entity';
 import { Department } from './entities/department.entity';
 import { Position } from './entities/position.entity';
+import { PositionModule } from './entities/position-module.entity';
 import { PerformanceReview } from './entities/performance-review.entity';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
@@ -14,6 +15,8 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { CreatePositionDto } from './dto/create-position.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
+import { CreatePositionModuleDto } from './dto/create-position-module.dto';
+import { UpdatePositionModuleDto } from './dto/update-position-module.dto';
 import { CreatePerformanceReviewDto } from './dto/create-performance-review.dto';
 import { PayrollItem } from './entities/payroll-item.entity';
 
@@ -28,6 +31,8 @@ export class HrService {
     private departmentRepository: Repository<Department>,
     @InjectRepository(Position)
     private positionRepository: Repository<Position>,
+    @InjectRepository(PositionModule)
+    private positionModuleRepository: Repository<PositionModule>,
     @InjectRepository(PerformanceReview)
     private performanceReviewRepository: Repository<PerformanceReview>,
     @InjectRepository(PayrollItem)
@@ -333,5 +338,73 @@ export class HrService {
   async removePerformanceReview(id: number, instansiId: number): Promise<void> {
     await this.findOnePerformanceReview(id, instansiId);
     await this.performanceReviewRepository.delete(id);
+  }
+
+  // Position Module CRUD
+  async createPositionModule(createDto: CreatePositionModuleDto, instansiId: number): Promise<PositionModule> {
+    // Verify position exists and belongs to tenant
+    const position = await this.findOnePosition(createDto.positionId, instansiId);
+    
+    const positionModule = this.positionModuleRepository.create({
+      ...createDto,
+    });
+    return await this.positionModuleRepository.save(positionModule);
+  }
+
+  async findAllPositionModules(positionId?: number, instansiId?: number): Promise<PositionModule[]> {
+    const query = this.positionModuleRepository
+      .createQueryBuilder('pm')
+      .leftJoinAndSelect('pm.position', 'position');
+
+    if (positionId) {
+      query.where('pm.positionId = :positionId', { positionId });
+    }
+
+    if (instansiId) {
+      query.andWhere('position.instansiId = :instansiId', { instansiId });
+    }
+
+    return await query.getMany();
+  }
+
+  async findOnePositionModule(id: number, instansiId: number): Promise<PositionModule> {
+    const positionModule = await this.positionModuleRepository.findOne({
+      where: { id },
+      relations: ['position'],
+    });
+
+    if (!positionModule) {
+      throw new NotFoundException(`Position module with ID ${id} not found`);
+    }
+
+    // Verify position belongs to tenant
+    if (positionModule.position.instansiId !== instansiId) {
+      throw new NotFoundException(`Position module with ID ${id} not found`);
+    }
+
+    return positionModule;
+  }
+
+  async updatePositionModule(
+    id: number,
+    updateDto: UpdatePositionModuleDto,
+    instansiId: number,
+  ): Promise<PositionModule> {
+    const positionModule = await this.findOnePositionModule(id, instansiId);
+    Object.assign(positionModule, updateDto);
+    return await this.positionModuleRepository.save(positionModule);
+  }
+
+  async removePositionModule(id: number, instansiId: number): Promise<void> {
+    await this.findOnePositionModule(id, instansiId);
+    await this.positionModuleRepository.delete(id);
+  }
+
+  // Get modules by position
+  async getModulesByPosition(positionId: number, instansiId: number): Promise<PositionModule[]> {
+    const position = await this.findOnePosition(positionId, instansiId);
+    return await this.positionModuleRepository.find({
+      where: { positionId: position.id, isActive: true },
+    });
   }
 }

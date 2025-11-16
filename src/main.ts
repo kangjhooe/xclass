@@ -2,14 +2,22 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
+    const configService = app.get(ConfigService);
+    const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
+    const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
     
     // Enable CORS
+    const corsOrigins = nodeEnv === 'production' 
+      ? [frontendUrl] // Only allow frontend URL in production
+      : true; // Allow all origins in development
+    
     app.enableCors({
-      origin: true, // Allow all origins in development
+      origin: corsOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
@@ -71,14 +79,17 @@ async function bootstrap() {
       .addTag('system-settings', 'System settings management')
       .addTag('academic-reports', 'Academic reports and analytics')
       .addServer('http://localhost:3000', 'Development server')
+      .addServer(configService.get<string>('API_URL') || 'http://localhost:3000', 'Production server')
       .build();
     
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
 
-    await app.listen(3000);
-    console.log('Application is running on: http://localhost:3000');
-    console.log('Swagger documentation available at: http://localhost:3000/api/docs');
+    const port = configService.get<number>('PORT') || 3000;
+    await app.listen(port);
+    console.log(`Application is running on: http://localhost:${port}`);
+    console.log(`Swagger documentation available at: http://localhost:${port}/api/docs`);
+    console.log(`Environment: ${nodeEnv}`);
   } catch (error) {
     console.error('\n❌❌❌ Error starting application!\n');
     console.error('Error:', error.message);

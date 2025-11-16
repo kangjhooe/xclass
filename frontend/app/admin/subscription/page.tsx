@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import {
   subscriptionApi,
@@ -336,7 +336,7 @@ export default function SubscriptionPage() {
                     const needsWarning = isEndingSoon && !sub.warningSent;
                     
                     return (
-                      <>
+                      <React.Fragment key={sub.id}>
                         {needsWarning && (
                           <tr className="bg-yellow-50 border-yellow-200">
                             <td colSpan={7} className="px-6 py-3">
@@ -369,7 +369,7 @@ export default function SubscriptionPage() {
                             </td>
                           </tr>
                         )}
-                        <tr key={sub.id} className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-200">
+                        <tr className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-200">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
                             {tenant?.name || '-'}
@@ -482,6 +482,7 @@ export default function SubscriptionPage() {
                           </div>
                         </td>
                       </tr>
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

@@ -473,5 +473,5 @@ export default function TeacherPortalDashboard() {
         </div>
       </div>
     </TeacherLayout>
-
-
+  );
+}

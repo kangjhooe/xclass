@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { ModulePageShell } from '@/components/layouts/ModulePageShell';
 import { Button } from '@/components/ui/Button';
@@ -338,7 +337,7 @@ export default function BiometricPage() {
               onChange={(e) => setFormData({ ...formData, deviceId: e.target.value })}
               required
               placeholder="Unique device identifier"
-              helpText="ID unik dari device (dari hardware)"
+              helperText="ID unik dari device (dari hardware)"
             />
 
             <Select
@@ -500,7 +499,7 @@ function EnrollmentForm({
         onChange={(e) => setFormData({ ...formData, biometricId: e.target.value })}
         required
         placeholder="ID dari device (fingerprint ID, face ID, dll)"
-        helpText="Masukkan ID biometrik dari device"
+        helperText="Masukkan ID biometrik dari device"
       />
 
       <div className="flex justify-end gap-2 pt-4">

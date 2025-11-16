@@ -18,6 +18,8 @@ export interface Teacher {
   isActive?: boolean;
   isMainTenant?: boolean;
   instansiId?: number;
+  positionId?: number;
+  position?: { id: number; name: string };
   createdAt?: string;
   updatedAt?: string;
   created_at?: string;
@@ -155,6 +157,7 @@ export interface TeacherCreateData {
   education?: string;
   specialization?: string;
   isActive?: boolean;
+  positionId?: number;
 }
 
 export const teachersApi = {

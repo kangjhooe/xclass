@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { FinanceService } from './finance.service';
 import { CreateSppPaymentDto } from './dto/create-spp-payment.dto';
@@ -14,12 +15,18 @@ import { UpdateSppPaymentDto } from './dto/update-spp-payment.dto';
 import { MarkPaymentPaidDto } from './dto/mark-payment-paid.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { PaymentStatus } from './entities/spp-payment.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../common/guards/tenant.guard';
+import { ModuleAccessGuard } from '../../common/guards/module-access.guard';
+import { ModuleAccess } from '../../common/decorators/module-access.decorator';
 
 @Controller('finance')
+@UseGuards(JwtAuthGuard, TenantGuard, ModuleAccessGuard)
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
   @Post('spp-payments')
+  @ModuleAccess('finance', 'create')
   createPayment(
     @Body() createDto: CreateSppPaymentDto,
     @TenantId() instansiId: number,
@@ -33,6 +40,7 @@ export class FinanceController {
   }
 
   @Get('spp-payments')
+  @ModuleAccess('finance', 'view')
   findAllPayments(
     @TenantId() instansiId: number,
     @Query('studentId') studentId?: number,
@@ -54,11 +62,13 @@ export class FinanceController {
   }
 
   @Get('spp-payments/:id')
+  @ModuleAccess('finance', 'view')
   findOnePayment(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.financeService.findOne(+id, instansiId);
   }
 
   @Patch('spp-payments/:id')
+  @ModuleAccess('finance', 'update')
   updatePayment(
     @Param('id') id: string,
     @Body() updateDto: UpdateSppPaymentDto,
@@ -68,11 +78,13 @@ export class FinanceController {
   }
 
   @Delete('spp-payments/:id')
+  @ModuleAccess('finance', 'delete')
   removePayment(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.financeService.remove(+id, instansiId);
   }
 
   @Post('spp-payments/:id/mark-paid')
+  @ModuleAccess('finance', 'update')
   markAsPaid(
     @Param('id') id: string,
     @Body() markPaidDto: MarkPaymentPaidDto,
@@ -88,11 +100,13 @@ export class FinanceController {
   }
 
   @Get('spp-payments/overdue')
+  @ModuleAccess('finance', 'view')
   getOverduePayments(@TenantId() instansiId: number) {
     return this.financeService.getOverduePayments(instansiId);
   }
 
   @Get('students/:studentId/spp-payments')
+  @ModuleAccess('finance', 'view')
   getStudentPayments(
     @Param('studentId') studentId: string,
     @TenantId() instansiId: number,
@@ -101,6 +115,7 @@ export class FinanceController {
   }
 
   @Get('statistics')
+  @ModuleAccess('finance', 'view')
   getStatistics(
     @TenantId() instansiId: number,
     @Query('year') year?: number,

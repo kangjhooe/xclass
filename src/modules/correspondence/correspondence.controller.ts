@@ -22,6 +22,9 @@ import {
 } from '../../common/decorators/tenant.decorator';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../common/guards/tenant.guard';
+import { ModuleAccessGuard } from '../../common/guards/module-access.guard';
+import { ModuleAccess } from '../../common/decorators/module-access.decorator';
 import {
   LetterStatus,
   LetterPriority,
@@ -38,7 +41,7 @@ import { ArchiveSourceType } from './entities/correspondence-archive.entity';
 @Controller({
   path: ['correspondence', 'tenants/:tenant/correspondence'],
 })
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, ModuleAccessGuard)
 export class CorrespondenceController {
   constructor(
     private readonly correspondenceService: CorrespondenceService,
@@ -46,6 +49,7 @@ export class CorrespondenceController {
 
   // ========== Archive Overview ==========
   @Get()
+  @ModuleAccess('correspondence', 'view')
   listArchive(
     @TenantId() instansiId: number,
     @Query('type') type?: ArchiveSourceType,
@@ -72,6 +76,7 @@ export class CorrespondenceController {
 
   // ========== Incoming Letters ==========
   @Post('incoming')
+  @ModuleAccess('correspondence', 'create')
   createIncoming(
     @Body() createDto: CreateIncomingLetterDto,
     @TenantId() instansiId: number,
@@ -85,6 +90,7 @@ export class CorrespondenceController {
   }
 
   @Get('incoming')
+  @ModuleAccess('correspondence', 'view')
   findAllIncoming(
     @TenantId() instansiId: number,
     @Query('search') search?: string,
@@ -110,11 +116,13 @@ export class CorrespondenceController {
   }
 
   @Get('incoming/:id')
+  @ModuleAccess('correspondence', 'view')
   findOneIncoming(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.correspondenceService.findOneIncoming(+id, instansiId);
   }
 
   @Patch('incoming/:id')
+  @ModuleAccess('correspondence', 'update')
   updateIncoming(
     @Param('id') id: string,
     @Body() updateDto: UpdateIncomingLetterDto,
@@ -130,11 +138,13 @@ export class CorrespondenceController {
   }
 
   @Delete('incoming/:id')
+  @ModuleAccess('correspondence', 'delete')
   removeIncoming(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.correspondenceService.removeIncoming(+id, instansiId);
   }
 
   @Post('incoming/:id/disposition')
+  @ModuleAccess('correspondence', 'update')
   addDisposition(
     @Param('id') id: string,
     @Body() dispositionDto: AddDispositionDto,
@@ -148,6 +158,7 @@ export class CorrespondenceController {
   }
 
   @Patch('incoming/:id/status')
+  @ModuleAccess('correspondence', 'update')
   updateIncomingStatus(
     @Param('id') id: string,
     @Body('status') status: LetterStatus,
@@ -162,6 +173,7 @@ export class CorrespondenceController {
 
   // ========== Outgoing Letters ==========
   @Post('outgoing')
+  @ModuleAccess('correspondence', 'create')
   createOutgoing(
     @Body() createDto: CreateOutgoingLetterDto,
     @TenantId() instansiId: number,
@@ -175,6 +187,7 @@ export class CorrespondenceController {
   }
 
   @Get('outgoing')
+  @ModuleAccess('correspondence', 'view')
   findAllOutgoing(
     @TenantId() instansiId: number,
     @Query('search') search?: string,
@@ -200,11 +213,13 @@ export class CorrespondenceController {
   }
 
   @Get('outgoing/:id')
+  @ModuleAccess('correspondence', 'view')
   findOneOutgoing(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.correspondenceService.findOneOutgoing(+id, instansiId);
   }
 
   @Patch('outgoing/:id')
+  @ModuleAccess('correspondence', 'update')
   updateOutgoing(
     @Param('id') id: string,
     @Body() updateDto: UpdateOutgoingLetterDto,
@@ -220,11 +235,13 @@ export class CorrespondenceController {
   }
 
   @Delete('outgoing/:id')
+  @ModuleAccess('correspondence', 'delete')
   removeOutgoing(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.correspondenceService.removeOutgoing(+id, instansiId);
   }
 
   @Patch('outgoing/:id/status')
+  @ModuleAccess('correspondence', 'update')
   updateOutgoingStatus(
     @Param('id') id: string,
     @Body('status') status: OutgoingLetterStatus,

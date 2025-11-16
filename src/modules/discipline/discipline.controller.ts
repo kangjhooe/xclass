@@ -13,13 +13,17 @@ import { DisciplineService } from './discipline.service';
 import { CreateDisciplinaryActionDto } from './dto/create-disciplinary-action.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../common/guards/tenant.guard';
+import { ModuleAccessGuard } from '../../common/guards/module-access.guard';
+import { ModuleAccess } from '../../common/decorators/module-access.decorator';
 
 @Controller('discipline')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, ModuleAccessGuard)
 export class DisciplineController {
   constructor(private readonly disciplineService: DisciplineService) {}
 
   @Post('actions')
+  @ModuleAccess('discipline', 'create')
   create(
     @Body() createDto: CreateDisciplinaryActionDto,
     @TenantId() instansiId: number,
@@ -28,6 +32,7 @@ export class DisciplineController {
   }
 
   @Get('actions')
+  @ModuleAccess('discipline', 'view')
   findAll(
     @TenantId() instansiId: number,
     @Query('studentId') studentId?: number,
@@ -47,11 +52,13 @@ export class DisciplineController {
   }
 
   @Get('actions/:id')
+  @ModuleAccess('discipline', 'view')
   findOne(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.disciplineService.findOne(+id, instansiId);
   }
 
   @Patch('actions/:id/status')
+  @ModuleAccess('discipline', 'update')
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: string,
@@ -61,6 +68,7 @@ export class DisciplineController {
   }
 
   @Delete('actions/:id')
+  @ModuleAccess('discipline', 'delete')
   remove(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.disciplineService.remove(+id, instansiId);
   }

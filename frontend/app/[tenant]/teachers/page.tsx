@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Pagination } from '@/components/ui/Pagination';
 import { teachersApi, Teacher, TeacherCreateData } from '@/lib/api/teachers';
 import { subjectsApi, Subject } from '@/lib/api/subjects';
+import { hrApi, Position } from '@/lib/api/hr';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantIdState } from '@/lib/hooks/useTenant';
@@ -160,6 +161,7 @@ export default function TeachersPage() {
     education: '',
     specialization: '',
     isActive: true,
+    positionId: undefined,
   });
 
   const queryClient = useQueryClient();
@@ -215,6 +217,16 @@ export default function TeachersPage() {
     queryFn: async () => {
       if (!tenantId) return { data: [], total: 0 };
       return subjectsApi.getAll(tenantId);
+    },
+    enabled: !!tenantId && !tenantLoading,
+  });
+
+  // Fetch positions for assignment
+  const { data: positionsData } = useQuery({
+    queryKey: ['positions', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      return hrApi.getAllPositions(tenantId);
     },
     enabled: !!tenantId && !tenantLoading,
   });
@@ -352,6 +364,7 @@ export default function TeachersPage() {
       education: '',
       specialization: '',
       isActive: true,
+      positionId: undefined,
     });
     setSelectedTeacher(null);
     setFormErrors({});
@@ -374,6 +387,7 @@ export default function TeachersPage() {
       education: teacher.education || '',
       specialization: teacher.specialization || '',
       isActive: teacher.isActive ?? true,
+      positionId: teacher.positionId,
     });
     setIsModalOpen(true);
   };
@@ -1056,6 +1070,29 @@ export default function TeachersPage() {
                           rows={3}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Jabatan</label>
+                        <select
+                          value={formData.positionId || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              positionId: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Pilih Jabatan</option>
+                          {positionsData
+                            ?.filter((p) => p.isActive)
+                            .map((position) => (
+                              <option key={position.id} value={position.id}>
+                                {position.name}
+                              </option>
+                            ))}
+                        </select>
                       </div>
 
                       <div>

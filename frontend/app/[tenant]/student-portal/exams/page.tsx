@@ -187,11 +187,11 @@ export default function StudentExamsPage() {
             </div>
           ) : (
             filteredSchedules.map((schedule: any) => {
-                const status = getStatusBadge(schedule);
-                const canStart = canStartExam(schedule);
-                const exam = schedule.exam;
+              const status = getStatusBadge(schedule);
+              const canStart = canStartExam(schedule);
+              const exam = schedule.exam;
 
-                return (
+              return (
                   <div
                     key={schedule.id}
                     className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all"
@@ -288,13 +288,12 @@ export default function StudentExamsPage() {
                       </div>
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
+              );
+            })
+          )}
         </div>
       </div>
-    </TenantLayout>
+    </StudentLayout>
   );
 }
 

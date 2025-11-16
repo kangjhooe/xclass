@@ -144,7 +144,13 @@ export default function CustomReportsPage() {
       scheduleTime: report.scheduleTime || '',
       scheduleDay: report.scheduleDay?.toString() || '',
       emailRecipients: report.emailRecipients || '',
-      config: report.config,
+      config: {
+        filters: report.config?.filters || {},
+        columns: report.config?.columns || [],
+        aggregations: report.config?.aggregations || [],
+        grouping: report.config?.grouping || [],
+        sorting: report.config?.sorting || [],
+      },
     });
     setIsModalOpen(true);
   };
@@ -312,8 +318,8 @@ export default function CustomReportsPage() {
             setIsModalOpen(false);
             resetForm();
           }}
-          title={selectedReport ? 'Edit Report' : 'Buat Custom Report'}
-          size="large"
+          title={selectedReport ? 'Edit Report' : 'Buat Custom Report'} 
+          size="xl"
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
@@ -462,7 +468,7 @@ export default function CustomReportsPage() {
             setSelectedReport(null);
           }}
           title="Manage Schedule"
-          size="large"
+          size="xl"
         >
           {selectedReport && (
             <div className="space-y-4">

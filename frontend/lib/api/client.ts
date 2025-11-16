@@ -99,23 +99,50 @@ apiClient.interceptors.response.use(
       
       // Log error details with safe serialization
       try {
-        // Ensure we always have meaningful data to log
-        const logData = {
-          message: errorDetails.message,
-          code: errorDetails.code || 'N/A',
-          url: errorDetails.url || 'N/A',
-          method: errorDetails.method || 'N/A',
-          baseURL: errorDetails.baseURL,
-          requestMade: errorDetails.requestMade || false,
+        // Safely extract error information
+        const safeErrorInfo: Record<string, any> = {
+          message: errorMessage,
+          baseURL: API_URL,
         };
+
+        // Add error details if they exist and are meaningful
+        if (errorDetails.message && errorDetails.message !== 'Unknown network error') {
+          safeErrorInfo.details = errorDetails.message;
+        }
+        if (errorDetails.code && errorDetails.code !== 'N/A') {
+          safeErrorInfo.code = errorDetails.code;
+        }
+        if (errorDetails.url && errorDetails.url !== 'N/A') {
+          safeErrorInfo.url = errorDetails.url;
+        }
+        if (errorDetails.method && errorDetails.method !== 'N/A') {
+          safeErrorInfo.method = errorDetails.method;
+        }
+        if (errorDetails.requestMade !== undefined) {
+          safeErrorInfo.requestMade = errorDetails.requestMade;
+        }
+
+        // Safely include original error information
+        if (error) {
+          if (error.message) safeErrorInfo.originalMessage = error.message;
+          if (error.code) safeErrorInfo.originalCode = error.code;
+          if (error.name) safeErrorInfo.errorName = error.name;
+          if (error.stack) safeErrorInfo.stack = error.stack;
+        }
+
+        // Ensure we always log something meaningful
+        if (Object.keys(safeErrorInfo).length === 0) {
+          safeErrorInfo.message = errorMessage || 'Unknown API error occurred';
+        }
         
-        console.error('API Client Error:', logData);
+        console.error('API Client Error:', safeErrorInfo);
       } catch (logError) {
         // Ultimate fallback if even logging fails
         console.error('API Client Error (fallback):', {
-          message: errorMessage,
+          message: errorMessage || 'Unknown error',
           baseURL: API_URL,
           originalErrorType: error?.constructor?.name || typeof error,
+          logError: logError instanceof Error ? logError.message : String(logError),
         });
       }
       return Promise.reject(networkError);

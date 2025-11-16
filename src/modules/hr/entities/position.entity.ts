@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Employee } from './employee.entity';
+import { PositionModule } from './position-module.entity';
 
 @Entity('positions')
 export class Position {
@@ -33,5 +34,8 @@ export class Position {
 
   @OneToMany(() => Employee, (employee) => employee.position)
   employees: Employee[];
+
+  @OneToMany(() => PositionModule, (positionModule) => positionModule.position)
+  positionModules: PositionModule[];
 }
 

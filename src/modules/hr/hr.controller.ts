@@ -18,9 +18,13 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { CreatePositionDto } from './dto/create-position.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
+import { CreatePositionModuleDto } from './dto/create-position-module.dto';
+import { UpdatePositionModuleDto } from './dto/update-position-module.dto';
 import { CreatePerformanceReviewDto } from './dto/create-performance-review.dto';
 import { TenantId, CurrentUserId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
 
 @Controller('hr')
 @UseGuards(JwtAuthGuard)
@@ -196,5 +200,62 @@ export class HrController {
   @Delete('performance-reviews/:id')
   removePerformanceReview(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.hrService.removePerformanceReview(+id, instansiId);
+  }
+
+  // Position Module endpoints (hanya untuk admin)
+  @Post('positions/:positionId/modules')
+  @UseGuards(RolesGuard)
+  @Roles('admin_tenant', 'super_admin')
+  createPositionModule(
+    @Param('positionId') positionId: string,
+    @Body() createDto: CreatePositionModuleDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.hrService.createPositionModule(
+      { ...createDto, positionId: +positionId },
+      instansiId,
+    );
+  }
+
+  @Get('positions/:positionId/modules')
+  getModulesByPosition(
+    @Param('positionId') positionId: string,
+    @TenantId() instansiId: number,
+  ) {
+    return this.hrService.getModulesByPosition(+positionId, instansiId);
+  }
+
+  @Get('position-modules')
+  findAllPositionModules(
+    @Query('positionId') positionId?: string,
+    @TenantId() instansiId?: number,
+  ) {
+    return this.hrService.findAllPositionModules(
+      positionId ? +positionId : undefined,
+      instansiId,
+    );
+  }
+
+  @Get('position-modules/:id')
+  findOnePositionModule(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.hrService.findOnePositionModule(+id, instansiId);
+  }
+
+  @Patch('position-modules/:id')
+  @UseGuards(RolesGuard)
+  @Roles('admin_tenant', 'super_admin')
+  updatePositionModule(
+    @Param('id') id: string,
+    @Body() updateDto: UpdatePositionModuleDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.hrService.updatePositionModule(+id, updateDto, instansiId);
+  }
+
+  @Delete('position-modules/:id')
+  @UseGuards(RolesGuard)
+  @Roles('admin_tenant', 'super_admin')
+  removePositionModule(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.hrService.removePositionModule(+id, instansiId);
   }
 }
