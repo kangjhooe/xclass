@@ -72,6 +72,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       href: '/admin/subscription',
       icon: '💳',
     },
+    {
+      label: 'Pengumuman',
+      href: '/admin/announcements',
+      icon: '📢',
+    },
   ];
 
   const isActive = (href: string) => {

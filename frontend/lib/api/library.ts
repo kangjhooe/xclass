@@ -1,34 +1,96 @@
 import apiClient from './client';
 
+export enum BookStatus {
+  AVAILABLE = 'available',
+  UNAVAILABLE = 'unavailable',
+  MAINTENANCE = 'maintenance',
+  LOST = 'lost',
+  DAMAGED = 'damaged',
+}
+
+export enum BookCondition {
+  EXCELLENT = 'excellent',
+  GOOD = 'good',
+  FAIR = 'fair',
+  POOR = 'poor',
+}
+
+export enum LoanStatus {
+  ACTIVE = 'active',
+  RETURNED = 'returned',
+  OVERDUE = 'overdue',
+  LOST = 'lost',
+  DAMAGED = 'damaged',
+}
+
 export interface Book {
   id: number;
-  title: string;
   isbn?: string;
-  author?: string;
-  publisher?: string;
-  year?: number;
+  title: string;
+  author: string;
+  publisher: string;
+  publicationYear?: number;
   category?: string;
-  totalCopies?: number;
-  availableCopies?: number;
+  subcategory?: string;
+  language?: string;
+  pages?: number;
   description?: string;
-  isActive?: boolean;
-  created_at?: string;
-  updated_at?: string;
+  coverImage?: string;
+  totalCopies: number;
+  availableCopies: number;
+  location?: string;
+  shelfNumber?: string;
+  price?: number;
+  status: BookStatus;
+  condition?: BookCondition;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  donor?: string;
+  notes?: string;
+  isOnline: boolean;
+  pdfFile?: string;
+  pdfFileName?: string;
+  pdfFileSize?: number;
+  isPublic: boolean;
+  allowDownload: boolean;
+  viewCount: number;
+  downloadCount: number;
+  publishedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface BookCreateData {
-  title: string;
   isbn?: string;
-  author?: string;
-  publisher?: string;
-  year?: number;
+  title: string;
+  author: string;
+  publisher: string;
+  publicationYear?: number;
   category?: string;
-  totalCopies?: number;
+  subcategory?: string;
+  language?: string;
+  pages?: number;
   description?: string;
-  isActive?: boolean;
+  coverImage?: string;
+  totalCopies?: number;
+  location?: string;
+  shelfNumber?: string;
+  price?: number;
+  status?: BookStatus;
+  condition?: BookCondition;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  donor?: string;
+  notes?: string;
+  isOnline?: boolean;
+  pdfFile?: string;
+  pdfFileName?: string;
+  pdfFileSize?: number;
+  isPublic?: boolean;
+  allowDownload?: boolean;
 }
 
-export interface Borrowing {
+export interface BookLoan {
   id: number;
   bookId: number;
   book?: Book;
@@ -37,68 +99,125 @@ export interface Borrowing {
     id: number;
     name: string;
   };
-  borrowDate: string;
-  returnDate?: string;
+  teacherId?: number;
+  teacher?: {
+    id: number;
+    name: string;
+  };
+  staffId?: number;
+  loanDate: string;
   dueDate: string;
-  status: 'borrowed' | 'returned' | 'overdue';
-  notes?: string;
-  created_at?: string;
-  updated_at?: string;
+  returnDate?: string;
+  status: LoanStatus;
+  loanNotes?: string;
+  returnNotes?: string;
+  fineAmount?: number;
+  finePaid?: boolean;
+  finePaidDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface BorrowingCreateData {
+export interface BookLoanCreateData {
   bookId: number;
-  studentId: number;
-  borrowDate: string;
+  studentId?: number;
+  teacherId?: number;
+  staffId?: number;
+  loanDate?: string;
   dueDate: string;
-  notes?: string;
+  loanNotes?: string;
+}
+
+export interface BookLoanReturnData {
+  returnNotes?: string;
+  fineAmount?: number;
+}
+
+export interface LibraryStatistics {
+  totalBooks: number;
+  availableBooks: number;
+  borrowedBooks: number;
+  activeLoans: number;
+  overdueLoans: number;
 }
 
 export const libraryApi = {
   // Books
   getAllBooks: async (
-    tenantId: number,
-    params?: { search?: string; category?: string }
-  ): Promise<{ data: Book[]; total: number }> => {
-    const response = await apiClient.get(`/tenants/${tenantId}/library/books`, { params });
+    params?: {
+      search?: string;
+      category?: string;
+      status?: BookStatus;
+      author?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{ data: Book[]; total: number; page: number; limit: number; totalPages: number }> => {
+    const response = await apiClient.get('/library/books', { params });
     return response.data;
   },
 
-  getBookById: async (tenantId: number, id: number): Promise<Book> => {
-    const response = await apiClient.get(`/tenants/${tenantId}/library/books/${id}`);
+  getBookById: async (id: number): Promise<Book> => {
+    const response = await apiClient.get(`/library/books/${id}`);
     return response.data;
   },
 
-  createBook: async (tenantId: number, data: BookCreateData): Promise<Book> => {
-    const response = await apiClient.post(`/tenants/${tenantId}/library/books`, data);
+  createBook: async (data: BookCreateData): Promise<Book> => {
+    const response = await apiClient.post('/library/books', data);
     return response.data;
   },
 
-  updateBook: async (tenantId: number, id: number, data: Partial<BookCreateData>): Promise<Book> => {
-    const response = await apiClient.patch(`/tenants/${tenantId}/library/books/${id}`, data);
+  updateBook: async (id: number, data: Partial<BookCreateData>): Promise<Book> => {
+    const response = await apiClient.patch(`/library/books/${id}`, data);
     return response.data;
   },
 
-  deleteBook: async (tenantId: number, id: number): Promise<void> => {
-    await apiClient.delete(`/tenants/${tenantId}/library/books/${id}`);
+  deleteBook: async (id: number): Promise<void> => {
+    await apiClient.delete(`/library/books/${id}`);
   },
 
-  // Borrowings
-  getAllBorrowings: async (
-    tenantId: number,
-    params?: { studentId?: number; status?: string }
-  ): Promise<{ data: Borrowing[]; total: number }> => {
-    const response = await apiClient.get(`/tenants/${tenantId}/library/borrowings`, { params });
+  // Loans
+  getAllLoans: async (
+    params?: {
+      bookId?: number;
+      studentId?: number;
+      teacherId?: number;
+      status?: LoanStatus;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{ data: BookLoan[]; total: number; page: number; limit: number; totalPages: number }> => {
+    const response = await apiClient.get('/library/loans', { params });
     return response.data;
   },
 
-  createBorrowing: async (tenantId: number, data: BorrowingCreateData): Promise<Borrowing> => {
-    const response = await apiClient.post(`/tenants/${tenantId}/library/borrowings`, data);
+  getLoanById: async (id: number): Promise<BookLoan> => {
+    const response = await apiClient.get(`/library/loans/${id}`);
     return response.data;
   },
 
-  returnBook: async (tenantId: number, id: number): Promise<Borrowing> => {
-    const response = await apiClient.patch(`/tenants/${tenantId}/library/borrowings/${id}/return`);
+  createLoan: async (data: BookLoanCreateData, createdBy?: number): Promise<BookLoan> => {
+    const response = await apiClient.post('/library/loans', data, {
+      params: createdBy ? { createdBy } : undefined,
+    });
+    return response.data;
+  },
+
+  returnLoan: async (id: number, data: BookLoanReturnData, returnedBy?: number): Promise<BookLoan> => {
+    const response = await apiClient.post(`/library/loans/${id}/return`, data, {
+      params: returnedBy ? { returnedBy } : undefined,
+    });
+    return response.data;
+  },
+
+  getOverdueLoans: async (): Promise<BookLoan[]> => {
+    const response = await apiClient.get('/library/loans/overdue');
+    return response.data;
+  },
+
+  // Statistics
+  getStatistics: async (): Promise<LibraryStatistics> => {
+    const response = await apiClient.get('/library/statistics');
     return response.data;
   },
 };

@@ -6,6 +6,7 @@ import {
 import { Response } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Brackets, FindOptionsWhere } from 'typeorm';
+import { StorageService } from '../storage/storage.service';
 import {
   IncomingLetter,
   LetterStatus,
@@ -64,6 +65,7 @@ export class CorrespondenceService {
     private readonly sequenceRepository: Repository<LetterSequence>,
     @InjectRepository(GeneratedLetter)
     private readonly generatedLettersRepository: Repository<GeneratedLetter>,
+    private readonly storageService: StorageService,
   ) {}
 
   // ========== Incoming Letters ==========
@@ -827,16 +829,47 @@ export class CorrespondenceService {
       throw new NotFoundException('Arsip surat tidak ditemukan');
     }
 
-    // Jika ada filePath, redirect ke file
+    // Jika ada filePath, serve file dari storage
     if (archive.filePath) {
-      // Return file path untuk di-download
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${archive.referenceNumber || archive.id}.pdf"`,
-      );
-      // TODO: Implement actual file serving from storage
-      throw new BadRequestException('File download belum diimplementasikan');
+      try {
+        // Extract file path (remove /storage/ prefix if exists)
+        let filePath = archive.filePath;
+        if (filePath.startsWith('/storage/')) {
+          filePath = filePath.replace('/storage/', '');
+        }
+
+        // Get file from storage
+        const fileBuffer = await this.storageService.getFile(filePath);
+
+        // Determine content type based on file extension
+        const fileExtension = filePath.split('.').pop()?.toLowerCase();
+        let contentType = 'application/octet-stream';
+        if (fileExtension === 'pdf') {
+          contentType = 'application/pdf';
+        } else if (fileExtension === 'doc' || fileExtension === 'docx') {
+          contentType = 'application/msword';
+        } else if (fileExtension === 'xls' || fileExtension === 'xlsx') {
+          contentType = 'application/vnd.ms-excel';
+        } else if (fileExtension === 'jpg' || fileExtension === 'jpeg') {
+          contentType = 'image/jpeg';
+        } else if (fileExtension === 'png') {
+          contentType = 'image/png';
+        }
+
+        // Set headers
+        res.setHeader('Content-Type', contentType);
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${archive.referenceNumber || archive.id}.${fileExtension || 'pdf'}"`,
+        );
+        res.setHeader('Content-Length', fileBuffer.length.toString());
+
+        // Send file
+        res.send(fileBuffer);
+        return;
+      } catch (error) {
+        throw new BadRequestException(`File tidak ditemukan: ${error.message}`);
+      }
     }
 
     // Jika generated letter, gunakan renderedHtml

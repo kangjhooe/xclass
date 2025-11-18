@@ -13,6 +13,7 @@ import { AcademicYear } from '../academic-year/entities/academic-year.entity';
 import { PpdbRegistration, RegistrationStatus } from '../ppdb/entities/ppdb-registration.entity';
 import { PpdbInterviewSchedule, ScheduleStatus } from '../ppdb/entities/ppdb-interview-schedule.entity';
 import { Download } from './entities/download.entity';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class PublicPageService {
@@ -41,6 +42,7 @@ export class PublicPageService {
     private ppdbInterviewScheduleRepository: Repository<PpdbInterviewSchedule>,
     @InjectRepository(Download)
     private downloadRepository: Repository<Download>,
+    private storageService: StorageService,
   ) {}
 
   // News methods
@@ -427,8 +429,12 @@ export class PublicPageService {
       publishedAt: data.status === 'published' ? new Date() : null,
     }) as unknown as News;
     if (file) {
-      // TODO: Upload file using StorageService
-      news.featuredImage = `/uploads/${file.filename}`;
+      const uploadResult = await this.storageService.uploadFile(
+        file,
+        'news',
+        instansiId,
+      );
+      news.featuredImage = uploadResult.url;
     }
     return this.newsRepository.save(news);
   }
@@ -440,8 +446,21 @@ export class PublicPageService {
     }
     Object.assign(news, data);
     if (file) {
-      // TODO: Upload file using StorageService
-      news.featuredImage = `/uploads/${file.filename}`;
+      // Delete old file if exists
+      if (news.featuredImage) {
+        try {
+          const oldFilePath = news.featuredImage.replace('/storage/', '');
+          await this.storageService.deleteFile(oldFilePath, instansiId);
+        } catch (error) {
+          // Ignore error if file doesn't exist
+        }
+      }
+      const uploadResult = await this.storageService.uploadFile(
+        file,
+        'news',
+        instansiId,
+      );
+      news.featuredImage = uploadResult.url;
     }
     if (data.status === 'published' && !news.publishedAt) {
       news.publishedAt = new Date();
@@ -477,8 +496,12 @@ export class PublicPageService {
       ...data,
     }) as unknown as Gallery;
     if (file) {
-      // TODO: Upload file using StorageService
-      gallery.image = `/uploads/${file.filename}`;
+      const uploadResult = await this.storageService.uploadFile(
+        file,
+        'gallery',
+        instansiId,
+      );
+      gallery.image = uploadResult.url;
     }
     return this.galleryRepository.save(gallery);
   }
@@ -490,8 +513,21 @@ export class PublicPageService {
     }
     Object.assign(gallery, data);
     if (file) {
-      // TODO: Upload file using StorageService
-      gallery.image = `/uploads/${file.filename}`;
+      // Delete old file if exists
+      if (gallery.image) {
+        try {
+          const oldFilePath = gallery.image.replace('/storage/', '');
+          await this.storageService.deleteFile(oldFilePath, instansiId);
+        } catch (error) {
+          // Ignore error if file doesn't exist
+        }
+      }
+      const uploadResult = await this.storageService.uploadFile(
+        file,
+        'gallery',
+        instansiId,
+      );
+      gallery.image = uploadResult.url;
     }
     return this.galleryRepository.save(gallery);
   }
@@ -518,8 +554,21 @@ export class PublicPageService {
     }
     Object.assign(profile, data);
     if (file) {
-      // TODO: Upload file using StorageService
-      profile.logo = `/uploads/${file.filename}`;
+      // Delete old file if exists
+      if (profile.logo) {
+        try {
+          const oldFilePath = profile.logo.replace('/storage/', '');
+          await this.storageService.deleteFile(oldFilePath, instansiId);
+        } catch (error) {
+          // Ignore error if file doesn't exist
+        }
+      }
+      const uploadResult = await this.storageService.uploadFile(
+        file,
+        'profile',
+        instansiId,
+      );
+      profile.logo = uploadResult.url;
     }
     return this.tenantProfileRepository.save(profile);
   }
@@ -548,8 +597,12 @@ export class PublicPageService {
       ...data,
     }) as unknown as Download;
     if (file) {
-      // TODO: Upload file using StorageService
-      download.fileUrl = `/uploads/${file.filename}`;
+      const uploadResult = await this.storageService.uploadFile(
+        file,
+        'downloads',
+        instansiId,
+      );
+      download.fileUrl = uploadResult.url;
       download.fileName = file.originalname;
       download.fileSize = file.size;
       download.fileType = file.mimetype;
@@ -564,8 +617,21 @@ export class PublicPageService {
     }
     Object.assign(download, data);
     if (file) {
-      // TODO: Upload file using StorageService
-      download.fileUrl = `/uploads/${file.filename}`;
+      // Delete old file if exists
+      if (download.fileUrl) {
+        try {
+          const oldFilePath = download.fileUrl.replace('/storage/', '');
+          await this.storageService.deleteFile(oldFilePath, instansiId);
+        } catch (error) {
+          // Ignore error if file doesn't exist
+        }
+      }
+      const uploadResult = await this.storageService.uploadFile(
+        file,
+        'downloads',
+        instansiId,
+      );
+      download.fileUrl = uploadResult.url;
       download.fileName = file.originalname;
       download.fileSize = file.size;
       download.fileType = file.mimetype;

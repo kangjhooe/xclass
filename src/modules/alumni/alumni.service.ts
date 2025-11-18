@@ -1,21 +1,47 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alumni } from './entities/alumni.entity';
 import { CreateAlumniDto } from './dto/create-alumni.dto';
 import { UpdateAlumniDto } from './dto/update-alumni.dto';
+import { StudentsService } from '../students/students.service';
 
 @Injectable()
 export class AlumniService {
   constructor(
     @InjectRepository(Alumni)
     private alumniRepository: Repository<Alumni>,
+    private studentsService: StudentsService,
   ) {}
 
   async create(createDto: CreateAlumniDto, instansiId: number) {
+    // Validasi studentId exists
+    try {
+      await this.studentsService.findOne(createDto.studentId, instansiId);
+    } catch (error) {
+      throw new NotFoundException(
+        `Siswa dengan ID ${createDto.studentId} tidak ditemukan di instansi ini`,
+      );
+    }
+
+    // Validasi tidak ada duplikat alumni untuk student yang sama
+    const existingAlumni = await this.alumniRepository.findOne({
+      where: {
+        studentId: createDto.studentId,
+        instansiId,
+      },
+    });
+
+    if (existingAlumni) {
+      throw new BadRequestException(
+        `Alumni untuk siswa dengan ID ${createDto.studentId} sudah terdaftar`,
+      );
+    }
+
     const alumni = this.alumniRepository.create({
       ...createDto,
       instansiId,

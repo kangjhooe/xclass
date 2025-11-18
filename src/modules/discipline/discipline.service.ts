@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DisciplinaryAction } from './entities/disciplinary-action.entity';
 import { CreateDisciplinaryActionDto } from './dto/create-disciplinary-action.dto';
+import { UpdateDisciplinaryActionDto } from './dto/update-disciplinary-action.dto';
 
 @Injectable()
 export class DisciplineService {
@@ -89,6 +90,42 @@ export class DisciplineService {
     }
 
     return action;
+  }
+
+  async update(
+    id: number,
+    updateDto: UpdateDisciplinaryActionDto,
+    instansiId: number,
+  ) {
+    const action = await this.findOne(id, instansiId);
+
+    // Update fields jika ada di updateDto
+    if (updateDto.studentId !== undefined) {
+      action.studentId = updateDto.studentId;
+    }
+    if (updateDto.reporterId !== undefined) {
+      action.reporterId = updateDto.reporterId;
+    }
+    if (updateDto.incidentDate) {
+      action.incidentDate = new Date(updateDto.incidentDate);
+    }
+    if (updateDto.description !== undefined) {
+      action.description = updateDto.description;
+    }
+    if (updateDto.sanctionType !== undefined) {
+      action.sanctionType = updateDto.sanctionType;
+    }
+    if (updateDto.sanctionDetails !== undefined) {
+      action.sanctionDetails = updateDto.sanctionDetails;
+    }
+    if (updateDto.status !== undefined) {
+      action.status = updateDto.status;
+    }
+    if (updateDto.notes !== undefined) {
+      action.notes = updateDto.notes;
+    }
+
+    return await this.actionRepository.save(action);
   }
 
   async updateStatus(

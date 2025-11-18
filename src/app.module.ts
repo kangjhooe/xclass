@@ -1,6 +1,8 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { StudentsModule } from './modules/students/students.module';
@@ -64,6 +66,7 @@ import { ReportBuilderModule } from './modules/report-builder/report-builder.mod
 import { AuditTrailModule } from './modules/audit-trail/audit-trail.module';
 import { TenantAccessModule } from './modules/tenant-access/tenant-access.module';
 import { WilayahIndonesiaModule } from './modules/wilayah-indonesia/wilayah-indonesia.module';
+import { SuperAdminAnnouncementModule } from './modules/super-admin-announcement/super-admin-announcement.module';
 import { CacheModule } from './common/cache/cache.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
@@ -73,6 +76,29 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        throttlers: [
+          {
+            name: 'short',
+            ttl: 60000, // 1 minute
+            limit: configService.get<number>('THROTTLE_LIMIT') || 100, // 100 requests per minute
+          },
+          {
+            name: 'medium',
+            ttl: 600000, // 10 minutes
+            limit: configService.get<number>('THROTTLE_LIMIT_MEDIUM') || 1000, // 1000 requests per 10 minutes
+          },
+          {
+            name: 'long',
+            ttl: 3600000, // 1 hour
+            limit: configService.get<number>('THROTTLE_LIMIT_LONG') || 10000, // 10000 requests per hour
+          },
+        ],
+      }),
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -173,9 +199,17 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     AuditTrailModule,
     TenantAccessModule,
     WilayahIndonesiaModule,
+    SuperAdminAnnouncementModule,
   ],
   controllers: [AppController],
-  providers: [AppService, TenantMiddleware],
+  providers: [
+    AppService,
+    TenantMiddleware,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

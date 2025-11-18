@@ -9,6 +9,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { alumniApi, Alumni, AlumniCreateData } from '@/lib/api/alumni';
+import { studentsApi } from '@/lib/api/students';
 import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -24,14 +25,21 @@ export default function AlumniPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterYear, setFilterYear] = useState<number | undefined>(undefined);
   const [formData, setFormData] = useState<AlumniCreateData>({
-    name: '',
+    studentId: 0,
     graduationYear: new Date().getFullYear(),
-    email: '',
-    phone: '',
-    address: '',
-    occupation: '',
+    graduationDate: new Date().toISOString().split('T')[0],
+    finalGrade: 0,
+    gpa: undefined,
+    rank: undefined,
+    currentOccupation: '',
     company: '',
-    status: 'active',
+    position: '',
+    industry: '',
+    salaryRange: undefined,
+    address: '',
+    phone: '',
+    email: '',
+    status: 'unemployed',
     notes: '',
   });
   const { success, error: showError } = useToastStore();
@@ -47,6 +55,17 @@ export default function AlumniPage() {
       graduationYear: filterYear,
     }),
     enabled: resolvedTenantId !== undefined,
+  });
+
+  // Fetch students for dropdown
+  const { data: studentsData, isLoading: isLoadingStudents } = useQuery({
+    queryKey: ['students', resolvedTenantId, 'alumni'],
+    queryFn: () => studentsApi.getAll(resolvedTenantId!, { 
+      page: 1, 
+      limit: 1000,
+      status: 'active',
+    }),
+    enabled: resolvedTenantId !== undefined && isModalOpen,
   });
 
   const createMutation = useMutation({
@@ -104,14 +123,21 @@ export default function AlumniPage() {
 
   const resetForm = () => {
     setFormData({
-      name: '',
+      studentId: 0,
       graduationYear: new Date().getFullYear(),
-      email: '',
-      phone: '',
-      address: '',
-      occupation: '',
+      graduationDate: new Date().toISOString().split('T')[0],
+      finalGrade: 0,
+      gpa: undefined,
+      rank: undefined,
+      currentOccupation: '',
       company: '',
-      status: 'active',
+      position: '',
+      industry: '',
+      salaryRange: undefined,
+      address: '',
+      phone: '',
+      email: '',
+      status: 'unemployed',
       notes: '',
     });
     setSelectedAlumni(null);
@@ -120,14 +146,21 @@ export default function AlumniPage() {
   const handleEdit = (alumni: Alumni) => {
     setSelectedAlumni(alumni);
     setFormData({
-      name: alumni.name,
+      studentId: alumni.studentId,
       graduationYear: alumni.graduationYear,
-      email: alumni.email || '',
-      phone: alumni.phone || '',
-      address: alumni.address || '',
-      occupation: alumni.occupation || '',
+      graduationDate: alumni.graduationDate ? alumni.graduationDate.split('T')[0] : new Date().toISOString().split('T')[0],
+      finalGrade: alumni.finalGrade,
+      gpa: alumni.gpa,
+      rank: alumni.rank,
+      currentOccupation: alumni.currentOccupation || '',
       company: alumni.company || '',
-      status: alumni.status || 'active',
+      position: alumni.position || '',
+      industry: alumni.industry || '',
+      salaryRange: alumni.salaryRange,
+      address: alumni.address || '',
+      phone: alumni.phone || '',
+      email: alumni.email || '',
+      status: alumni.status || 'unemployed',
       notes: alumni.notes || '',
     });
     setIsModalOpen(true);
@@ -165,11 +198,8 @@ export default function AlumniPage() {
     success(`Fitur ekspor ${format.toUpperCase()} akan segera tersedia.`);
   };
 
-  const totalPages = data ? Math.ceil((data.total || 0) / itemsPerPage) : 1;
-  const paginatedData = data?.data?.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  ) || [];
+  const totalPages = data?.totalPages || 1;
+  const paginatedData = data?.data || [];
 
   return (
     <TenantLayout>
@@ -231,17 +261,25 @@ export default function AlumniPage() {
                 <TableBody>
                   {paginatedData.map((alumni) => (
                     <TableRow key={alumni.id}>
-                      <TableCell className="font-medium">{alumni.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {alumni.student?.name || `Siswa ID: ${alumni.studentId}`}
+                      </TableCell>
                       <TableCell>{alumni.graduationYear}</TableCell>
                       <TableCell>{alumni.email || '-'}</TableCell>
                       <TableCell>{alumni.phone || '-'}</TableCell>
-                      <TableCell>{alumni.occupation || '-'}</TableCell>
+                      <TableCell>{alumni.currentOccupation || '-'}</TableCell>
                       <TableCell>{alumni.company || '-'}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 text-xs rounded-full ${
-                          alumni.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          alumni.status === 'employed' ? 'bg-green-100 text-green-800' :
+                          alumni.status === 'studying' ? 'bg-blue-100 text-blue-800' :
+                          alumni.status === 'self_employed' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
                         }`}>
-                          {alumni.status === 'active' ? 'Aktif' : 'Tidak Aktif'}
+                          {alumni.status === 'employed' ? 'Bekerja' :
+                           alumni.status === 'studying' ? 'Kuliah' :
+                           alumni.status === 'self_employed' ? 'Wirausaha' :
+                           'Belum Bekerja'}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -275,7 +313,7 @@ export default function AlumniPage() {
               </Table>
             </div>
 
-            {data && data.total > itemsPerPage && (
+            {data && data.total > 0 && (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -297,18 +335,25 @@ export default function AlumniPage() {
           size="lg"
         >
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nama <span className="text-red-500">*</span>
+                  Siswa <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                <select
+                  value={formData.studentId}
+                  onChange={(e) => setFormData({ ...formData, studentId: parseInt(e.target.value) || 0 })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
-                />
+                  disabled={isLoadingStudents || !!selectedAlumni}
+                >
+                  <option value="0">Pilih Siswa</option>
+                  {studentsData?.data?.map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {student.name} {student.nisn ? `(${student.nisn})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -318,6 +363,8 @@ export default function AlumniPage() {
                   </label>
                   <input
                     type="number"
+                    min="1900"
+                    max="2100"
                     value={formData.graduationYear}
                     onChange={(e) => setFormData({ ...formData, graduationYear: parseInt(e.target.value) || new Date().getFullYear() })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -326,16 +373,129 @@ export default function AlumniPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tanggal Lulus <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.graduationDate}
+                    onChange={(e) => setFormData({ ...formData, graduationDate: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="active">Aktif</option>
-                    <option value="inactive">Tidak Aktif</option>
-                  </select>
+                    required
+                  />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nilai Akhir <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={formData.finalGrade}
+                    onChange={(e) => setFormData({ ...formData, finalGrade: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IPK</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="4"
+                    step="0.01"
+                    value={formData.gpa || ''}
+                    onChange={(e) => setFormData({ ...formData, gpa: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Peringkat</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.rank || ''}
+                    onChange={(e) => setFormData({ ...formData, rank: e.target.value ? parseInt(e.target.value) : undefined })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="unemployed">Belum Bekerja</option>
+                  <option value="employed">Bekerja</option>
+                  <option value="studying">Kuliah</option>
+                  <option value="self_employed">Wirausaha</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pekerjaan</label>
+                  <input
+                    type="text"
+                    value={formData.currentOccupation || ''}
+                    onChange={(e) => setFormData({ ...formData, currentOccupation: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Perusahaan</label>
+                  <input
+                    type="text"
+                    value={formData.company || ''}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Jabatan</label>
+                  <input
+                    type="text"
+                    value={formData.position || ''}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Industri</label>
+                  <input
+                    type="text"
+                    value={formData.industry || ''}
+                    onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rentang Gaji</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.salaryRange || ''}
+                  onChange={(e) => setFormData({ ...formData, salaryRange: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Contoh: 5000000"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -343,7 +503,7 @@ export default function AlumniPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                   <input
                     type="email"
-                    value={formData.email}
+                    value={formData.email || ''}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -353,30 +513,8 @@ export default function AlumniPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
                   <input
                     type="tel"
-                    value={formData.phone}
+                    value={formData.phone || ''}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pekerjaan</label>
-                  <input
-                    type="text"
-                    value={formData.occupation}
-                    onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Perusahaan</label>
-                  <input
-                    type="text"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -385,7 +523,7 @@ export default function AlumniPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
                 <textarea
-                  value={formData.address}
+                  value={formData.address || ''}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -395,7 +533,7 @@ export default function AlumniPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
                 <textarea
-                  value={formData.notes}
+                  value={formData.notes || ''}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

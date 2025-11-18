@@ -13,6 +13,7 @@ import { CreateExtracurricularDto } from './dto/create-extracurricular.dto';
 import { UpdateExtracurricularDto } from './dto/update-extracurricular.dto';
 import { CreateExtracurricularParticipantDto } from './dto/create-extracurricular-participant.dto';
 import { CreateExtracurricularActivityDto } from './dto/create-extracurricular-activity.dto';
+import { UpdateExtracurricularActivityDto } from './dto/update-extracurricular-activity.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import {
   ExtracurricularStatus,
@@ -121,6 +122,27 @@ export class ExtracurricularController {
     @TenantId() instansiId: number,
   ) {
     return this.extracurricularService.getActivities(+id, instansiId);
+  }
+
+  @Patch('activities/:activityId')
+  updateActivity(
+    @Param('activityId') activityId: string,
+    @Body() updateDto: UpdateExtracurricularActivityDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.extracurricularService.updateActivity(
+      +activityId,
+      updateDto,
+      instansiId,
+    );
+  }
+
+  @Delete('activities/:activityId')
+  deleteActivity(
+    @Param('activityId') activityId: string,
+    @TenantId() instansiId: number,
+  ) {
+    return this.extracurricularService.deleteActivity(+activityId, instansiId);
   }
 
   @Get('statistics')

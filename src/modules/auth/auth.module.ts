@@ -11,6 +11,7 @@ import { User } from '../users/entities/user.entity';
 import { Tenant } from '../tenant/entities/tenant.entity';
 import { Student } from '../students/entities/student.entity';
 import { Teacher } from '../teachers/entities/teacher.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { Teacher } from '../teachers/entities/teacher.entity';
       },
       inject: [ConfigService],
     }),
+    NotificationsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],

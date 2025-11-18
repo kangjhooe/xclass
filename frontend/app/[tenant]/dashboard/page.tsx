@@ -14,11 +14,14 @@ import { gradesApi } from '@/lib/api/grades';
 import { useQuery } from '@tanstack/react-query';
 import { formatDate } from '@/lib/utils/date';
 import { useTenantIdState, useTenantNpsn } from '@/lib/hooks/useTenant';
+import { useAuthStore } from '@/lib/store/auth';
+import AnnouncementWidget from '@/components/announcements/AnnouncementWidget';
 
 export default function TenantDashboard() {
   const params = useParams();
   const tenantNpsn = params?.tenant as string; // NPSN from URL
   const { tenantId, loading: tenantLoading, error: tenantError } = useTenantIdState(); // Numeric ID for API calls
+  const { user } = useAuthStore();
 
   const { data: studentsData, isLoading: studentsLoading } = useQuery({
     queryKey: ['students', tenantId],
@@ -488,10 +491,10 @@ export default function TenantDashboard() {
                 )}
               </div>
 
-              {/* Quick Actions & Recent Students */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Quick Actions, Recent Students & Announcements */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Quick Actions */}
-                <div className="lg:col-span-1 bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-gray-100/50 overflow-hidden">
+                <div className="lg:col-span-3 bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-gray-100/50 overflow-hidden">
                   <div className="p-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 border-b border-white/20">
                     <h2 className="text-xl font-bold text-white flex items-center gap-3">
                       <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -566,7 +569,7 @@ export default function TenantDashboard() {
                 </div>
 
                 {/* Recent Students */}
-                <div className="lg:col-span-2 bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-gray-100/50 overflow-hidden">
+                <div className="lg:col-span-6 bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-gray-100/50 overflow-hidden">
                   <div className="p-6 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 border-b border-white/20 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
@@ -653,6 +656,17 @@ export default function TenantDashboard() {
                     )}
                   </div>
                 </div>
+
+                {/* Announcements Widget */}
+                {tenantId && user?.id && (
+                  <div className="lg:col-span-3">
+                    <AnnouncementWidget
+                      tenantId={tenantId}
+                      userId={user.id}
+                      limit={5}
+                    />
+                  </div>
+                )}
               </div>
                 </>
               )}

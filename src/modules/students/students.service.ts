@@ -5,6 +5,8 @@ import { Student } from './entities/student.entity';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { AcademicYear } from '../academic-year/entities/academic-year.entity';
+import { CacheService } from '../../common/cache/cache.service';
+import { CacheKeys } from '../../common/cache/cache-keys';
 
 @Injectable()
 export class StudentsService {
@@ -13,6 +15,7 @@ export class StudentsService {
     private studentsRepository: Repository<Student>,
     @InjectRepository(AcademicYear)
     private academicYearRepository: Repository<AcademicYear>,
+    private cacheService: CacheService,
   ) {}
 
   private transformDates(dto: CreateStudentDto | UpdateStudentDto): any {
@@ -102,7 +105,13 @@ export class StudentsService {
     });
     
     try {
-      return await this.studentsRepository.save(student);
+      const savedStudent = await this.studentsRepository.save(student);
+      
+      // Invalidate cache
+      await this.cacheService.invalidatePattern(CacheKeys.studentsPattern(instansiId));
+      await this.cacheService.del(CacheKeys.dashboard(instansiId));
+      
+      return savedStudent;
     } catch (error: any) {
       if (error.code === 'ER_DUP_ENTRY' || error.code === '23505') {
         throw new ConflictException('Data siswa dengan NIK atau identitas yang sama sudah terdaftar');
@@ -131,6 +140,17 @@ export class StudentsService {
       limit = 20,
       instansiId,
     } = filters;
+
+    // Generate cache key based on filters
+    const cacheKey = `tenant:${instansiId}:students:page:${page}:limit:${limit}:class:${classId || 'all'}:status:${status || 'all'}:gender:${gender || 'all'}:year:${academicYear || 'all'}:search:${search || ''}`;
+    
+    // Try to get from cache (only if no search query, as search results change frequently)
+    if (!search) {
+      const cached = await this.cacheService.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
     
     const queryBuilder = this.studentsRepository
       .createQueryBuilder('student')
@@ -179,16 +199,31 @@ export class StudentsService {
       .take(limit)
       .getManyAndCount();
 
-    return {
+    const result = {
       data,
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
     };
+
+    // Cache result (only if no search, TTL: 5 minutes)
+    if (!search) {
+      await this.cacheService.set(cacheKey, result, 300);
+    }
+
+    return result;
   }
 
   async findOne(id: number, instansiId: number) {
+    const cacheKey = CacheKeys.student(id, instansiId);
+    
+    // Try to get from cache
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const student = await this.studentsRepository.findOne({
       where: { id, instansiId },
       relations: ['classRoom', 'attendances', 'grades'],
@@ -197,6 +232,9 @@ export class StudentsService {
     if (!student) {
       throw new NotFoundException(`Student with ID ${id} not found`);
     }
+
+    // Cache result (TTL: 10 minutes for single entity)
+    await this.cacheService.set(cacheKey, student, 600);
 
     return student;
   }
@@ -253,7 +291,14 @@ export class StudentsService {
     });
 
     try {
-      return await this.studentsRepository.save(student);
+      const updatedStudent = await this.studentsRepository.save(student);
+      
+      // Invalidate cache
+      await this.cacheService.del(CacheKeys.student(id, instansiId));
+      await this.cacheService.invalidatePattern(CacheKeys.studentsPattern(instansiId));
+      await this.cacheService.del(CacheKeys.dashboard(instansiId));
+      
+      return updatedStudent;
     } catch (error: any) {
       if (error.code === 'ER_DUP_ENTRY' || error.code === '23505') {
         throw new ConflictException('Data siswa dengan NIK atau identitas yang sama sudah terdaftar');
@@ -265,6 +310,12 @@ export class StudentsService {
   async remove(id: number, instansiId: number) {
     const student = await this.findOne(id, instansiId);
     await this.studentsRepository.remove(student);
+    
+    // Invalidate cache
+    await this.cacheService.del(CacheKeys.student(id, instansiId));
+    await this.cacheService.invalidatePattern(CacheKeys.studentsPattern(instansiId));
+    await this.cacheService.del(CacheKeys.dashboard(instansiId));
+    
     return { message: 'Student deleted successfully' };
   }
 

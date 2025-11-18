@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards, Get, Request } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -10,6 +11,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 requests per minute for login
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     try {
@@ -24,6 +26,7 @@ export class AuthController {
     }
   }
 
+  @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute for register
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
     try {
@@ -36,6 +39,7 @@ export class AuthController {
     }
   }
 
+  @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute for PPDB register
   @Post('register-ppdb')
   async registerPpdb(@Body() registerDto: RegisterPpdbDto) {
     try {
@@ -48,11 +52,13 @@ export class AuthController {
     }
   }
 
+  @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute for forgot password
   @Post('forgot-password')
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto.email);
   }
 
+  @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 requests per minute for reset password
   @Post('reset-password')
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(

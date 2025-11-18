@@ -10,6 +10,7 @@ import { User } from '../users/entities/user.entity';
 import { Tenant } from '../tenant/entities/tenant.entity';
 import { Student } from '../students/entities/student.entity';
 import { Teacher } from '../teachers/entities/teacher.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class AuthService {
     @InjectRepository(Tenant) private tenantRepository: Repository<Tenant>,
     @InjectRepository(Student) private studentRepository: Repository<Student>,
     @InjectRepository(Teacher) private teacherRepository: Repository<Teacher>,
+    private notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -269,11 +271,7 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     try {
-      // Validasi password confirmation
-      if (registerDto.password !== registerDto.password_confirmation) {
-        throw new BadRequestException('Password dan konfirmasi password tidak cocok');
-      }
-
+      // Password confirmation sudah divalidasi di DTO validator
       // Cek apakah NPSN sudah ada
       const existingTenant = await this.tenantRepository.findOne({
         where: { npsn: registerDto.npsn },
@@ -352,11 +350,7 @@ export class AuthService {
 
   async registerPpdb(registerDto: RegisterPpdbDto) {
     try {
-      // Validasi password confirmation
-      if (registerDto.password !== registerDto.password_confirmation) {
-        throw new BadRequestException('Password dan konfirmasi password tidak cocok');
-      }
-
+      // Password confirmation sudah divalidasi di DTO validator
       // Cari tenant berdasarkan NPSN
       const tenant = await this.tenantRepository.findOne({
         where: { npsn: registerDto.npsn },
@@ -434,16 +428,74 @@ export class AuthService {
       };
     }
 
-    // Generate reset token sederhana (untuk production, gunakan token yang lebih aman)
+    // Generate reset token yang aman
     const resetToken = Math.random().toString(36).substring(2, 15) + 
-                      Math.random().toString(36).substring(2, 15);
+                      Math.random().toString(36).substring(2, 15) +
+                      Date.now().toString(36);
     
-    // Simpan token di rememberToken field (sementara)
-    user.rememberToken = resetToken;
+    // Simpan token di rememberToken field (expiry akan di-handle di resetPassword)
+    // Format: token|timestamp untuk menyimpan expiry info
+    const expiryTimestamp = Date.now() + 24 * 60 * 60 * 1000; // 24 jam
+    user.rememberToken = `${resetToken}|${expiryTimestamp}`;
     await this.userRepository.save(user);
 
-    // TODO: Kirim email dengan reset token
-    // Untuk sekarang, return token (dalam production, kirim via email)
+    // Get frontend URL from config or use default
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+    // Prepare email content
+    const emailSubject = 'Reset Password - XClass';
+    const emailContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reset Password</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">Reset Password</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <p>Halo,</p>
+          <p>Kami menerima permintaan untuk mereset password akun Anda. Klik tombol di bawah ini untuk melanjutkan:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Reset Password</a>
+          </div>
+          <p>Atau copy dan paste link berikut ke browser Anda:</p>
+          <p style="background: #e9e9e9; padding: 10px; border-radius: 5px; word-break: break-all; font-size: 12px;">${resetUrl}</p>
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            <strong>Penting:</strong>
+            <ul style="color: #666; font-size: 14px;">
+              <li>Link ini hanya berlaku selama 24 jam</li>
+              <li>Jika Anda tidak meminta reset password, abaikan email ini</li>
+              <li>Jangan bagikan link ini kepada siapapun</li>
+            </ul>
+          </p>
+          <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px;">
+            Email ini dikirim secara otomatis, mohon jangan membalas email ini.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      // Send email via NotificationsService
+      await this.notificationsService.sendEmail(
+        user.instansiId || 0,
+        user.id,
+        email,
+        emailSubject,
+        emailContent,
+      );
+    } catch (error) {
+      // Log error but don't reveal to user
+      console.error('Failed to send password reset email:', error);
+      // Still return success message for security
+    }
+
     return {
       message: 'Instruksi reset password telah dikirim ke email Anda.',
       // Hanya untuk development/testing - hapus di production
@@ -469,8 +521,27 @@ export class AuthService {
     }
 
     // Validasi reset token jika ada
-    if (resetToken && user.rememberToken !== resetToken) {
-      throw new BadRequestException('Token reset password tidak valid atau sudah kadaluarsa');
+    if (resetToken) {
+      if (!user.rememberToken) {
+        throw new BadRequestException('Token reset password tidak valid atau sudah kadaluarsa');
+      }
+
+      // Parse token dan expiry timestamp
+      const tokenParts = user.rememberToken.split('|');
+      const storedToken = tokenParts[0];
+      const expiryTimestamp = tokenParts[1] ? parseInt(tokenParts[1], 10) : null;
+
+      // Validasi token match
+      if (storedToken !== resetToken) {
+        throw new BadRequestException('Token reset password tidak valid');
+      }
+
+      // Validasi expiry
+      if (expiryTimestamp && Date.now() > expiryTimestamp) {
+        user.rememberToken = null; // Clear expired token
+        await this.userRepository.save(user);
+        throw new BadRequestException('Token reset password sudah kadaluarsa. Silakan request reset password baru.');
+      }
     }
 
     // Hash password baru

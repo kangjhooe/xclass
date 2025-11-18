@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { DisciplineService } from './discipline.service';
 import { CreateDisciplinaryActionDto } from './dto/create-disciplinary-action.dto';
+import { UpdateDisciplinaryActionDto } from './dto/update-disciplinary-action.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
@@ -55,6 +56,16 @@ export class DisciplineController {
   @ModuleAccess('discipline', 'view')
   findOne(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.disciplineService.findOne(+id, instansiId);
+  }
+
+  @Patch('actions/:id')
+  @ModuleAccess('discipline', 'update')
+  update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateDisciplinaryActionDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.disciplineService.update(+id, updateDto, instansiId);
   }
 
   @Patch('actions/:id/status')

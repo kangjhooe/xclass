@@ -2,34 +2,49 @@ import apiClient from './client';
 
 export interface Alumni {
   id: number;
-  studentId?: number;
+  instansiId: number;
+  studentId: number;
   student?: {
     id: number;
     name: string;
+    nisn?: string;
+    nis?: string;
   };
-  name: string;
   graduationYear: number;
-  email?: string;
-  phone?: string;
-  address?: string;
-  occupation?: string;
+  graduationDate: string;
+  finalGrade: number;
+  gpa?: number;
+  rank?: number;
+  currentOccupation?: string;
   company?: string;
-  status?: string;
+  position?: string;
+  industry?: string;
+  salaryRange?: number;
+  address?: string;
+  phone?: string;
+  email?: string;
+  status: 'employed' | 'unemployed' | 'studying' | 'self_employed';
   notes?: string;
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AlumniCreateData {
-  studentId?: number;
-  name: string;
+  studentId: number;
   graduationYear: number;
-  email?: string;
-  phone?: string;
-  address?: string;
-  occupation?: string;
+  graduationDate: string;
+  finalGrade: number;
+  gpa?: number;
+  rank?: number;
+  currentOccupation?: string;
   company?: string;
-  status?: string;
+  position?: string;
+  industry?: string;
+  salaryRange?: number;
+  address?: string;
+  phone?: string;
+  email?: string;
+  status?: 'employed' | 'unemployed' | 'studying' | 'self_employed';
   notes?: string;
 }
 
@@ -37,7 +52,7 @@ export const alumniApi = {
   getAll: async (
     tenantId: number,
     params?: { status?: string; graduationYear?: number; search?: string; page?: number; limit?: number }
-  ): Promise<{ data: Alumni[]; total: number }> => {
+  ): Promise<{ data: Alumni[]; total: number; page: number; limit: number; totalPages: number }> => {
     const response = await apiClient.get('/alumni', { params });
     return response.data;
   },

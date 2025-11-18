@@ -9,6 +9,7 @@ import { CorrespondenceArchive } from './entities/correspondence-archive.entity'
 import { LetterSequence } from './entities/letter-sequence.entity';
 import { GeneratedLetter } from './entities/generated-letter.entity';
 import { ModuleAccessModule } from '../../common/module-access.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ModuleAccessModule } from '../../common/module-access.module';
       GeneratedLetter,
     ]),
     ModuleAccessModule,
+    StorageModule,
   ],
   controllers: [CorrespondenceController],
   providers: [CorrespondenceService],

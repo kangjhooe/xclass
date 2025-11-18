@@ -11,9 +11,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
 import { studentsApi } from '@/lib/api/students';
 import { teachersApi } from '@/lib/api/teachers';
+import { useToastStore } from '@/lib/store/toast';
 
 export default function CounselingPage() {
   const tenantId = useTenantId();
+  const { success, error: showError } = useToastStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -91,10 +93,11 @@ export default function CounselingPage() {
       queryClient.invalidateQueries({ queryKey: ['counseling-sessions', tenantId] });
       setIsModalOpen(false);
       resetForm();
+      success('Sesi konseling berhasil dibuat');
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Gagal membuat sesi konseling';
-      alert(errorMessage);
+      showError(errorMessage);
     },
   });
 
@@ -110,10 +113,11 @@ export default function CounselingPage() {
       setIsEditModalOpen(false);
       setSelectedSession(null);
       resetForm();
+      success('Sesi konseling berhasil diperbarui');
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Gagal memperbarui sesi konseling';
-      alert(errorMessage);
+      showError(errorMessage);
     },
   });
 
@@ -126,10 +130,11 @@ export default function CounselingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['counseling-sessions', tenantId] });
+      success('Status sesi konseling berhasil diperbarui');
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Gagal memperbarui status';
-      alert(errorMessage);
+      showError(errorMessage);
     },
   });
 
@@ -142,10 +147,11 @@ export default function CounselingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['counseling-sessions', tenantId] });
+      success('Sesi konseling berhasil dihapus');
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Gagal menghapus sesi konseling';
-      alert(errorMessage);
+      showError(errorMessage);
     },
   });
 
@@ -208,8 +214,19 @@ export default function CounselingPage() {
     }
   };
 
-  const handleStatusChange = (id: number, status: string) => {
-    updateStatusMutation.mutate({ id, status });
+  const handleStatusChange = (id: number, status: string, currentStatus: string) => {
+    if (status === currentStatus) return;
+    
+    const statusLabels: Record<string, string> = {
+      scheduled: 'Terjadwal',
+      in_progress: 'Berlangsung',
+      completed: 'Selesai',
+      cancelled: 'Dibatalkan',
+    };
+    
+    if (confirm(`Apakah Anda yakin ingin mengubah status menjadi "${statusLabels[status]}"?`)) {
+      updateStatusMutation.mutate({ id, status });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -447,7 +464,7 @@ export default function CounselingPage() {
                       <TableCell>
                         <select
                           value={session.status}
-                          onChange={(e) => handleStatusChange(session.id, e.target.value)}
+                          onChange={(e) => handleStatusChange(session.id, e.target.value, session.status)}
                           className={`px-3 py-1 text-xs font-bold rounded-full border-0 ${getStatusColor(session.status)}`}
                         >
                           <option value="scheduled">Terjadwal</option>

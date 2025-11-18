@@ -18,6 +18,7 @@ import { CreateExtracurricularDto } from './dto/create-extracurricular.dto';
 import { UpdateExtracurricularDto } from './dto/update-extracurricular.dto';
 import { CreateExtracurricularParticipantDto } from './dto/create-extracurricular-participant.dto';
 import { CreateExtracurricularActivityDto } from './dto/create-extracurricular-activity.dto';
+import { UpdateExtracurricularActivityDto } from './dto/update-extracurricular-activity.dto';
 
 @Injectable()
 export class ExtracurricularService {
@@ -68,6 +69,7 @@ export class ExtracurricularService {
       .createQueryBuilder('extracurricular')
       .where('extracurricular.instansiId = :instansiId', { instansiId })
       .leftJoinAndSelect('extracurricular.supervisor', 'supervisor')
+      .leftJoinAndSelect('extracurricular.assistantSupervisor', 'assistantSupervisor')
       .leftJoinAndSelect('extracurricular.participants', 'participants');
 
     if (search) {
@@ -239,7 +241,7 @@ export class ExtracurricularService {
 
     return await this.participantsRepository.find({
       where: { extracurricularId, instansiId },
-      relations: ['student'],
+      relations: ['student', 'student.classRoom'],
       order: { joinedAt: 'DESC' },
     });
   }
@@ -272,6 +274,46 @@ export class ExtracurricularService {
       where: { extracurricularId, instansiId },
       order: { activityDate: 'DESC' },
     });
+  }
+
+  async updateActivity(
+    id: number,
+    updateDto: UpdateExtracurricularActivityDto,
+    instansiId: number,
+  ) {
+    const activity = await this.activitiesRepository.findOne({
+      where: { id, instansiId },
+    });
+
+    if (!activity) {
+      throw new NotFoundException(`Activity with ID ${id} not found`);
+    }
+
+    if (updateDto.activityDate) {
+      activity.activityDate = new Date(updateDto.activityDate);
+    }
+    if (updateDto.startTime) {
+      activity.startTime = new Date(updateDto.startTime);
+    }
+    if (updateDto.endTime) {
+      activity.endTime = new Date(updateDto.endTime);
+    }
+
+    Object.assign(activity, updateDto);
+    return await this.activitiesRepository.save(activity);
+  }
+
+  async deleteActivity(id: number, instansiId: number) {
+    const activity = await this.activitiesRepository.findOne({
+      where: { id, instansiId },
+    });
+
+    if (!activity) {
+      throw new NotFoundException(`Activity with ID ${id} not found`);
+    }
+
+    await this.activitiesRepository.remove(activity);
+    return { message: 'Activity deleted successfully' };
   }
 
   async getStatistics(instansiId: number) {

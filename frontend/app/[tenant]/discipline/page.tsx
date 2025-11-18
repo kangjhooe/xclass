@@ -84,6 +84,24 @@ export default function DisciplinePage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<DisciplinaryActionCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return disciplineApi.update(tenantId, id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['discipline', tenantId] });
+      setIsModalOpen(false);
+      resetForm();
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Gagal memperbarui tindakan disiplin';
+      alert(errorMessage);
+    },
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => {
       if (!tenantId) {
@@ -123,6 +141,31 @@ export default function DisciplinePage() {
   };
 
   const handleViewDetail = (action: DisciplinaryAction) => {
+    setFormData({
+      studentId: 0,
+      reporterId: undefined,
+      incidentDate: new Date().toISOString().split('T')[0],
+      description: '',
+      sanctionType: 'warning',
+      sanctionDetails: '',
+      status: 'pending',
+      notes: '',
+    });
+    setSelectedAction(action);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (action: DisciplinaryAction) => {
+    setFormData({
+      studentId: action.studentId,
+      reporterId: action.reporterId,
+      incidentDate: new Date(action.incidentDate).toISOString().split('T')[0],
+      description: action.description,
+      sanctionType: action.sanctionType,
+      sanctionDetails: action.sanctionDetails || '',
+      status: action.status,
+      notes: action.notes || '',
+    });
     setSelectedAction(action);
     setIsModalOpen(true);
   };
@@ -139,7 +182,13 @@ export default function DisciplinePage() {
       return;
     }
 
-    createMutation.mutate(formData);
+    if (selectedAction && selectedAction.id) {
+      // Edit mode
+      updateMutation.mutate({ id: selectedAction.id, data: formData });
+    } else {
+      // Create mode
+      createMutation.mutate(formData);
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -501,6 +550,14 @@ export default function DisciplinePage() {
                                   Detail
                                 </Button>
                                 <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEdit(action)}
+                                  className="hover:bg-green-50 hover:border-green-300 transition-colors"
+                                >
+                                  Edit
+                                </Button>
+                                <Button
                                   variant="danger"
                                   size="sm"
                                   onClick={() => handleDelete(action.id)}
@@ -576,10 +633,16 @@ export default function DisciplinePage() {
                 setIsModalOpen(false);
                 resetForm();
               }}
-              title={selectedAction ? 'Detail Tindakan Disiplin' : 'Tambah Tindakan Disiplin'}
+              title={
+                selectedAction && selectedAction.id && formData.description
+                  ? 'Edit Tindakan Disiplin'
+                  : selectedAction && selectedAction.id
+                  ? 'Detail Tindakan Disiplin'
+                  : 'Tambah Tindakan Disiplin'
+              }
               size="lg"
             >
-              {selectedAction ? (
+              {selectedAction && selectedAction.id && !formData.description ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -856,10 +919,10 @@ export default function DisciplinePage() {
                   </Button>
                   <Button
                     type="submit"
-                    loading={createMutation.isPending}
+                    loading={selectedAction && selectedAction.id ? updateMutation.isPending : createMutation.isPending}
                     className={themeConfig.primaryButton}
                   >
-                    Simpan
+                    {selectedAction && selectedAction.id ? 'Update' : 'Simpan'}
                   </Button>
                 </div>
               </form>

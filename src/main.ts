@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
 
 async function bootstrap() {
   try {
@@ -11,16 +12,74 @@ async function bootstrap() {
     const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
     const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
     
-    // Enable CORS
-    const corsOrigins = nodeEnv === 'production' 
+    // Security headers dengan helmet
+    app.use(helmet({
+      contentSecurityPolicy: nodeEnv === 'production' ? {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'", frontendUrl],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+        },
+      } : false, // Disable CSP in development untuk kemudahan development
+      crossOriginEmbedderPolicy: false, // Disable untuk compatibility
+      crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin resources
+    }));
+    
+    // Enable CORS dengan konfigurasi yang lebih ketat
+    const allowedOrigins = nodeEnv === 'production' 
       ? [frontendUrl] // Only allow frontend URL in production
-      : true; // Allow all origins in development
+      : [
+          'http://localhost:3001',
+          'http://localhost:3000',
+          'http://127.0.0.1:3001',
+          'http://127.0.0.1:3000',
+          frontendUrl,
+        ]; // Allow specific origins in development
     
     app.enableCors({
-      origin: corsOrigins,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+          return callback(null, true);
+        }
+        
+        if (nodeEnv === 'development') {
+          // In development, allow all localhost origins
+          if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+            return callback(null, true);
+          }
+        }
+        
+        // Check if origin is in allowed list
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        
+        // Reject origin
+        callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'x-tenant-id',
+        'x-requested-with',
+        'accept',
+        'origin',
+        'access-control-request-method',
+        'access-control-request-headers',
+      ],
+      exposedHeaders: ['Content-Range', 'X-Content-Range'],
+      maxAge: 86400, // 24 hours
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
     });
     
     app.useGlobalPipes(new ValidationPipe({
@@ -73,6 +132,7 @@ async function bootstrap() {
       .addTag('schedules', 'Schedules management')
       .addTag('attendance', 'Attendance management')
       .addTag('grades', 'Grades management')
+      .addTag('counseling', 'Counseling sessions management')
       .addTag('export-import', 'Export/Import data (Excel, CSV, PDF)')
       .addTag('storage', 'File storage and upload')
       .addTag('backup', 'Backup & Recovery')

@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CounselingService } from './counseling.service';
 import { CreateCounselingSessionDto } from './dto/create-counseling-session.dto';
 import { UpdateCounselingSessionDto } from './dto/update-counseling-session.dto';
@@ -18,6 +19,8 @@ import { TenantGuard } from '../../common/guards/tenant.guard';
 import { ModuleAccessGuard } from '../../common/guards/module-access.guard';
 import { ModuleAccess } from '../../common/decorators/module-access.decorator';
 
+@ApiTags('counseling')
+@ApiBearerAuth()
 @Controller('counseling')
 @UseGuards(JwtAuthGuard, TenantGuard, ModuleAccessGuard)
 export class CounselingController {
@@ -25,6 +28,10 @@ export class CounselingController {
 
   @Post('sessions')
   @ModuleAccess('counseling', 'create')
+  @ApiOperation({ summary: 'Buat sesi konseling baru' })
+  @ApiResponse({ status: 201, description: 'Sesi konseling berhasil dibuat' })
+  @ApiResponse({ status: 400, description: 'Data tidak valid atau validasi gagal' })
+  @ApiResponse({ status: 404, description: 'Siswa atau konselor tidak ditemukan' })
   create(
     @Body() createDto: CreateCounselingSessionDto,
     @TenantId() instansiId: number,
@@ -34,6 +41,16 @@ export class CounselingController {
 
   @Get('sessions')
   @ModuleAccess('counseling', 'view')
+  @ApiOperation({ summary: 'Dapatkan daftar sesi konseling dengan filter dan pagination' })
+  @ApiResponse({ status: 200, description: 'Daftar sesi konseling berhasil diambil' })
+  @ApiQuery({ name: 'studentId', required: false, type: Number, description: 'Filter berdasarkan ID siswa' })
+  @ApiQuery({ name: 'counselorId', required: false, type: Number, description: 'Filter berdasarkan ID konselor' })
+  @ApiQuery({ name: 'status', required: false, enum: ['scheduled', 'in_progress', 'completed', 'cancelled'], description: 'Filter berdasarkan status' })
+  @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Filter dari tanggal (ISO format)' })
+  @ApiQuery({ name: 'endDate', required: false, type: String, description: 'Filter sampai tanggal (ISO format)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Pencarian di masalah, catatan, atau nama' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Nomor halaman', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Jumlah data per halaman', example: 20 })
   findAll(
     @TenantId() instansiId: number,
     @Query('studentId') studentId?: number,
@@ -60,12 +77,21 @@ export class CounselingController {
 
   @Get('sessions/:id')
   @ModuleAccess('counseling', 'view')
+  @ApiOperation({ summary: 'Dapatkan detail sesi konseling berdasarkan ID' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID sesi konseling' })
+  @ApiResponse({ status: 200, description: 'Detail sesi konseling berhasil diambil' })
+  @ApiResponse({ status: 404, description: 'Sesi konseling tidak ditemukan' })
   findOne(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.counselingService.findOne(+id, instansiId);
   }
 
   @Patch('sessions/:id')
   @ModuleAccess('counseling', 'update')
+  @ApiOperation({ summary: 'Update sesi konseling' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID sesi konseling' })
+  @ApiResponse({ status: 200, description: 'Sesi konseling berhasil diupdate' })
+  @ApiResponse({ status: 400, description: 'Data tidak valid atau validasi gagal' })
+  @ApiResponse({ status: 404, description: 'Sesi konseling tidak ditemukan' })
   update(
     @Param('id') id: string,
     @Body() updateDto: UpdateCounselingSessionDto,
@@ -76,6 +102,11 @@ export class CounselingController {
 
   @Patch('sessions/:id/status')
   @ModuleAccess('counseling', 'update')
+  @ApiOperation({ summary: 'Update status sesi konseling' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID sesi konseling' })
+  @ApiResponse({ status: 200, description: 'Status sesi konseling berhasil diupdate' })
+  @ApiResponse({ status: 400, description: 'Status tidak valid atau validasi gagal' })
+  @ApiResponse({ status: 404, description: 'Sesi konseling tidak ditemukan' })
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: string,
@@ -86,6 +117,10 @@ export class CounselingController {
 
   @Delete('sessions/:id')
   @ModuleAccess('counseling', 'delete')
+  @ApiOperation({ summary: 'Hapus sesi konseling' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID sesi konseling' })
+  @ApiResponse({ status: 200, description: 'Sesi konseling berhasil dihapus' })
+  @ApiResponse({ status: 404, description: 'Sesi konseling tidak ditemukan' })
   remove(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.counselingService.remove(+id, instansiId);
   }

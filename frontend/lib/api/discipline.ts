@@ -75,6 +75,15 @@ export const disciplineApi = {
     return response.data;
   },
 
+  update: async (
+    tenantId: number,
+    id: number,
+    data: Partial<DisciplinaryActionCreateData>
+  ): Promise<DisciplinaryAction> => {
+    const response = await apiClient.patch(`/discipline/actions/${id}`, data);
+    return response.data;
+  },
+
   updateStatus: async (
     tenantId: number,
     id: number,

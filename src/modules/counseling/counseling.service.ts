@@ -51,6 +51,16 @@ export class CounselingService {
       );
     }
 
+    // Validasi followUpDate harus setelah sessionDate
+    if (createDto.followUpDate) {
+      const followUpDate = new Date(createDto.followUpDate);
+      if (followUpDate <= sessionDate) {
+        throw new BadRequestException(
+          'Tanggal tindak lanjut harus setelah tanggal sesi',
+        );
+      }
+    }
+
     const session = this.sessionRepository.create({
       ...createDto,
       instansiId,
@@ -208,6 +218,16 @@ export class CounselingService {
     ) {
       throw new BadRequestException(
         'Sesi yang sudah selesai tidak boleh memiliki tanggal di masa depan',
+      );
+    }
+
+    // Validasi followUpDate harus setelah sessionDate
+    const followUpDate = updateDto.followUpDate !== undefined
+      ? (updateDto.followUpDate ? new Date(updateDto.followUpDate) : null)
+      : session.followUpDate;
+    if (followUpDate && followUpDate <= sessionDate) {
+      throw new BadRequestException(
+        'Tanggal tindak lanjut harus setelah tanggal sesi',
       );
     }
 

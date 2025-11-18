@@ -15,6 +15,7 @@ import { AcademicYear } from '../academic-year/entities/academic-year.entity';
 import { PpdbRegistration } from '../ppdb/entities/ppdb-registration.entity';
 import { PpdbInterviewSchedule } from '../ppdb/entities/ppdb-interview-schedule.entity';
 import { Download } from './entities/download.entity';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { Download } from './entities/download.entity';
       PpdbInterviewSchedule,
       Download,
     ]),
+    StorageModule,
   ],
   controllers: [PublicPageController, PublicPageAdminController],
   providers: [PublicPageService],
