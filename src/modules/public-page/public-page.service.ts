@@ -14,6 +14,8 @@ import { PpdbRegistration, RegistrationStatus } from '../ppdb/entities/ppdb-regi
 import { PpdbInterviewSchedule, ScheduleStatus } from '../ppdb/entities/ppdb-interview-schedule.entity';
 import { Download } from './entities/download.entity';
 import { StorageService } from '../storage/storage.service';
+import { GuestBookService } from '../guest-book/guest-book.service';
+import { CreateGuestBookDto } from '../guest-book/dto/create-guest-book.dto';
 
 @Injectable()
 export class PublicPageService {
@@ -43,6 +45,9 @@ export class PublicPageService {
     @InjectRepository(Download)
     private downloadRepository: Repository<Download>,
     private storageService: StorageService,
+    private guestBookService: GuestBookService,
+    private configService: ConfigService,
+    private httpService: HttpService,
   ) {}
 
   // News methods
@@ -244,6 +249,55 @@ export class PublicPageService {
     }) as unknown as PPDBForm;
 
     return await this.ppdbFormRepository.save(form);
+  }
+
+  // Guest Book Form (Public - no auth required)
+  async submitGuestBook(instansiId: number, data: CreateGuestBookDto & { recaptcha_token?: string }) {
+    // Verify reCAPTCHA if token is provided
+    if (data.recaptcha_token) {
+      const isValid = await this.verifyRecaptcha(data.recaptcha_token);
+      if (!isValid) {
+        throw new Error('reCAPTCHA verification failed. Please try again.');
+      }
+    }
+
+    // Auto-set check_in to current date/time if not provided
+    if (!data.check_in) {
+      data.check_in = new Date().toISOString();
+    }
+    
+    // Remove recaptcha_token before saving
+    const { recaptcha_token, ...guestBookData } = data;
+    
+    return await this.guestBookService.create(guestBookData, instansiId);
+  }
+
+  // Verify reCAPTCHA token
+  private async verifyRecaptcha(token: string): Promise<boolean> {
+    const secretKey = this.configService.get<string>('RECAPTCHA_SECRET_KEY');
+    
+    // If secret key is not configured, skip verification (for development)
+    if (!secretKey) {
+      console.warn('reCAPTCHA secret key not configured, skipping verification');
+      return true;
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post('https://www.google.com/recaptcha/api/siteverify', null, {
+          params: {
+            secret: secretKey,
+            response: token,
+          },
+        }),
+      );
+
+      const result = response.data;
+      return result.success === true && result.score >= 0.5; // Score threshold for v3
+    } catch (error) {
+      console.error('reCAPTCHA verification error:', error);
+      return false;
+    }
   }
 
   async getPPDBForms(

@@ -1,7 +1,7 @@
 {
     "$schema": "https://json.schemastore.org/package.json",
     "name": "xclass",
-    "version": "0.1.2",
+    "version": "0.1.25",
     "private": true,
     "scripts": {
         "build": "nest build",
@@ -45,6 +45,7 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "@nestjs/axios": "^4.0.1",
         "@nestjs/cache-manager": "^3.0.1",
         "@nestjs/common": "^11.1.8",
         "@nestjs/config": "^4.0.2",

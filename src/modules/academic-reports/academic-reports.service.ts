@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { StudentGrade } from '../grades/entities/student-grade.entity';
@@ -6,9 +6,16 @@ import { Student } from '../students/entities/student.entity';
 import { ClassRoom } from '../classes/entities/class-room.entity';
 import { Subject } from '../subjects/entities/subject.entity';
 import { Attendance } from '../attendance/entities/attendance.entity';
+import { AcademicReport, ReportType } from './entities/academic-report.entity';
+import * as ExcelJS from 'exceljs';
+import PDFDocument from 'pdfkit';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class AcademicReportsService {
+  private readonly logger = new Logger(AcademicReportsService.name);
+
   constructor(
     @InjectRepository(StudentGrade)
     private gradeRepository: Repository<StudentGrade>,
@@ -20,6 +27,8 @@ export class AcademicReportsService {
     private subjectRepository: Repository<Subject>,
     @InjectRepository(Attendance)
     private attendanceRepository: Repository<Attendance>,
+    @InjectRepository(AcademicReport)
+    private academicReportRepository: Repository<AcademicReport>,
   ) {}
 
   async getDashboard(instansiId: number) {
