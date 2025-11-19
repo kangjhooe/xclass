@@ -26,6 +26,14 @@ export default function GuestBookPage() {
     check_in: new Date().toISOString().split('T')[0],
   });
 
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+  const resolvePhotoUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    if (url.startsWith('/')) return `${apiBaseUrl}${url}`;
+    return `${apiBaseUrl}/${url}`;
+  };
+
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -236,6 +244,7 @@ export default function GuestBookPage() {
                     <TableHead className="font-semibold text-gray-700">Telepon</TableHead>
                     <TableHead className="font-semibold text-gray-700">Instansi</TableHead>
                     <TableHead className="font-semibold text-gray-700">Tujuan</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Foto</TableHead>
                     <TableHead className="font-semibold text-gray-700">Check In</TableHead>
                     <TableHead className="font-semibold text-gray-700">Check Out</TableHead>
                     <TableHead className="font-semibold text-gray-700">Status</TableHead>
@@ -251,6 +260,21 @@ export default function GuestBookPage() {
                       <TableCell>{guest.institution || '-'}</TableCell>
                       <TableCell className="max-w-xs truncate" title={guest.purpose}>
                         {guest.purpose}
+                      </TableCell>
+                      <TableCell>
+                        {guest.photo_url ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedGuest(guest)}
+                            className="hover:border-blue-300"
+                          >
+                            Lihat Foto
+                          </Button>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
                       </TableCell>
                       <TableCell>{guest.check_in ? formatDate(guest.check_in) : '-'}</TableCell>
                       <TableCell>{guest.check_out ? formatDate(guest.check_out) : '-'}</TableCell>
@@ -289,7 +313,7 @@ export default function GuestBookPage() {
                   ))}
                   {filteredData.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-12">
+                      <TableCell colSpan={10} className="text-center py-12">
                         <div className="flex flex-col items-center">
                           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -427,6 +451,30 @@ export default function GuestBookPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        <Modal
+          isOpen={!!selectedGuest}
+          onClose={() => setSelectedGuest(null)}
+          title={selectedGuest ? `Foto ${selectedGuest.name}` : 'Foto tamu'}
+          size="md"
+        >
+          {selectedGuest?.photo_url ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-inner">
+                <img
+                  src={resolvePhotoUrl(selectedGuest.photo_url)}
+                  alt={`Foto ${selectedGuest.name}`}
+                  className="w-full object-contain bg-gray-50"
+                />
+              </div>
+              <div className="text-xs text-gray-500 break-all">
+                {resolvePhotoUrl(selectedGuest.photo_url)}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Foto tidak tersedia.</p>
+          )}
         </Modal>
       </div>
     </TenantLayout>

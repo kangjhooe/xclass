@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
 import { ExportButton } from '@/components/ui/ExportButton';
-import { financeApi, SPP, SPPCreateData, Savings, SavingsCreateData, OtherBill, OtherBillCreateData, IncomeExpense, IncomeExpenseCreateData } from '@/lib/api/finance';
+import { financeApi, SPP, SPPCreateData, Savings, SavingsCreateData, OtherBill, OtherBillCreateData, IncomeExpense, IncomeExpenseCreateData, Scholarship, ScholarshipCreateData, PaymentReminders, ReminderSummary } from '@/lib/api/finance';
 import { studentsApi } from '@/lib/api/students';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,9 +20,10 @@ const MONTHS = [
 ];
 
 export default function FinancePage() {
+  const router = useRouter();
   const tenantId = useTenantId();
   const resolvedTenantId = tenantId ?? undefined;
-  const [activeTab, setActiveTab] = useState<'spp' | 'savings' | 'other-bills' | 'income-expense'>('spp');
+  const [activeTab, setActiveTab] = useState<'spp' | 'savings' | 'other-bills' | 'income-expense' | 'scholarships'>('spp');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSPP, setSelectedSPP] = useState<SPP | null>(null);
   const [selectedSavings, setSelectedSavings] = useState<Savings | null>(null);
@@ -67,9 +69,26 @@ export default function FinancePage() {
     notes: '',
   });
 
+  const [scholarshipFormData, setScholarshipFormData] = useState<ScholarshipCreateData>({
+    studentId: 0,
+    scholarshipType: 'full',
+    title: '',
+    description: '',
+    amount: undefined,
+    percentage: undefined,
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: undefined,
+    status: 'active',
+    sponsor: '',
+    requirements: '',
+    notes: '',
+  });
+
   const [selectedOtherBill, setSelectedOtherBill] = useState<OtherBill | null>(null);
   const [selectedIncomeExpense, setSelectedIncomeExpense] = useState<IncomeExpense | null>(null);
+  const [selectedScholarship, setSelectedScholarship] = useState<Scholarship | null>(null);
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<'income' | 'expense' | 'all'>('all');
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -103,6 +122,31 @@ export default function FinancePage() {
     queryKey: ['income-expense-summary', resolvedTenantId],
     queryFn: () => financeApi.getIncomeExpenseSummary(resolvedTenantId!),
     enabled: resolvedTenantId !== undefined && activeTab === 'income-expense',
+  });
+
+  const { data: scholarshipsData, isLoading: scholarshipsLoading } = useQuery({
+    queryKey: ['scholarships', resolvedTenantId, currentPage],
+    queryFn: () => financeApi.getAllScholarships(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined && activeTab === 'scholarships',
+  });
+
+  const { data: scholarshipStatistics } = useQuery({
+    queryKey: ['scholarship-statistics', resolvedTenantId],
+    queryFn: () => financeApi.getScholarshipStatistics(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined && activeTab === 'scholarships',
+  });
+
+  const { data: reminderSummary } = useQuery({
+    queryKey: ['reminder-summary', resolvedTenantId],
+    queryFn: () => financeApi.getReminderSummary(resolvedTenantId!),
+    enabled: resolvedTenantId !== undefined,
+    refetchInterval: 300000, // Refetch every 5 minutes
+  });
+
+  const { data: paymentReminders } = useQuery({
+    queryKey: ['payment-reminders', resolvedTenantId],
+    queryFn: () => financeApi.getPaymentReminders(resolvedTenantId!, 7),
+    enabled: resolvedTenantId !== undefined && isReminderModalOpen,
   });
 
   const { data: studentsData } = useQuery({
@@ -160,6 +204,8 @@ export default function FinancePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['spp', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['reminder-summary', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['payment-reminders', resolvedTenantId] });
     },
   });
 
@@ -254,6 +300,8 @@ export default function FinancePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['other-bills', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['reminder-summary', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['payment-reminders', resolvedTenantId] });
     },
   });
 
@@ -268,6 +316,8 @@ export default function FinancePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income-expenses', resolvedTenantId] });
       queryClient.invalidateQueries({ queryKey: ['income-expense-summary', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['budgets', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary', resolvedTenantId] });
       setIsModalOpen(false);
       resetIncomeExpenseForm();
     },
@@ -283,6 +333,8 @@ export default function FinancePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income-expenses', resolvedTenantId] });
       queryClient.invalidateQueries({ queryKey: ['income-expense-summary', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['budgets', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary', resolvedTenantId] });
       setIsModalOpen(false);
       resetIncomeExpenseForm();
     },
@@ -298,6 +350,52 @@ export default function FinancePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income-expenses', resolvedTenantId] });
       queryClient.invalidateQueries({ queryKey: ['income-expense-summary', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['budgets', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary', resolvedTenantId] });
+    },
+  });
+
+  // Scholarship mutations
+  const createScholarshipMutation = useMutation({
+    mutationFn: (data: ScholarshipCreateData) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return financeApi.createScholarship(resolvedTenantId, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scholarships', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['scholarship-statistics', resolvedTenantId] });
+      setIsModalOpen(false);
+      resetScholarshipForm();
+    },
+  });
+
+  const updateScholarshipMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<ScholarshipCreateData> }) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return financeApi.updateScholarship(resolvedTenantId, id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scholarships', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['scholarship-statistics', resolvedTenantId] });
+      setIsModalOpen(false);
+      resetScholarshipForm();
+    },
+  });
+
+  const deleteScholarshipMutation = useMutation({
+    mutationFn: (id: number) => {
+      if (!resolvedTenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return financeApi.deleteScholarship(resolvedTenantId, id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scholarships', resolvedTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['scholarship-statistics', resolvedTenantId] });
     },
   });
 
@@ -351,6 +449,24 @@ export default function FinancePage() {
       notes: '',
     });
     setSelectedIncomeExpense(null);
+  };
+
+  const resetScholarshipForm = () => {
+    setScholarshipFormData({
+      studentId: 0,
+      scholarshipType: 'full',
+      title: '',
+      description: '',
+      amount: undefined,
+      percentage: undefined,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: undefined,
+      status: 'active',
+      sponsor: '',
+      requirements: '',
+      notes: '',
+    });
+    setSelectedScholarship(null);
   };
 
   const handleEdit = (spp: SPP) => {
@@ -514,6 +630,48 @@ export default function FinancePage() {
     }
   };
 
+  const handleEditScholarship = (scholarship: Scholarship) => {
+    setSelectedScholarship(scholarship);
+    setScholarshipFormData({
+      studentId: scholarship.studentId,
+      scholarshipType: scholarship.scholarshipType,
+      title: scholarship.title,
+      description: scholarship.description || '',
+      amount: scholarship.amount,
+      percentage: scholarship.percentage,
+      startDate: scholarship.startDate,
+      endDate: scholarship.endDate,
+      status: scholarship.status,
+      sponsor: scholarship.sponsor || '',
+      requirements: scholarship.requirements || '',
+      notes: scholarship.notes || '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmitScholarship = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resolvedTenantId) {
+      alert('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
+    if (selectedScholarship) {
+      updateScholarshipMutation.mutate({ id: selectedScholarship.id, data: scholarshipFormData });
+    } else {
+      createScholarshipMutation.mutate(scholarshipFormData);
+    }
+  };
+
+  const handleDeleteScholarship = (id: number) => {
+    if (!resolvedTenantId) {
+      alert('Tenant belum siap. Silakan coba lagi.');
+      return;
+    }
+    if (confirm('Apakah Anda yakin ingin menghapus beasiswa ini?')) {
+      deleteScholarshipMutation.mutate(id);
+    }
+  };
+
   const handlePay = (id: number) => {
     if (!resolvedTenantId) {
       alert('Tenant belum siap. Silakan coba lagi.');
@@ -540,7 +698,9 @@ export default function FinancePage() {
     ? (savingsData ? Math.ceil((savingsData.total || 0) / itemsPerPage) : 1)
     : activeTab === 'other-bills'
     ? (otherBillsData ? Math.ceil((otherBillsData.total || 0) / itemsPerPage) : 1)
-    : (incomeExpenseData ? Math.ceil((incomeExpenseData.total || 0) / itemsPerPage) : 1);
+    : activeTab === 'income-expense'
+    ? (incomeExpenseData ? Math.ceil((incomeExpenseData.total || 0) / itemsPerPage) : 1)
+    : (scholarshipsData ? Math.ceil((scholarshipsData.total || 0) / itemsPerPage) : 1);
   
   const paginatedData = activeTab === 'spp'
     ? (data?.data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) || [])
@@ -548,7 +708,9 @@ export default function FinancePage() {
     ? (savingsData?.data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) || [])
     : activeTab === 'other-bills'
     ? (otherBillsData?.data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) || [])
-    : (incomeExpenseData?.data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) || []);
+    : activeTab === 'income-expense'
+    ? (incomeExpenseData?.data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) || [])
+    : (scholarshipsData?.data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) || []);
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; className: string }> = {
@@ -568,8 +730,40 @@ export default function FinancePage() {
     <TenantLayout>
       <div>
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Keuangan</h1>
+          <div className="flex items-center space-x-4">
+            <h1 className="text-3xl font-bold text-gray-800">Keuangan</h1>
+            {reminderSummary && reminderSummary.totalReminders > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setIsReminderModalOpen(true)}
+                className="relative"
+              >
+                <span>Reminder</span>
+                {reminderSummary.overdueCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {reminderSummary.overdueCount}
+                  </span>
+                )}
+              </Button>
+            )}
+          </div>
           <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                router.push(`/${tenantId}/finance/reports`);
+              }}
+            >
+              Laporan Keuangan
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                router.push(`/${tenantId}/finance/budget`);
+              }}
+            >
+              Anggaran
+            </Button>
             <ExportButton onExport={handleExport} filename={activeTab} />
             <Button
               onClick={() => {
@@ -579,8 +773,10 @@ export default function FinancePage() {
                   resetSavingsForm();
                 } else if (activeTab === 'other-bills') {
                   resetOtherBillForm();
-                } else {
+                } else if (activeTab === 'income-expense') {
                   resetIncomeExpenseForm();
+                } else {
+                  resetScholarshipForm();
                 }
                 setIsModalOpen(true);
               }}
@@ -588,7 +784,8 @@ export default function FinancePage() {
               {activeTab === 'spp' ? 'Tambah SPP' : 
                activeTab === 'savings' ? 'Tambah Transaksi' : 
                activeTab === 'other-bills' ? 'Tambah Tagihan' : 
-               'Tambah Transaksi'}
+               activeTab === 'income-expense' ? 'Tambah Transaksi' :
+               'Tambah Beasiswa'}
             </Button>
           </div>
         </div>
@@ -647,6 +844,19 @@ export default function FinancePage() {
               }`}
             >
               Pemasukan & Pengeluaran
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('scholarships');
+                setCurrentPage(1);
+              }}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'scholarships'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Beasiswa & Bantuan
             </button>
           </nav>
         </div>
@@ -1088,6 +1298,149 @@ export default function FinancePage() {
               </>
             )}
           </>
+        ) : (
+          <>
+            {/* Summary Cards */}
+            {scholarshipStatistics && (
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-sm text-blue-600 font-medium">Total Beasiswa</div>
+                  <div className="text-2xl font-bold text-blue-700 mt-1">
+                    {scholarshipStatistics.total}
+                  </div>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-sm text-green-600 font-medium">Aktif</div>
+                  <div className="text-2xl font-bold text-green-700 mt-1">
+                    {scholarshipStatistics.active}
+                  </div>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="text-sm text-orange-600 font-medium">Berakhir</div>
+                  <div className="text-2xl font-bold text-orange-700 mt-1">
+                    {scholarshipStatistics.expired}
+                  </div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="text-sm text-purple-600 font-medium">Total Nilai</div>
+                  <div className="text-2xl font-bold text-purple-700 mt-1">
+                    Rp {scholarshipStatistics.totalAmount.toLocaleString('id-ID')}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {scholarshipsLoading ? (
+              <div className="text-center py-8">Memuat data...</div>
+            ) : (
+              <>
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Siswa</TableHead>
+                        <TableHead>Jenis</TableHead>
+                        <TableHead>Judul</TableHead>
+                        <TableHead>Nilai</TableHead>
+                        <TableHead>Tanggal Mulai</TableHead>
+                        <TableHead>Tanggal Berakhir</TableHead>
+                        <TableHead>Sponsor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedData.map((scholarship: Scholarship) => (
+                        <TableRow key={scholarship.id}>
+                          <TableCell className="font-medium">
+                            {scholarship.student?.name || `Siswa #${scholarship.studentId}`}
+                          </TableCell>
+                          <TableCell>
+                            <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
+                              {scholarship.scholarshipType === 'full' ? 'Beasiswa Penuh' :
+                               scholarship.scholarshipType === 'partial' ? 'Beasiswa Parsial' :
+                               scholarship.scholarshipType === 'tuition' ? 'Bebas SPP' :
+                               scholarship.scholarshipType === 'book' ? 'Bantuan Buku' :
+                               scholarship.scholarshipType === 'uniform' ? 'Bantuan Seragam' :
+                               scholarship.scholarshipType === 'transport' ? 'Bantuan Transport' :
+                               scholarship.scholarshipType === 'meal' ? 'Bantuan Makan' :
+                               'Bantuan Lainnya'}
+                            </span>
+                          </TableCell>
+                          <TableCell>{scholarship.title}</TableCell>
+                          <TableCell>
+                            {scholarship.amount ? (
+                              <span className="font-semibold text-green-600">
+                                Rp {scholarship.amount.toLocaleString('id-ID')}
+                              </span>
+                            ) : scholarship.percentage ? (
+                              <span className="font-semibold text-blue-600">
+                                {scholarship.percentage}%
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{formatDate(scholarship.startDate)}</TableCell>
+                          <TableCell>{scholarship.endDate ? formatDate(scholarship.endDate) : '-'}</TableCell>
+                          <TableCell>{scholarship.sponsor || '-'}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              scholarship.status === 'active'
+                                ? 'bg-green-100 text-green-800'
+                                : scholarship.status === 'expired'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {scholarship.status === 'active' ? 'Aktif' :
+                               scholarship.status === 'expired' ? 'Berakhir' :
+                               'Dibatalkan'}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditScholarship(scholarship)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteScholarship(scholarship.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                Hapus
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {paginatedData.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                            Tidak ada data beasiswa
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {scholarshipsData && scholarshipsData.total > itemsPerPage && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={scholarshipsData.total || 0}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
+              </>
+            )}
+          </>
         )}
 
         <Modal
@@ -1100,8 +1453,10 @@ export default function FinancePage() {
               resetSavingsForm();
             } else if (activeTab === 'other-bills') {
               resetOtherBillForm();
-            } else {
+            } else if (activeTab === 'income-expense') {
               resetIncomeExpenseForm();
+            } else {
+              resetScholarshipForm();
             }
           }}
           title={
@@ -1111,7 +1466,9 @@ export default function FinancePage() {
               ? (selectedSavings ? 'Edit Transaksi Tabungan' : 'Tambah Transaksi Tabungan')
               : activeTab === 'other-bills'
               ? (selectedOtherBill ? 'Edit Tagihan' : 'Tambah Tagihan')
-              : (selectedIncomeExpense ? 'Edit Transaksi' : 'Tambah Transaksi')
+              : activeTab === 'income-expense'
+              ? (selectedIncomeExpense ? 'Edit Transaksi' : 'Tambah Transaksi')
+              : (selectedScholarship ? 'Edit Beasiswa' : 'Tambah Beasiswa')
           }
           size="lg"
         >
@@ -1229,7 +1586,7 @@ export default function FinancePage() {
               </Button>
             </div>
           </form>
-          ) : (
+          ) : activeTab === 'savings' ? (
             <form onSubmit={handleSubmitSavings} className="space-y-4">
               <div className="space-y-4">
                 <div>
@@ -1323,7 +1680,7 @@ export default function FinancePage() {
                 </Button>
               </div>
             </form>
-          ) : (
+          ) : activeTab === 'other-bills' ? (
             <form onSubmit={handleSubmitOtherBill} className="space-y-4">
               <div className="space-y-4">
                 <div>
@@ -1453,6 +1810,489 @@ export default function FinancePage() {
                 </Button>
               </div>
             </form>
+          ) : activeTab === 'income-expense' ? (
+            <form onSubmit={handleSubmitIncomeExpense} className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Jenis Transaksi <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={incomeExpenseFormData.transactionType}
+                    onChange={(e) => {
+                      const newType = e.target.value as 'income' | 'expense';
+                      setIncomeExpenseFormData({
+                        ...incomeExpenseFormData,
+                        transactionType: newType,
+                        category: newType === 'income' ? 'donation' : 'operational',
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="income">Pemasukan</option>
+                    <option value="expense">Pengeluaran</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Kategori <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={incomeExpenseFormData.category}
+                    onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, category: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    {incomeExpenseFormData.transactionType === 'income' ? (
+                      <>
+                        <option value="donation">Donasi</option>
+                        <option value="sponsor">Sponsor</option>
+                        <option value="activity_revenue">Hasil Kegiatan</option>
+                        <option value="tuition">Uang Pangkal/SPP</option>
+                        <option value="grant">Bantuan Pemerintah</option>
+                        <option value="other_income">Pemasukan Lainnya</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="salary">Gaji</option>
+                        <option value="operational">Operasional</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="utilities">Listrik, Air, Internet</option>
+                        <option value="supplies">Perlengkapan</option>
+                        <option value="activity">Kegiatan</option>
+                        <option value="facility">Fasilitas</option>
+                        <option value="other_expense">Pengeluaran Lainnya</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Judul <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={incomeExpenseFormData.title}
+                    onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Contoh: Donasi dari PT ABC"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                  <textarea
+                    value={incomeExpenseFormData.description}
+                    onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Keterangan transaksi (opsional)"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Jumlah <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={incomeExpenseFormData.amount}
+                      onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, amount: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tanggal <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={incomeExpenseFormData.transactionDate}
+                      onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, transactionDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {incomeExpenseFormData.transactionType === 'income' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Penerima</label>
+                      <input
+                        type="text"
+                        value={incomeExpenseFormData.recipient}
+                        onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, recipient: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Nama penerima (opsional)"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Vendor/Supplier</label>
+                      <input
+                        type="text"
+                        value={incomeExpenseFormData.vendor}
+                        onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, vendor: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Nama vendor (opsional)"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">No. Referensi</label>
+                    <input
+                      type="text"
+                      value={incomeExpenseFormData.referenceNumber}
+                      onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, referenceNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="No. invoice/kwitansi (opsional)"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                  <textarea
+                    value={incomeExpenseFormData.notes}
+                    onChange={(e) => setIncomeExpenseFormData({ ...incomeExpenseFormData, notes: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Catatan tambahan (opsional)"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    resetIncomeExpenseForm();
+                  }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  loading={createIncomeExpenseMutation.isPending || updateIncomeExpenseMutation.isPending}
+                >
+                  {selectedIncomeExpense ? 'Update' : 'Simpan'}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmitScholarship} className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Siswa <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={scholarshipFormData.studentId}
+                    onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, studentId: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="0">Pilih Siswa</option>
+                    {studentsData?.data?.map((student) => (
+                      <option key={student.id} value={student.id}>
+                        {student.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Jenis Beasiswa <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={scholarshipFormData.scholarshipType}
+                    onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, scholarshipType: e.target.value as any })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="full">Beasiswa Penuh</option>
+                    <option value="partial">Beasiswa Parsial</option>
+                    <option value="tuition">Bebas SPP</option>
+                    <option value="book">Bantuan Buku</option>
+                    <option value="uniform">Bantuan Seragam</option>
+                    <option value="transport">Bantuan Transport</option>
+                    <option value="meal">Bantuan Makan</option>
+                    <option value="other">Bantuan Lainnya</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Judul Beasiswa <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={scholarshipFormData.title}
+                    onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Contoh: Beasiswa Prestasi 2024"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                  <textarea
+                    value={scholarshipFormData.description}
+                    onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Deskripsi beasiswa (opsional)"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah (Rp)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={scholarshipFormData.amount || ''}
+                      onChange={(e) => setScholarshipFormData({ 
+                        ...scholarshipFormData, 
+                        amount: e.target.value ? parseFloat(e.target.value) : undefined,
+                        percentage: undefined,
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Jumlah beasiswa"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Persentase (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={scholarshipFormData.percentage || ''}
+                      onChange={(e) => setScholarshipFormData({ 
+                        ...scholarshipFormData, 
+                        percentage: e.target.value ? parseFloat(e.target.value) : undefined,
+                        amount: undefined,
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Persentase beasiswa"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tanggal Mulai <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={scholarshipFormData.startDate}
+                      onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, startDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Berakhir</label>
+                    <input
+                      type="date"
+                      value={scholarshipFormData.endDate || ''}
+                      onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, endDate: e.target.value || undefined })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      value={scholarshipFormData.status}
+                      onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, status: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="active">Aktif</option>
+                      <option value="expired">Berakhir</option>
+                      <option value="cancelled">Dibatalkan</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor/Pemberi</label>
+                    <input
+                      type="text"
+                      value={scholarshipFormData.sponsor || ''}
+                      onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, sponsor: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Nama sponsor/pemberi (opsional)"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Syarat Beasiswa</label>
+                  <textarea
+                    value={scholarshipFormData.requirements || ''}
+                    onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, requirements: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Syarat dan ketentuan beasiswa (opsional)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                  <textarea
+                    value={scholarshipFormData.notes || ''}
+                    onChange={(e) => setScholarshipFormData({ ...scholarshipFormData, notes: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Catatan tambahan (opsional)"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    resetScholarshipForm();
+                  }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  loading={createScholarshipMutation.isPending || updateScholarshipMutation.isPending}
+                >
+                  {selectedScholarship ? 'Update' : 'Simpan'}
+                </Button>
+              </div>
+            </form>
+          )}
+        </Modal>
+
+        {/* Reminder Modal */}
+        <Modal
+          isOpen={isReminderModalOpen}
+          onClose={() => setIsReminderModalOpen(false)}
+          title="Reminder Pembayaran"
+          size="lg"
+        >
+          {paymentReminders ? (
+            <div className="space-y-6">
+              {/* Overdue Section */}
+              {paymentReminders.overdue.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-red-600 mb-3">
+                    Terlambat ({paymentReminders.overdue.length})
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {paymentReminders.overdue.map((reminder) => (
+                      <div
+                        key={`${reminder.type}-${reminder.id}`}
+                        className="p-3 bg-red-50 border border-red-200 rounded-lg"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-800">{reminder.title}</div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {reminder.student?.name || `Siswa #${reminder.studentId}`}
+                            </div>
+                            <div className="text-xs text-red-600 mt-1">
+                              Jatuh tempo: {formatDate(reminder.dueDate)} ({Math.abs(reminder.daysUntilDue)} hari terlambat)
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold text-red-600">
+                              Rp {reminder.amount.toLocaleString('id-ID')}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-sm text-gray-600">
+                    Total: Rp {paymentReminders.summary.overdueTotal.toLocaleString('id-ID')}
+                  </div>
+                </div>
+              )}
+
+              {/* Upcoming Section */}
+              {paymentReminders.upcoming.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-orange-600 mb-3">
+                    Akan Jatuh Tempo ({paymentReminders.upcoming.length})
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {paymentReminders.upcoming.map((reminder) => (
+                      <div
+                        key={`${reminder.type}-${reminder.id}`}
+                        className="p-3 bg-orange-50 border border-orange-200 rounded-lg"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-800">{reminder.title}</div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {reminder.student?.name || `Siswa #${reminder.studentId}`}
+                            </div>
+                            <div className="text-xs text-orange-600 mt-1">
+                              Jatuh tempo: {formatDate(reminder.dueDate)} ({reminder.daysUntilDue} hari lagi)
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold text-orange-600">
+                              Rp {reminder.amount.toLocaleString('id-ID')}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-sm text-gray-600">
+                    Total: Rp {paymentReminders.summary.upcomingTotal.toLocaleString('id-ID')}
+                  </div>
+                </div>
+              )}
+
+              {paymentReminders.overdue.length === 0 && paymentReminders.upcoming.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  Tidak ada reminder pembayaran
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsReminderModalOpen(false)}
+                >
+                  Tutup
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">Memuat reminder...</div>
           )}
         </Modal>
       </div>

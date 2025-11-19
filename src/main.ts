@@ -70,6 +70,7 @@ async function bootstrap() {
         'Content-Type',
         'Authorization',
         'x-tenant-id',
+        'x-tenant-npsn',
         'x-requested-with',
         'accept',
         'origin',

@@ -153,11 +153,12 @@ export class StudentsController {
       { key: 'isActive', header: 'Status Aktif', width: 15 },
     ];
 
+    const studentsData = (students as { data?: any[] }).data || [];
     await this.exportImportService.exportToExcel(
       {
         filename: `students_${new Date().toISOString().split('T')[0]}.xlsx`,
         sheetName: 'Data Siswa',
-        data: students.data || [],
+        data: studentsData,
         columns,
       },
       res,
@@ -189,10 +190,11 @@ export class StudentsController {
       { key: 'isActive', header: 'Status Aktif', width: 15 },
     ];
 
+    const studentsData = (students as { data?: any[] }).data || [];
     await this.exportImportService.exportToCSV(
       {
         filename: `students_${new Date().toISOString().split('T')[0]}.csv`,
-        data: students.data || [],
+        data: studentsData,
         columns,
       },
       res,
@@ -221,10 +223,11 @@ export class StudentsController {
       { key: 'isActive', header: 'Status Aktif', width: 15 },
     ];
 
+    const studentsData = (students as { data?: any[] }).data || [];
     await this.exportImportService.exportToPDF(
       {
         filename: `students_${new Date().toISOString().split('T')[0]}.pdf`,
-        data: students.data || [],
+        data: studentsData,
         columns,
       },
       res,

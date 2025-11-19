@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsBoolean,
   IsArray,
+  Min,
 } from 'class-validator';
 import {
   EventType,
@@ -59,6 +60,7 @@ export class CreateEventDto {
 
   @IsNumber()
   @IsOptional()
+  @Min(1)
   maxParticipants?: number;
 
   @IsBoolean()
@@ -71,6 +73,7 @@ export class CreateEventDto {
 
   @IsNumber()
   @IsOptional()
+  @Min(0)
   cost?: number;
 
   @IsEnum(EventStatus)

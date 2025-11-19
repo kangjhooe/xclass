@@ -10,6 +10,7 @@ import {
 import { Event } from './event.entity';
 import { Student } from '../../students/entities/student.entity';
 import { Teacher } from '../../teachers/entities/teacher.entity';
+import { IncomeExpense } from '../../finance/entities/income-expense.entity';
 
 export enum RegistrationStatus {
   PENDING = 'pending',
@@ -58,6 +59,9 @@ export class EventRegistration {
   @Column({ nullable: true })
   paymentReceipt: string;
 
+  @Column({ nullable: true })
+  incomeExpenseId: number;
+
   @Column({ type: 'text', nullable: true })
   notes: string;
 
@@ -84,5 +88,9 @@ export class EventRegistration {
   @ManyToOne(() => Teacher, (teacher) => teacher.eventRegistrations, { nullable: true })
   @JoinColumn({ name: 'teacher_id' })
   teacher: Teacher;
+
+  @ManyToOne(() => IncomeExpense, { nullable: true })
+  @JoinColumn({ name: 'income_expense_id' })
+  incomeExpense: IncomeExpense;
 }
 

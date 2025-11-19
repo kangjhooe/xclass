@@ -14,6 +14,36 @@ import { Textarea } from '@/components/ui/Textarea';
 import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
 import { tenantAccessApi, TenantAccessRecord } from '@/lib/api/tenantAccess';
+import { Select } from '@/components/ui/Select';
+import {
+  resolveThemePresetFromSettings,
+  TENANT_THEME_PRESET_OPTIONS,
+  TenantThemePresetKey,
+} from '@/lib/theme/tenant-theme';
+
+type ThemePresetSelection = TenantThemePresetKey | 'auto';
+
+const parseSettingsObject = (
+  settings?: Tenant['settings']
+): Record<string, any> | undefined => {
+  if (!settings) return undefined;
+  if (typeof settings === 'string') {
+    if (!settings.trim()) return undefined;
+    try {
+      return JSON.parse(settings);
+    } catch (error) {
+      return undefined;
+    }
+  }
+  return settings;
+};
+
+const serializeAdvancedSettings = (settings?: Record<string, any>): string => {
+  if (!settings) return '';
+  const { publicThemePreset, ...rest } = settings;
+  if (Object.keys(rest).length === 0) return '';
+  return JSON.stringify(rest, null, 2);
+};
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -22,7 +52,9 @@ export default function TenantsPage() {
   const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [formData, setFormData] = useState<Partial<Tenant>>({});
+  const [formData, setFormData] = useState<Partial<Tenant> & { publicThemePreset?: ThemePresetSelection }>({
+    publicThemePreset: 'auto',
+  });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: SortDirection } | null>(null);
@@ -177,16 +209,24 @@ export default function TenantsPage() {
 
   const handleCreate = () => {
     setEditingTenant(null);
-    setFormData({});
+    setFormData({
+      isActive: true,
+      settings: '',
+      publicThemePreset: 'auto',
+    });
     setFormErrors({});
     setIsModalOpen(true);
   };
 
   const handleEdit = (tenant: Tenant) => {
+    const parsedSettings = parseSettingsObject(tenant.settings);
+    const presetSelection =
+      resolveThemePresetFromSettings(parsedSettings) ?? ('auto' as ThemePresetSelection);
     setEditingTenant(tenant);
     setFormData({
       ...tenant,
-      settings: tenant.settings ? JSON.stringify(tenant.settings, null, 2) : '',
+      settings: serializeAdvancedSettings(parsedSettings),
+      publicThemePreset: presetSelection,
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -235,14 +275,19 @@ export default function TenantsPage() {
       const dataToSave = { ...formData };
 
       // Parse settings JSON if it's a string
-      if (dataToSave.settings && typeof dataToSave.settings === 'string') {
-        try {
-          dataToSave.settings = JSON.parse(dataToSave.settings);
-        } catch {
-          showError('Format JSON settings tidak valid');
-          setSaving(false);
-          return;
-        }
+      let parsedSettings =
+        parseSettingsObject(dataToSave.settings) ?? {};
+      const presetSelection = formData.publicThemePreset || 'auto';
+      if (presetSelection !== 'auto') {
+        parsedSettings = { ...parsedSettings, publicThemePreset: presetSelection };
+      } else if (parsedSettings.publicThemePreset) {
+        const { publicThemePreset, ...rest } = parsedSettings;
+        parsedSettings = rest;
+      }
+      if (Object.keys(parsedSettings).length > 0) {
+        dataToSave.settings = parsedSettings;
+      } else {
+        delete dataToSave.settings;
       }
 
       if (editingTenant) {
@@ -720,6 +765,66 @@ export default function TenantsPage() {
               <label htmlFor="isActive" className="text-sm text-gray-700">
                 Aktif
               </label>
+            </div>
+            <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Tema Halaman Publik</p>
+                  <p className="text-xs text-gray-500">
+                    Pilih tampilan publik tenant atau gunakan mode otomatis.
+                  </p>
+                </div>
+                <span className="text-xs font-medium text-gray-500">
+                  {formData.publicThemePreset?.toUpperCase() || 'AUTO'}
+                </span>
+              </div>
+              <Select
+                value={formData.publicThemePreset || 'auto'}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    publicThemePreset: (e.target.value || 'auto') as ThemePresetSelection,
+                  })
+                }
+              >
+                <option value="auto">Otomatis (acak per tenant)</option>
+                {TENANT_THEME_PRESET_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {TENANT_THEME_PRESET_OPTIONS.map((option) => (
+                  <button
+                    type="button"
+                    key={`preview-${option.value}`}
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        publicThemePreset: option.value as ThemePresetSelection,
+                      })
+                    }
+                    className={`flex items-center justify-between rounded-xl border bg-white px-3 py-2 text-left shadow-sm transition-all hover:shadow-md ${
+                      formData.publicThemePreset === option.value ? 'ring-2 ring-blue-500 border-blue-200' : 'border-gray-200'
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{option.label}</p>
+                      <p className="text-xs text-gray-500">{option.description}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {option.preview.map((color) => (
+                        <span
+                          key={color}
+                          className="h-4 w-4 rounded-full border border-white shadow"
+                          style={{ background: color }}
+                        ></span>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
             <Textarea
               label="Settings (JSON)"

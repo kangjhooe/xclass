@@ -215,11 +215,11 @@ export class StudentsService {
     return result;
   }
 
-  async findOne(id: number, instansiId: number) {
+  async findOne(id: number, instansiId: number): Promise<Student> {
     const cacheKey = CacheKeys.student(id, instansiId);
     
     // Try to get from cache
-    const cached = await this.cacheService.get(cacheKey);
+    const cached = await this.cacheService.get<Student>(cacheKey);
     if (cached) {
       return cached;
     }

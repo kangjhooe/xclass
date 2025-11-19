@@ -12,6 +12,8 @@ import { Subject } from '../subjects/entities/subject.entity';
 import { Attendance } from '../attendance/entities/attendance.entity';
 import { DigitalSignature } from './entities/digital-signature.entity';
 import { SignedDocument } from './entities/signed-document.entity';
+import { AcademicReport } from './entities/academic-report.entity';
+import { AcademicYear } from '../academic-year/entities/academic-year.entity';
 import { User } from '../users/entities/user.entity';
 
 @Module({
@@ -24,6 +26,8 @@ import { User } from '../users/entities/user.entity';
       Attendance,
       DigitalSignature,
       SignedDocument,
+      AcademicReport,
+      AcademicYear,
       User,
     ]),
   ],

@@ -26,6 +26,9 @@ export class Message {
   @Column({ nullable: true })
   parentId: number;
 
+  @Column({ nullable: true })
+  conversationId: number;
+
   @Column()
   subject: string;
 
@@ -52,7 +55,7 @@ export class Message {
   archivedAt: Date;
 
   @Column({ type: 'json', nullable: true })
-  attachments: string[];
+  attachments: string[] | string | null;
 
   @Column({ default: true })
   isActive: boolean;

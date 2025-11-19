@@ -21,6 +21,8 @@ import { UpdatePositionDto } from './dto/update-position.dto';
 import { CreatePositionModuleDto } from './dto/create-position-module.dto';
 import { UpdatePositionModuleDto } from './dto/update-position-module.dto';
 import { CreatePerformanceReviewDto } from './dto/create-performance-review.dto';
+import { CreateEmployeeAttendanceDto } from './dto/create-employee-attendance.dto';
+import { UpdateEmployeeAttendanceDto } from './dto/update-employee-attendance.dto';
 import { TenantId, CurrentUserId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -257,5 +259,38 @@ export class HrController {
   @Roles('admin_tenant', 'super_admin')
   removePositionModule(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.hrService.removePositionModule(+id, instansiId);
+  }
+
+  // Employee Attendance endpoints
+  @Post('attendance')
+  createEmployeeAttendance(
+    @Body() createAttendanceDto: CreateEmployeeAttendanceDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.hrService.createEmployeeAttendance(createAttendanceDto, instansiId);
+  }
+
+  @Get('attendance')
+  findAllEmployeeAttendances(@TenantId() instansiId: number, @Query() filters: any) {
+    return this.hrService.findAllEmployeeAttendances(instansiId, filters);
+  }
+
+  @Get('attendance/:id')
+  findOneEmployeeAttendance(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.hrService.findOneEmployeeAttendance(+id, instansiId);
+  }
+
+  @Patch('attendance/:id')
+  updateEmployeeAttendance(
+    @Param('id') id: string,
+    @Body() updateAttendanceDto: UpdateEmployeeAttendanceDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.hrService.updateEmployeeAttendance(+id, updateAttendanceDto, instansiId);
+  }
+
+  @Delete('attendance/:id')
+  removeEmployeeAttendance(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.hrService.removeEmployeeAttendance(+id, instansiId);
   }
 }

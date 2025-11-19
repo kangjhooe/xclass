@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   Delete,
@@ -10,10 +11,10 @@ import {
 } from '@nestjs/common';
 import { GuestBookService } from './guest-book.service';
 import { CreateGuestBookDto } from './dto/create-guest-book.dto';
-import { TenantId } from '../../common/decorators/tenant.decorator';
+import { TenantId, CurrentUserId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('guest-book')
+@Controller({ path: ['guest-book', 'tenants/:tenant/guest-books'] })
 @UseGuards(JwtAuthGuard)
 export class GuestBookController {
   constructor(private readonly guestBookService: GuestBookService) {}
@@ -22,8 +23,9 @@ export class GuestBookController {
   create(
     @Body() createDto: CreateGuestBookDto,
     @TenantId() instansiId: number,
+    @CurrentUserId() userId?: number,
   ) {
-    return this.guestBookService.create(createDto, instansiId);
+    return this.guestBookService.create(createDto, instansiId, userId);
   }
 
   @Get()
@@ -46,6 +48,14 @@ export class GuestBookController {
   @Get(':id')
   findOne(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.guestBookService.findOne(+id, instansiId);
+  }
+
+  @Put(':id/checkout')
+  checkout(
+    @Param('id') id: string,
+    @TenantId() instansiId: number,
+  ) {
+    return this.guestBookService.checkout(+id, instansiId);
   }
 
   @Delete(':id')

@@ -9,6 +9,7 @@ export interface GuestBook {
   institution?: string;
   purpose: string;
   notes?: string;
+  photo_url?: string;
   check_in?: string;
   check_out?: string;
   status?: 'checked_in' | 'checked_out';
@@ -26,6 +27,7 @@ export interface GuestBookCreateData {
   purpose: string;
   notes?: string;
   check_in?: string;
+  photo_url?: string;
 }
 
 export const guestBookApi = {

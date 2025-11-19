@@ -5,26 +5,40 @@ import {
   Body,
   Param,
   Patch,
+  Put,
   Delete,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { PromotionService } from './promotion.service';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
+import { CreateBatchPromotionDto } from './dto/create-batch-promotion.dto';
+import { RejectPromotionDto } from './dto/reject-promotion.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Request } from '@nestjs/common';
+import { TenantGuard } from '../../common/guards/tenant.guard';
 
-@Controller('promotions')
-@UseGuards(JwtAuthGuard)
+@Controller({ path: ['promotions', 'tenants/:tenant/promotions'] })
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class PromotionController {
   constructor(private readonly promotionService: PromotionService) {}
 
   @Post()
   create(
-    @Body() createDto: CreatePromotionDto,
+    @Body() body: any,
     @TenantId() instansiId: number,
   ) {
+    // Transform frontend format ke backend format
+    const createDto: CreatePromotionDto = {
+      studentId: body.student_id || body.studentId,
+      fromClassId: body.from_class_id || body.fromClassId,
+      toClassId: body.to_class_id || body.toClassId,
+      academicYear: body.academic_year_id || body.academicYear,
+      status: body.status,
+      finalGrade: body.final_grade || body.finalGrade,
+      notes: body.notes,
+    };
     return this.promotionService.create(createDto, instansiId);
   }
 
@@ -50,7 +64,23 @@ export class PromotionController {
     return this.promotionService.findOne(+id, instansiId);
   }
 
-  @Patch(':id/approve')
+  @Post('batch')
+  createBatch(
+    @Body() body: any,
+    @TenantId() instansiId: number,
+  ) {
+    // Transform frontend format ke backend format
+    const createBatchDto: CreateBatchPromotionDto = {
+      academicYear: body.academic_year_id || body.academicYear,
+      fromClassId: body.from_class_id || body.fromClassId,
+      toClassId: body.to_class_id || body.toClassId,
+      studentIds: body.student_ids || body.studentIds,
+      notes: body.notes,
+    };
+    return this.promotionService.createBatch(createBatchDto, instansiId);
+  }
+
+  @Put(':id/approve')
   approve(
     @Param('id') id: string,
     @TenantId() instansiId: number,
@@ -61,6 +91,15 @@ export class PromotionController {
       instansiId,
       req.user?.id || req.user?.userId || 1,
     );
+  }
+
+  @Put(':id/reject')
+  reject(
+    @Param('id') id: string,
+    @Body() rejectDto: RejectPromotionDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.promotionService.reject(+id, instansiId, rejectDto);
   }
 
   @Patch(':id/complete')

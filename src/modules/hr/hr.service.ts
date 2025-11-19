@@ -18,7 +18,10 @@ import { UpdatePositionDto } from './dto/update-position.dto';
 import { CreatePositionModuleDto } from './dto/create-position-module.dto';
 import { UpdatePositionModuleDto } from './dto/update-position-module.dto';
 import { CreatePerformanceReviewDto } from './dto/create-performance-review.dto';
+import { CreateEmployeeAttendanceDto } from './dto/create-employee-attendance.dto';
+import { UpdateEmployeeAttendanceDto } from './dto/update-employee-attendance.dto';
 import { PayrollItem } from './entities/payroll-item.entity';
+import { EmployeeAttendance } from './entities/employee-attendance.entity';
 
 @Injectable()
 export class HrService {
@@ -37,6 +40,8 @@ export class HrService {
     private performanceReviewRepository: Repository<PerformanceReview>,
     @InjectRepository(PayrollItem)
     private payrollItemRepository: Repository<PayrollItem>,
+    @InjectRepository(EmployeeAttendance)
+    private employeeAttendanceRepository: Repository<EmployeeAttendance>,
   ) {}
 
   // Employee CRUD
@@ -406,5 +411,96 @@ export class HrService {
     return await this.positionModuleRepository.find({
       where: { positionId: position.id, isActive: true },
     });
+  }
+
+  // Employee Attendance CRUD
+  async createEmployeeAttendance(
+    createAttendanceDto: CreateEmployeeAttendanceDto,
+    instansiId: number,
+  ): Promise<EmployeeAttendance> {
+    // Verify employee exists and belongs to tenant
+    const employee = await this.findOneEmployee(createAttendanceDto.employeeId, instansiId);
+
+    const attendance = this.employeeAttendanceRepository.create({
+      employeeId: employee.id,
+      attendanceDate: new Date(createAttendanceDto.attendanceDate),
+      checkInTime: createAttendanceDto.checkInTime,
+      checkOutTime: createAttendanceDto.checkOutTime,
+      status: createAttendanceDto.status || 'present',
+      notes: createAttendanceDto.notes,
+    });
+    return await this.employeeAttendanceRepository.save(attendance);
+  }
+
+  async findAllEmployeeAttendances(instansiId: number, filters?: any): Promise<EmployeeAttendance[]> {
+    const query = this.employeeAttendanceRepository
+      .createQueryBuilder('attendance')
+      .leftJoinAndSelect('attendance.employee', 'employee')
+      .where('employee.instansiId = :instansiId', { instansiId });
+
+    if (filters?.employeeId) {
+      query.andWhere('attendance.employeeId = :employeeId', { employeeId: filters.employeeId });
+    }
+
+    if (filters?.date) {
+      query.andWhere('attendance.attendanceDate = :date', { date: filters.date });
+    }
+
+    if (filters?.startDate && filters?.endDate) {
+      query.andWhere('attendance.attendanceDate BETWEEN :startDate AND :endDate', {
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+      });
+    }
+
+    if (filters?.status) {
+      query.andWhere('attendance.status = :status', { status: filters.status });
+    }
+
+    return await query.orderBy('attendance.attendanceDate', 'DESC').getMany();
+  }
+
+  async findOneEmployeeAttendance(id: number, instansiId: number): Promise<EmployeeAttendance> {
+    const attendance = await this.employeeAttendanceRepository.findOne({
+      where: { id },
+      relations: ['employee'],
+    });
+
+    if (!attendance) {
+      throw new NotFoundException(`Employee attendance with ID ${id} not found`);
+    }
+
+    // Verify employee belongs to tenant
+    if (attendance.employee.instansiId !== instansiId) {
+      throw new NotFoundException(`Employee attendance with ID ${id} not found`);
+    }
+
+    return attendance;
+  }
+
+  async updateEmployeeAttendance(
+    id: number,
+    updateAttendanceDto: UpdateEmployeeAttendanceDto,
+    instansiId: number,
+  ): Promise<EmployeeAttendance> {
+    const attendance = await this.findOneEmployeeAttendance(id, instansiId);
+
+    if (updateAttendanceDto.attendanceDate) {
+      attendance.attendanceDate = new Date(updateAttendanceDto.attendanceDate);
+    }
+
+    Object.assign(attendance, {
+      checkInTime: updateAttendanceDto.checkInTime,
+      checkOutTime: updateAttendanceDto.checkOutTime,
+      status: updateAttendanceDto.status,
+      notes: updateAttendanceDto.notes,
+    });
+
+    return await this.employeeAttendanceRepository.save(attendance);
+  }
+
+  async removeEmployeeAttendance(id: number, instansiId: number): Promise<void> {
+    await this.findOneEmployeeAttendance(id, instansiId);
+    await this.employeeAttendanceRepository.delete(id);
   }
 }

@@ -1,527 +1,1761 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import TenantLayout from '@/components/layouts/TenantLayout';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { cafeteriaApi, Menu, MenuCreateData, Order, OrderCreateData } from '@/lib/api/cafeteria';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
+import { Switch } from '@/components/ui/Switch';
+import {
+  cafeteriaApi,
+  CafeteriaMenu,
+  CafeteriaMenuPayload,
+  CafeteriaOrder,
+  CafeteriaOutlet,
+  MenuCategory,
+  OrderStatus,
+  PaymentStatus,
+} from '@/lib/api/cafeteria';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
+import { useToastStore } from '@/lib/store/toast';
+import { cn } from '@/lib/utils/cn';
+
+const currency = (value?: number | string) => {
+  let numericValue =
+    typeof value === 'string' ? Number(value) : value ?? 0;
+  if (!Number.isFinite(numericValue)) {
+    numericValue = 0;
+  }
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+  }).format(numericValue);
+};
+
+const categoryLabels: Record<MenuCategory, string> = {
+  food: 'Makanan',
+  drink: 'Minuman',
+  snack: 'Snack',
+};
+
+const orderStatusLabels: Record<OrderStatus, string> = {
+  pending: 'Menunggu',
+  preparing: 'Disiapkan',
+  ready: 'Siap',
+  completed: 'Selesai',
+  cancelled: 'Dibatalkan',
+};
+
+const paymentLabels: Record<PaymentStatus, string> = {
+  unpaid: 'Belum Lunas',
+  paid: 'Lunas',
+  refunded: 'Dikembalikan',
+};
+
+const paymentMethodOptions = [
+  { value: 'cash', label: 'Tunai' },
+  { value: 'card', label: 'Kartu' },
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'qris', label: 'QRIS' },
+] as const;
+
+type MenuFilterState = {
+  canteenId: 'all' | number;
+  category: 'all' | MenuCategory;
+  availability: 'all' | 'available' | 'unavailable';
+  search: string;
+};
+
+type OrderFilterState = {
+  canteenId: 'all' | number;
+  status: 'all' | OrderStatus;
+  paymentStatus: 'all' | PaymentStatus;
+  startDate: string;
+  endDate: string;
+};
+
+type OrderFormItem = {
+  menuId?: number;
+  quantity: number;
+};
 
 export default function CafeteriaPage() {
   const tenantId = useTenantId();
-  const [activeTab, setActiveTab] = useState<'menus' | 'orders'>('menus');
+  const queryClient = useQueryClient();
+  const { success: showSuccess, error: showError } = useToastStore();
+
+  const [activeTab, setActiveTab] =
+    useState<'overview' | 'canteens' | 'menus' | 'orders'>('overview');
+
+  const [isCanteenModalOpen, setIsCanteenModalOpen] = useState(false);
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
-  const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null);
-  const [menuFormData, setMenuFormData] = useState<MenuCreateData>({
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  const [editingCanteen, setEditingCanteen] = useState<CafeteriaOutlet | null>(
+    null,
+  );
+  const [editingMenu, setEditingMenu] = useState<CafeteriaMenu | null>(null);
+  const [selectedPaymentOrder, setSelectedPaymentOrder] =
+    useState<CafeteriaOrder | null>(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
+
+  const [canteenForm, setCanteenForm] = useState({
     name: '',
     description: '',
+    location: '',
+    contactPerson: '',
+    contactPhone: '',
+    openingHours: '',
+    isActive: true,
+  });
+
+  const [menuForm, setMenuForm] = useState<CafeteriaMenuPayload>({
+    canteenId: 0,
+    name: '',
+    description: '',
+    category: 'food',
     price: 0,
-    category: '',
-    image_url: '',
-    status: 'available',
-  });
-  const [orderFormData, setOrderFormData] = useState<OrderCreateData>({
-    student_id: undefined,
-    items: [],
-    payment_status: 'unpaid',
+    stock: undefined,
+    isAvailable: true,
+    image: '',
   });
 
-  const queryClient = useQueryClient();
-
-  const { data: menusData, isLoading: menusLoading } = useQuery({
-    queryKey: ['cafeteria-menus', tenantId],
-    queryFn: () => cafeteriaApi.getAllMenus(tenantId!),
-    enabled: activeTab === 'menus' && !!tenantId,
+  const [orderForm, setOrderForm] = useState<{
+    canteenId?: number;
+    studentId?: number;
+    notes?: string;
+    menuItems: OrderFormItem[];
+  }>({
+    canteenId: undefined,
+    studentId: undefined,
+    notes: '',
+    menuItems: [{ menuId: undefined, quantity: 1 }],
   });
 
-  const { data: ordersData, isLoading: ordersLoading } = useQuery({
-    queryKey: ['cafeteria-orders', tenantId],
-    queryFn: () => cafeteriaApi.getAllOrders(tenantId!),
-    enabled: activeTab === 'orders' && !!tenantId,
+  const [menuFilters, setMenuFilters] = useState<MenuFilterState>({
+    canteenId: 'all',
+    category: 'all',
+    availability: 'all',
+    search: '',
+  });
+
+  const [orderFilters, setOrderFilters] = useState<OrderFilterState>({
+    canteenId: 'all',
+    status: 'all',
+    paymentStatus: 'all',
+    startDate: '',
+    endDate: '',
+  });
+
+  const [paymentForm, setPaymentForm] = useState({
+    paymentMethod: 'cash' as 'cash' | 'card' | 'transfer' | 'qris',
+    paymentAmount: 0,
+    paymentReference: '',
+    notes: '',
+  });
+
+  const getErrorMessage = (error: any) =>
+    error?.response?.data?.message || error?.message || 'Terjadi kesalahan';
+
+  const { data: canteensData, isLoading: canteensLoading } = useQuery({
+    queryKey: ['cafeteria-canteens', tenantId],
+    queryFn: () => cafeteriaApi.getCanteens(tenantId!),
+    enabled: !!tenantId,
+  });
+  const canteens = canteensData ?? [];
+  const canteenMap = useMemo(() => {
+    const map = new Map<number, CafeteriaOutlet>();
+    canteens.forEach((item) => map.set(item.id, item));
+    return map;
+  }, [canteens]);
+
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['cafeteria-stats', tenantId],
+    queryFn: () => cafeteriaApi.getStatistics(tenantId!),
+    enabled: !!tenantId,
+  });
+
+  const { data: menusResponse, isLoading: menusLoading } = useQuery({
+    queryKey: ['cafeteria-menus', tenantId, menuFilters],
+    queryFn: () =>
+      cafeteriaApi.getMenus(tenantId!, {
+        canteenId:
+          menuFilters.canteenId === 'all' ? undefined : menuFilters.canteenId,
+        category:
+          menuFilters.category === 'all' ? undefined : menuFilters.category,
+        isAvailable:
+          menuFilters.availability === 'all'
+            ? undefined
+            : menuFilters.availability === 'available',
+        search: menuFilters.search || undefined,
+        limit: 200,
+      }),
+    enabled: !!tenantId && activeTab === 'menus',
+  });
+  const menus = menusResponse?.data ?? [];
+
+  const { data: menuOptionsResponse } = useQuery({
+    queryKey: ['cafeteria-menu-options', tenantId],
+    queryFn: () =>
+      cafeteriaApi.getMenus(tenantId!, {
+        limit: 500,
+      }),
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  });
+  const allMenus = menuOptionsResponse?.data ?? [];
+
+  const { data: ordersResponse, isLoading: ordersLoading } = useQuery({
+    queryKey: ['cafeteria-orders', tenantId, orderFilters],
+    queryFn: () =>
+      cafeteriaApi.getOrders(tenantId!, {
+        canteenId:
+          orderFilters.canteenId === 'all'
+            ? undefined
+            : orderFilters.canteenId,
+        status:
+          orderFilters.status === 'all' ? undefined : orderFilters.status,
+        paymentStatus:
+          orderFilters.paymentStatus === 'all'
+            ? undefined
+            : orderFilters.paymentStatus,
+        startDate: orderFilters.startDate || undefined,
+        endDate: orderFilters.endDate || undefined,
+        limit: 200,
+      }),
+    enabled: !!tenantId && activeTab === 'orders',
+  });
+  const orders = ordersResponse?.data ?? [];
+
+  const summary = useMemo(() => {
+    if (!statsData) {
+      return {
+        totalCanteens: canteens.length,
+        totalMenus: menusResponse?.total ?? 0,
+        availableMenus: menus.filter((menu) => menu.isAvailable).length,
+        totalOrders: ordersResponse?.total ?? 0,
+        todayOrders: 0,
+      };
+    }
+    return statsData.perCanteen.reduce(
+      (acc, item) => {
+        acc.totalMenus += item.menu.total;
+        acc.availableMenus += item.menu.available;
+        acc.totalOrders += item.orders.total;
+        acc.todayOrders += item.orders.today;
+        return acc;
+      },
+      {
+        totalCanteens: statsData.totalCanteens,
+        totalMenus: 0,
+        availableMenus: 0,
+        totalOrders: 0,
+        todayOrders: 0,
+      },
+    );
+  }, [statsData, canteens.length, menusResponse, menus, ordersResponse]);
+
+  useEffect(() => {
+    if (canteens.length) {
+      setMenuForm((prev) =>
+        prev.canteenId ? prev : { ...prev, canteenId: canteens[0].id },
+      );
+      setOrderForm((prev) =>
+        prev.canteenId ? prev : { ...prev, canteenId: canteens[0].id },
+      );
+    }
+  }, [canteens]);
+
+  const invalidateAll = () => {
+    if (!tenantId) return;
+    queryClient.invalidateQueries({ queryKey: ['cafeteria-canteens', tenantId] });
+    queryClient.invalidateQueries({ queryKey: ['cafeteria-menus', tenantId] });
+    queryClient.invalidateQueries({
+      queryKey: ['cafeteria-menu-options', tenantId],
+    });
+    queryClient.invalidateQueries({ queryKey: ['cafeteria-orders', tenantId] });
+    queryClient.invalidateQueries({ queryKey: ['cafeteria-stats', tenantId] });
+  };
+
+  const createCanteenMutation = useMutation({
+    mutationFn: (payload: typeof canteenForm) =>
+      cafeteriaApi.createCanteen(tenantId!, payload),
+    onSuccess: () => {
+      invalidateAll();
+      showSuccess('Kantin berhasil ditambahkan');
+      closeCanteenModal();
+    },
+    onError: (error) => showError(getErrorMessage(error)),
+  });
+
+  const updateCanteenMutation = useMutation({
+    mutationFn: (payload: typeof canteenForm) =>
+      cafeteriaApi.updateCanteen(tenantId!, editingCanteen!.id, payload),
+    onSuccess: () => {
+      invalidateAll();
+      showSuccess('Kantin berhasil diperbarui');
+      closeCanteenModal();
+    },
+    onError: (error) => showError(getErrorMessage(error)),
+  });
+
+  const deleteCanteenMutation = useMutation({
+    mutationFn: (id: number) => cafeteriaApi.deleteCanteen(tenantId!, id),
+    onSuccess: () => {
+      invalidateAll();
+      showSuccess('Kantin berhasil dihapus');
+    },
+    onError: (error) => showError(getErrorMessage(error)),
   });
 
   const createMenuMutation = useMutation({
-    mutationFn: (data: MenuCreateData) => {
-      if (!tenantId) {
-        throw new Error('Tenant ID tidak tersedia.');
-      }
-      return cafeteriaApi.createMenu(tenantId, data);
-    },
+    mutationFn: (payload: CafeteriaMenuPayload) =>
+      cafeteriaApi.createMenu(tenantId!, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cafeteria-menus', tenantId] });
-      setIsMenuModalOpen(false);
-      resetMenuForm();
+      invalidateAll();
+      showSuccess('Menu berhasil ditambahkan');
+      closeMenuModal();
     },
+    onError: (error) => showError(getErrorMessage(error)),
   });
 
   const updateMenuMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<MenuCreateData> }) => {
-      if (!tenantId) {
-        throw new Error('Tenant ID tidak tersedia.');
-      }
-      return cafeteriaApi.updateMenu(tenantId, id, data);
-    },
+    mutationFn: (payload: Partial<CafeteriaMenuPayload>) =>
+      cafeteriaApi.updateMenu(tenantId!, editingMenu!.id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cafeteria-menus', tenantId] });
-      setIsMenuModalOpen(false);
-      setSelectedMenu(null);
-      resetMenuForm();
+      invalidateAll();
+      showSuccess('Menu berhasil diperbarui');
+      closeMenuModal();
     },
+    onError: (error) => showError(getErrorMessage(error)),
   });
 
   const deleteMenuMutation = useMutation({
-    mutationFn: (id: number) => {
-      if (!tenantId) {
-        throw new Error('Tenant ID tidak tersedia.');
-      }
-      return cafeteriaApi.deleteMenu(tenantId, id);
-    },
+    mutationFn: (id: number) => cafeteriaApi.deleteMenu(tenantId!, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cafeteria-menus', tenantId] });
+      invalidateAll();
+      showSuccess('Menu berhasil dihapus');
     },
+    onError: (error) => showError(getErrorMessage(error)),
   });
 
   const createOrderMutation = useMutation({
-    mutationFn: (data: OrderCreateData) => {
-      if (!tenantId) {
-        throw new Error('Tenant ID tidak tersedia.');
-      }
-      return cafeteriaApi.createOrder(tenantId, data);
-    },
+    mutationFn: (payload: {
+      canteenId: number;
+      studentId: number;
+      menuItems: { id: number; quantity: number }[];
+      notes?: string;
+    }) => cafeteriaApi.createOrder(tenantId!, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cafeteria-orders', tenantId] });
-      setIsOrderModalOpen(false);
-      resetOrderForm();
+      invalidateAll();
+      showSuccess('Pesanan berhasil dibuat');
+      closeOrderModal();
     },
+    onError: (error) => showError(getErrorMessage(error)),
   });
 
-  const resetMenuForm = () => {
-    setMenuFormData({
-      name: '',
-      description: '',
-      price: 0,
-      category: '',
-      image_url: '',
-      status: 'available',
-    });
-    setSelectedMenu(null);
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: OrderStatus }) =>
+      cafeteriaApi.updateOrderStatus(tenantId!, id, status),
+    onMutate: ({ id }) => setStatusUpdatingId(id),
+    onSuccess: () => {
+      invalidateAll();
+      showSuccess('Status pesanan diperbarui');
+    },
+    onError: (error) => showError(getErrorMessage(error)),
+    onSettled: () => setStatusUpdatingId(null),
+  });
+
+  const processPaymentMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: {
+        paymentMethod: 'cash' | 'card' | 'transfer' | 'qris';
+        paymentAmount: number;
+        paymentReference?: string;
+        notes?: string;
+      };
+    }) => cafeteriaApi.processPayment(tenantId!, id, payload),
+    onSuccess: () => {
+      invalidateAll();
+      showSuccess('Pembayaran berhasil diproses');
+      closePaymentModal();
+    },
+    onError: (error) => showError(getErrorMessage(error)),
+  });
+
+  const openCanteenModal = (canteen?: CafeteriaOutlet) => {
+    if (canteen) {
+      setEditingCanteen(canteen);
+      setCanteenForm({
+        name: canteen.name,
+        description: canteen.description ?? '',
+        location: canteen.location ?? '',
+        contactPerson: canteen.contactPerson ?? '',
+        contactPhone: canteen.contactPhone ?? '',
+        openingHours: canteen.openingHours ?? '',
+        isActive: canteen.isActive,
+      });
+    } else {
+      setEditingCanteen(null);
+      setCanteenForm({
+        name: '',
+        description: '',
+        location: '',
+        contactPerson: '',
+        contactPhone: '',
+        openingHours: '',
+        isActive: true,
+      });
+    }
+    setIsCanteenModalOpen(true);
   };
 
-  const resetOrderForm = () => {
-    setOrderFormData({
-      student_id: undefined,
-      items: [],
-      payment_status: 'unpaid',
-    });
+  const closeCanteenModal = () => {
+    setIsCanteenModalOpen(false);
+    setEditingCanteen(null);
   };
 
-  const handleEditMenu = (menu: Menu) => {
-    setSelectedMenu(menu);
-    setMenuFormData({
-      name: menu.name,
-      description: menu.description || '',
-      price: menu.price,
-      category: menu.category || '',
-      image_url: menu.image_url || '',
-      status: menu.status || 'available',
-    });
+  const openMenuModal = (menu?: CafeteriaMenu) => {
+    if (menu) {
+      setEditingMenu(menu);
+      setMenuForm({
+        canteenId: menu.canteenId,
+        name: menu.name,
+        description: menu.description ?? '',
+        category: menu.category,
+        price: Number(menu.price),
+        stock: menu.stock ?? undefined,
+        isAvailable: menu.isAvailable,
+        image: menu.image ?? '',
+      });
+    } else {
+      setEditingMenu(null);
+      setMenuForm((prev) => ({
+        canteenId: prev.canteenId || canteens[0]?.id || 0,
+        name: '',
+        description: '',
+        category: 'food',
+        price: 0,
+        stock: undefined,
+        isAvailable: true,
+        image: '',
+      }));
+    }
     setIsMenuModalOpen(true);
   };
 
-  const totalMenus = menusData?.data?.length || 0;
-  const availableMenus = menusData?.data?.filter((m) => m.status === 'available').length || 0;
-  const totalOrders = ordersData?.data?.length || 0;
-  const totalRevenue = ordersData?.data?.filter((o) => o.payment_status === 'paid').reduce((sum, o) => sum + o.total_amount, 0) || 0;
+  const closeMenuModal = () => {
+    setIsMenuModalOpen(false);
+    setEditingMenu(null);
+  };
+
+  const openOrderModal = () => {
+    setOrderForm({
+      canteenId: orderForm.canteenId ?? canteens[0]?.id,
+      studentId: undefined,
+      notes: '',
+      menuItems: [{ menuId: undefined, quantity: 1 }],
+    });
+    setIsOrderModalOpen(true);
+  };
+
+  const closeOrderModal = () => {
+    setIsOrderModalOpen(false);
+    setOrderForm({
+      canteenId: canteens[0]?.id,
+      studentId: undefined,
+      notes: '',
+      menuItems: [{ menuId: undefined, quantity: 1 }],
+    });
+  };
+
+  const openPaymentModal = (order: CafeteriaOrder) => {
+    setSelectedPaymentOrder(order);
+    setPaymentForm({
+      paymentMethod: 'cash',
+      paymentAmount: Number(order.totalAmount),
+      paymentReference: '',
+      notes: '',
+    });
+    setIsPaymentModalOpen(true);
+  };
+
+  const closePaymentModal = () => {
+    setIsPaymentModalOpen(false);
+    setSelectedPaymentOrder(null);
+    setPaymentForm({
+      paymentMethod: 'cash',
+      paymentAmount: 0,
+      paymentReference: '',
+      notes: '',
+    });
+  };
+
+  const handleSubmitCanteen = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!tenantId) return;
+    const payload = {
+      ...canteenForm,
+      description: canteenForm.description || undefined,
+      location: canteenForm.location || undefined,
+      contactPerson: canteenForm.contactPerson || undefined,
+      contactPhone: canteenForm.contactPhone || undefined,
+      openingHours: canteenForm.openingHours || undefined,
+    };
+    if (editingCanteen) {
+      updateCanteenMutation.mutate(payload);
+    } else {
+      createCanteenMutation.mutate(payload);
+    }
+  };
+
+  const handleSubmitMenu = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!tenantId) return;
+    if (!menuForm.canteenId) {
+      showError('Pilih kantin terlebih dahulu');
+      return;
+    }
+    const payload: CafeteriaMenuPayload = {
+      ...menuForm,
+      description: menuForm.description || undefined,
+      image: menuForm.image || undefined,
+      stock: menuForm.stock === undefined || menuForm.stock === null ? undefined : menuForm.stock,
+    };
+    if (editingMenu) {
+      updateMenuMutation.mutate(payload);
+    } else {
+      createMenuMutation.mutate(payload);
+    }
+  };
+
+  const handleSubmitOrder = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!tenantId || !orderForm.canteenId || !orderForm.studentId) {
+      showError('Lengkapi data pemesanan');
+      return;
+    }
+
+    const items = orderForm.menuItems
+      .filter((item) => item.menuId && item.quantity > 0)
+      .map((item) => ({
+        id: item.menuId!,
+        quantity: item.quantity,
+      }));
+
+    if (!items.length) {
+      showError('Tambahkan minimal satu menu');
+      return;
+    }
+
+    createOrderMutation.mutate({
+      canteenId: orderForm.canteenId,
+      studentId: orderForm.studentId,
+      menuItems: items,
+      notes: orderForm.notes || undefined,
+    });
+  };
+
+  const handleSubmitPayment = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!tenantId || !selectedPaymentOrder) return;
+
+    if (
+      paymentForm.paymentAmount <
+      Number(selectedPaymentOrder.totalAmount)
+    ) {
+      showError('Nominal pembayaran kurang dari total pesanan');
+      return;
+    }
+
+    processPaymentMutation.mutate({
+      id: selectedPaymentOrder.id,
+      payload: {
+        paymentMethod: paymentForm.paymentMethod,
+        paymentAmount: paymentForm.paymentAmount,
+        paymentReference: paymentForm.paymentReference || undefined,
+        notes: paymentForm.notes || undefined,
+      },
+    });
+  };
+
+  const availableOrderMenus = orderForm.canteenId
+    ? allMenus.filter((menu) => menu.canteenId === orderForm.canteenId)
+    : [];
+
+  const orderItemsSummary = (order: CafeteriaOrder) =>
+    order.orderItems
+      .map((item) => item.menu?.name ?? `Menu #${item.menuId}`)
+      .join(', ');
+
+  const handleExportOrders = (records: CafeteriaOrder[]) => {
+    if (!records.length) {
+      showError('Tidak ada data pesanan untuk diekspor');
+      return;
+    }
+
+    const headers = [
+      'ID',
+      'Kantin',
+      'Siswa',
+      'Menu',
+      'Total',
+      'Status',
+      'Pembayaran',
+      'Tanggal',
+    ];
+
+    const rows = records.map((order) => [
+      order.id,
+      order.canteen?.name || canteenMap.get(order.canteenId)?.name || '-',
+      order.student?.name || '-',
+      orderItemsSummary(order),
+      Number(order.totalAmount),
+      orderStatusLabels[order.status],
+      paymentLabels[order.paymentStatus],
+      formatDate(order.createdAt),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((value) =>
+            `"${String(value ?? '')
+              .replace(/"/g, '""')
+              .trim()}"`,
+          )
+          .join(','),
+      )
+      .join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `laporan-pesanan-kantin-${new Date()
+      .toISOString()
+      .split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showSuccess('Laporan pesanan berhasil diekspor');
+  };
+
+  const renderPrimaryAction = () => {
+    if (activeTab === 'canteens') {
+      return (
+        <Button onClick={() => openCanteenModal()}>
+          + Tambah Kantin
+        </Button>
+      );
+    }
+
+    if (activeTab === 'menus') {
+      return (
+        <Button
+          onClick={() => openMenuModal()}
+          disabled={!canteens.length}
+        >
+          + Tambah Menu
+        </Button>
+      );
+    }
+
+    if (activeTab === 'orders') {
+      return (
+        <Button
+          onClick={openOrderModal}
+          disabled={!canteens.length || !allMenus.length}
+        >
+          + Buat Pesanan
+        </Button>
+      );
+    }
+    return null;
+  };
 
   return (
     <TenantLayout>
-      <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 min-h-screen">
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                Kafetaria
-              </h1>
-              <p className="text-gray-600">Manajemen menu dan pesanan kafetaria</p>
-            </div>
-            {activeTab === 'menus' ? (
-              <Button
-                onClick={() => {
-                  resetMenuForm();
-                  setIsMenuModalOpen(true);
-                }}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+      <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 min-h-screen space-y-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Modul Kantin</h1>
+            <p className="text-gray-600">
+              Kelola outlet, menu, dan pesanan kantin sekolah
+            </p>
+          </div>
+          {renderPrimaryAction()}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <SummaryCard
+            label="Total Kantin"
+            value={summary.totalCanteens}
+            icon="🏬"
+          />
+          <SummaryCard
+            label="Total Menu"
+            value={summary.totalMenus}
+            icon="🍱"
+          />
+          <SummaryCard
+            label="Menu Tersedia"
+            value={summary.availableMenus}
+            icon="✅"
+          />
+          <SummaryCard
+            label="Pesanan Hari Ini"
+            value={summary.todayOrders}
+            icon="🛒"
+          />
+        </div>
+
+        <div className="bg-white rounded-2xl shadow border border-gray-100">
+          <div className="flex flex-wrap">
+            {[
+              { key: 'overview', label: 'Ringkasan' },
+              { key: 'canteens', label: 'Kantin' },
+              { key: 'menus', label: 'Menu' },
+              { key: 'orders', label: 'Pesanan' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                className={cn(
+                  'flex-1 px-6 py-4 text-sm font-semibold transition-colors',
+                  activeTab === tab.key
+                    ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/60'
+                    : 'text-gray-600 hover:bg-gray-50',
+                )}
+                onClick={() =>
+                  setActiveTab(tab.key as typeof activeTab)
+                }
               >
-                <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Tambah Menu
-              </Button>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {activeTab === 'overview' && (
+          <div className="bg-white rounded-2xl shadow border border-gray-100 p-6">
+            {statsLoading ? (
+              <LoadingState message="Memuat ringkasan kantin..." />
+            ) : statsData && statsData.perCanteen.length ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Kantin</TableHead>
+                      <TableHead>Menu</TableHead>
+                      <TableHead>Menu Tersedia</TableHead>
+                      <TableHead>Total Pesanan</TableHead>
+                      <TableHead>Pesanan Hari Ini</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {statsData.perCanteen.map((item) => (
+                      <TableRow key={item.canteen.id}>
+                        <TableCell className="font-semibold">
+                          {item.canteen.name}
+                        </TableCell>
+                        <TableCell>{item.menu.total}</TableCell>
+                        <TableCell>{item.menu.available}</TableCell>
+                        <TableCell>{item.orders.total}</TableCell>
+                        <TableCell>{item.orders.today}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
-              <Button
-                onClick={() => {
-                  resetOrderForm();
-                  setIsOrderModalOpen(true);
-                }}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Buat Pesanan
-              </Button>
+              <EmptyState message="Belum ada data kantin." />
             )}
           </div>
-        </div>
+        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Menu</p>
-                <p className="text-3xl font-bold text-blue-600">{totalMenus}</p>
+        {activeTab === 'canteens' && (
+          <div className="bg-white rounded-2xl shadow border border-gray-100 p-6">
+            {canteensLoading ? (
+              <LoadingState message="Memuat daftar kantin..." />
+            ) : canteens.length ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama</TableHead>
+                      <TableHead>Lokasi</TableHead>
+                      <TableHead>Kontak</TableHead>
+                      <TableHead>Jam Operasional</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {canteens.map((canteen) => (
+                      <TableRow key={canteen.id}>
+                        <TableCell className="font-semibold">
+                          {canteen.name}
+                        </TableCell>
+                        <TableCell>{canteen.location || '-'}</TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {canteen.contactPerson && (
+                              <div className="text-sm font-medium">
+                                {canteen.contactPerson}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500">
+                              {canteen.contactPhone || '-'}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{canteen.openingHours || '-'}</TableCell>
+                        <TableCell>
+                          <span
+                            className={cn('px-3 py-1 rounded-full text-xs font-semibold', {
+                              'bg-green-100 text-green-700': canteen.isActive,
+                              'bg-gray-100 text-gray-600': !canteen.isActive,
+                            })}
+                          >
+                            {canteen.isActive ? 'Aktif' : 'Nonaktif'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openCanteenModal(canteen)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    'Hapus kantin ini? Pastikan tidak ada menu aktif.',
+                                  )
+                                ) {
+                                  deleteCanteenMutation.mutate(canteen.id);
+                                }
+                              }}
+                            >
+                              Hapus
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
+            ) : (
+              <EmptyState message="Belum ada kantin" />
+            )}
+          </div>
+        )}
+
+        {activeTab === 'menus' && (
+          <div className="bg-white rounded-2xl shadow border border-gray-100 p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Select
+                label="Kantin"
+                value={
+                  menuFilters.canteenId === 'all'
+                    ? ''
+                    : String(menuFilters.canteenId)
+                }
+                placeholder="Semua kantin"
+                onChange={(event) =>
+                  setMenuFilters((prev) => ({
+                    ...prev,
+                    canteenId: event.target.value
+                      ? Number(event.target.value)
+                      : 'all',
+                  }))
+                }
+                options={[
+                  { value: '', label: 'Semua kantin' },
+                  ...canteens.map((canteen) => ({
+                    value: String(canteen.id),
+                    label: canteen.name,
+                  })),
+                ]}
+              />
+              <Select
+                label="Kategori"
+                value={menuFilters.category === 'all' ? '' : menuFilters.category}
+                placeholder="Semua kategori"
+                onChange={(event) =>
+                  setMenuFilters((prev) => ({
+                    ...prev,
+                    category: (event.target.value as MenuCategory) || 'all',
+                  }))
+                }
+                options={[
+                  { value: '', label: 'Semua kategori' },
+                  ...Object.entries(categoryLabels).map(([value, label]) => ({
+                    value,
+                    label,
+                  })),
+                ]}
+              />
+              <Select
+                label="Ketersediaan"
+                value={
+                  menuFilters.availability === 'all'
+                    ? ''
+                    : menuFilters.availability
+                }
+                placeholder="Semua status"
+                onChange={(event) =>
+                  setMenuFilters((prev) => ({
+                    ...prev,
+                    availability: (event.target.value as typeof prev.availability) || 'all',
+                  }))
+                }
+                options={[
+                  { value: '', label: 'Semua status' },
+                  { value: 'available', label: 'Tersedia' },
+                  { value: 'unavailable', label: 'Tidak tersedia' },
+                ]}
+              />
+              <Input
+                label="Cari"
+                placeholder="Cari nama menu..."
+                value={menuFilters.search}
+                onChange={(event) =>
+                  setMenuFilters((prev) => ({
+                    ...prev,
+                    search: event.target.value,
+                  }))
+                }
+              />
             </div>
-          </div>
 
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Menu Tersedia</p>
-                <p className="text-3xl font-bold text-green-600">{availableMenus}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Pesanan</p>
-                <p className="text-3xl font-bold text-purple-600">{totalOrders}</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Pendapatan</p>
-                <p className="text-3xl font-bold text-green-600">Rp {totalRevenue.toLocaleString('id-ID')}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 mb-6">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('menus')}
-              className={`flex-1 px-6 py-4 text-center font-semibold transition-all duration-200 ${
-                activeTab === 'menus'
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Menu
-            </button>
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`flex-1 px-6 py-4 text-center font-semibold transition-all duration-200 ${
-                activeTab === 'orders'
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Pesanan
-            </button>
-          </div>
-        </div>
-
-        {activeTab === 'menus' ? (
-          <>
             {menusLoading ? (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <p className="mt-4 text-gray-600">Memuat data...</p>
+              <LoadingState message="Memuat menu..." />
+            ) : menus.length ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Menu</TableHead>
+                      <TableHead>Kantin</TableHead>
+                      <TableHead>Kategori</TableHead>
+                      <TableHead>Harga</TableHead>
+                      <TableHead>Stok</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {menus.map((menu) => (
+                      <TableRow key={menu.id}>
+                        <TableCell className="font-semibold">
+                          {menu.name}
+                        </TableCell>
+                        <TableCell>
+                          {canteenMap.get(menu.canteenId)?.name || '-'}
+                        </TableCell>
+                        <TableCell>{categoryLabels[menu.category]}</TableCell>
+                        <TableCell>{currency(Number(menu.price))}</TableCell>
+                        <TableCell>
+                          {menu.stock === null || menu.stock === undefined
+                            ? '—'
+                            : menu.stock}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              'px-3 py-1 rounded-full text-xs font-semibold',
+                              menu.isAvailable
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-200 text-gray-700',
+                            )}
+                          >
+                            {menu.isAvailable ? 'Tersedia' : 'Habis'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openMenuModal(menu)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm('Hapus menu ini?')) {
+                                  deleteMenuMutation.mutate(menu.id);
+                                }
+                              }}
+                            >
+                              Hapus
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             ) : (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50">
-                        <TableHead className="font-semibold text-gray-700">Nama Menu</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Kategori</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Harga</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {menusData?.data?.map((menu) => (
-                        <TableRow key={menu.id} className="hover:bg-blue-50/50 transition-colors">
-                          <TableCell className="font-medium text-gray-800">{menu.name}</TableCell>
-                          <TableCell>{menu.category || '-'}</TableCell>
-                          <TableCell>Rp {menu.price.toLocaleString('id-ID')}</TableCell>
-                          <TableCell>
-                            <span className={`px-3 py-1 text-xs font-bold rounded-full ${
-                              menu.status === 'available' 
-                                ? 'bg-green-500 text-white' 
-                                : 'bg-gray-500 text-white'
-                            }`}>
-                              {menu.status === 'available' ? 'Tersedia' : 'Tidak Tersedia'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditMenu(menu)}
-                                className="hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => {
-                                  if (confirm('Apakah Anda yakin ingin menghapus menu ini?')) {
-                                    deleteMenuMutation.mutate(menu.id);
-                                  }
-                                }}
-                                className="hover:bg-red-600 transition-colors"
-                              >
-                                Hapus
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {menusData?.data?.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-12">
-                            <div className="flex flex-col items-center">
-                              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
-                              </div>
-                              <p className="text-gray-500 font-medium">Belum ada menu</p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+              <EmptyState message="Belum ada menu." />
             )}
+          </div>
+        )}
 
-            <Modal
-              isOpen={isMenuModalOpen}
-              onClose={() => {
-                setIsMenuModalOpen(false);
-                resetMenuForm();
-              }}
-              title={selectedMenu ? 'Edit Menu' : 'Tambah Menu'}
-              size="md"
-            >
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (!tenantId) {
-                  alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
-                  return;
+        {activeTab === 'orders' && (
+          <div className="bg-white rounded-2xl shadow border border-gray-100 p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+              <Select
+                label="Kantin"
+                placeholder="Semua kantin"
+                value={
+                  orderFilters.canteenId === 'all'
+                    ? ''
+                    : String(orderFilters.canteenId)
                 }
-                if (selectedMenu) {
-                  updateMenuMutation.mutate({ id: selectedMenu.id, data: menuFormData });
-                } else {
-                  createMenuMutation.mutate(menuFormData);
+                onChange={(event) =>
+                  setOrderFilters((prev) => ({
+                    ...prev,
+                    canteenId: event.target.value
+                      ? Number(event.target.value)
+                      : 'all',
+                  }))
                 }
-              }} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nama Menu <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={menuFormData.name}
-                    onChange={(e) => setMenuFormData({ ...menuFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
+                options={[
+                  { value: '', label: 'Semua kantin' },
+                  ...canteens.map((canteen) => ({
+                    value: String(canteen.id),
+                    label: canteen.name,
+                  })),
+                ]}
+              />
+              <Select
+                label="Status Pesanan"
+                placeholder="Semua status"
+                value={orderFilters.status === 'all' ? '' : orderFilters.status}
+                onChange={(event) =>
+                  setOrderFilters((prev) => ({
+                    ...prev,
+                    status: (event.target.value as OrderStatus) || 'all',
+                  }))
+                }
+                options={[
+                  { value: '', label: 'Semua status' },
+                  ...Object.entries(orderStatusLabels).map(
+                    ([value, label]) => ({
+                      value,
+                      label,
+                    }),
+                  ),
+                ]}
+              />
+              <Select
+                label="Status Pembayaran"
+                placeholder="Semua status"
+                value={
+                  orderFilters.paymentStatus === 'all'
+                    ? ''
+                    : orderFilters.paymentStatus
+                }
+                onChange={(event) =>
+                  setOrderFilters((prev) => ({
+                    ...prev,
+                    paymentStatus:
+                      (event.target.value as PaymentStatus) || 'all',
+                  }))
+                }
+                options={[
+                  { value: '', label: 'Semua pembayaran' },
+                  ...Object.entries(paymentLabels).map(([value, label]) => ({
+                    value,
+                    label,
+                  })),
+                ]}
+              />
+              <Input
+                type="date"
+                label="Tanggal Mulai"
+                value={orderFilters.startDate}
+                onChange={(event) =>
+                  setOrderFilters((prev) => ({
+                    ...prev,
+                    startDate: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                type="date"
+                label="Tanggal Selesai"
+                value={orderFilters.endDate}
+                onChange={(event) =>
+                  setOrderFilters((prev) => ({
+                    ...prev,
+                    endDate: event.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => handleExportOrders(orders)}
+                disabled={!orders.length}
+              >
+                Ekspor CSV
+              </Button>
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
-                  <textarea
-                    value={menuFormData.description}
-                    onChange={(e) => setMenuFormData({ ...menuFormData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Harga <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      value={menuFormData.price}
-                      onChange={(e) => setMenuFormData({ ...menuFormData, price: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                      min="0"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-                    <input
-                      type="text"
-                      value={menuFormData.category}
-                      onChange={(e) => setMenuFormData({ ...menuFormData, category: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select
-                      value={menuFormData.status}
-                      onChange={(e) => setMenuFormData({ ...menuFormData, status: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="available">Tersedia</option>
-                      <option value="unavailable">Tidak Tersedia</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      setIsMenuModalOpen(false);
-                      resetMenuForm();
-                    }}
-                  >
-                    Batal
-                  </Button>
-                  <Button
-                    type="submit"
-                    loading={createMenuMutation.isPending || updateMenuMutation.isPending}
-                  >
-                    {selectedMenu ? 'Update' : 'Simpan'}
-                  </Button>
-                </div>
-              </form>
-            </Modal>
-          </>
-        ) : (
-          <>
             {ordersLoading ? (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <p className="mt-4 text-gray-600">Memuat data...</p>
+              <LoadingState message="Memuat pesanan..." />
+            ) : orders.length ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Pesanan</TableHead>
+                      <TableHead>Kantin</TableHead>
+                      <TableHead>Siswa</TableHead>
+                      <TableHead>Menu</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Pembayaran</TableHead>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-semibold">
+                          #{order.id}
+                        </TableCell>
+                        <TableCell>
+                          {order.canteen?.name ||
+                            canteenMap.get(order.canteenId)?.name ||
+                            '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm font-medium">
+                            {order.student?.name || '-'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {order.student?.studentNumber || ''}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {orderItemsSummary(order)}
+                        </TableCell>
+                        <TableCell>{currency(order.totalAmount)}</TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              'px-3 py-1 rounded-full text-xs font-semibold capitalize',
+                              {
+                                'bg-yellow-100 text-yellow-700':
+                                  order.status === 'pending' ||
+                                  order.status === 'preparing',
+                                'bg-indigo-100 text-indigo-700':
+                                  order.status === 'ready',
+                                'bg-green-100 text-green-700':
+                                  order.status === 'completed',
+                                'bg-red-100 text-red-700':
+                                  order.status === 'cancelled',
+                              },
+                            )}
+                          >
+                            {orderStatusLabels[order.status]}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              'px-3 py-1 rounded-full text-xs font-semibold',
+                              {
+                                'bg-green-100 text-green-700':
+                                  order.paymentStatus === 'paid',
+                                'bg-yellow-100 text-yellow-700':
+                                  order.paymentStatus === 'unpaid',
+                                'bg-purple-100 text-purple-700':
+                                  order.paymentStatus === 'refunded',
+                              },
+                            )}
+                          >
+                            {paymentLabels[order.paymentStatus]}
+                          </span>
+                        </TableCell>
+                        <TableCell>{formatDate(order.createdAt)}</TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <Select
+                              value={order.status}
+                              onChange={(event) =>
+                                updateOrderStatusMutation.mutate({
+                                  id: order.id,
+                                  status: event.target.value as OrderStatus,
+                                })
+                              }
+                              disabled={
+                                updateOrderStatusMutation.isPending &&
+                                statusUpdatingId === order.id
+                              }
+                              options={Object.entries(orderStatusLabels).map(
+                                ([value, label]) => ({
+                                  value,
+                                  label,
+                                }),
+                              )}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={
+                                order.paymentStatus === 'paid' ||
+                                processPaymentMutation.isPending
+                              }
+                              onClick={() => openPaymentModal(order)}
+                            >
+                              {order.paymentStatus === 'paid'
+                                ? 'Sudah Dibayar'
+                                : 'Proses Pembayaran'}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             ) : (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50">
-                        <TableHead className="font-semibold text-gray-700">No. Pesanan</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Siswa</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Total</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Pembayaran</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Tanggal</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {ordersData?.data?.map((order) => (
-                        <TableRow key={order.id} className="hover:bg-blue-50/50 transition-colors">
-                          <TableCell className="font-medium text-gray-800">{order.order_number || `#${order.id}`}</TableCell>
-                          <TableCell>{order.student_name || '-'}</TableCell>
-                          <TableCell>Rp {order.total_amount.toLocaleString('id-ID')}</TableCell>
-                          <TableCell>
-                            <span className={`px-3 py-1 text-xs font-bold rounded-full ${
-                              order.status === 'completed' 
-                                ? 'bg-green-500 text-white' 
-                                : order.status === 'processing'
-                                ? 'bg-yellow-500 text-white'
-                                : order.status === 'cancelled'
-                                ? 'bg-red-500 text-white'
-                                : 'bg-gray-500 text-white'
-                            }`}>
-                              {order.status === 'pending' ? 'Menunggu' :
-                               order.status === 'processing' ? 'Diproses' :
-                               order.status === 'completed' ? 'Selesai' :
-                               order.status === 'cancelled' ? 'Dibatalkan' : '-'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className={`px-3 py-1 text-xs font-bold rounded-full ${
-                              order.payment_status === 'paid' 
-                                ? 'bg-green-500 text-white' 
-                                : 'bg-yellow-500 text-white'
-                            }`}>
-                              {order.payment_status === 'paid' ? 'Lunas' : 'Belum Lunas'}
-                            </span>
-                          </TableCell>
-                          <TableCell>{formatDate(order.order_date || order.created_at)}</TableCell>
-                        </TableRow>
-                      ))}
-                      {ordersData?.data?.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-12">
-                            <div className="flex flex-col items-center">
-                              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                              </div>
-                              <p className="text-gray-500 font-medium">Belum ada pesanan</p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+              <EmptyState message="Belum ada pesanan." />
             )}
-          </>
+          </div>
         )}
       </div>
+
+      <Modal
+        isOpen={isCanteenModalOpen}
+        onClose={closeCanteenModal}
+        title={editingCanteen ? 'Edit Kantin' : 'Tambah Kantin'}
+      >
+        <form className="space-y-4" onSubmit={handleSubmitCanteen}>
+          <Input
+            label="Nama Kantin"
+            required
+            value={canteenForm.name}
+            onChange={(event) =>
+              setCanteenForm((prev) => ({
+                ...prev,
+                name: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label="Deskripsi"
+            value={canteenForm.description}
+            onChange={(event) =>
+              setCanteenForm((prev) => ({
+                ...prev,
+                description: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label="Lokasi"
+            value={canteenForm.location}
+            onChange={(event) =>
+              setCanteenForm((prev) => ({
+                ...prev,
+                location: event.target.value,
+              }))
+            }
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Kontak"
+              value={canteenForm.contactPerson}
+              onChange={(event) =>
+                setCanteenForm((prev) => ({
+                  ...prev,
+                  contactPerson: event.target.value,
+                }))
+              }
+            />
+            <Input
+              label="Nomor Telepon"
+              value={canteenForm.contactPhone}
+              onChange={(event) =>
+                setCanteenForm((prev) => ({
+                  ...prev,
+                  contactPhone: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <Input
+            label="Jam Operasional"
+            value={canteenForm.openingHours}
+            onChange={(event) =>
+              setCanteenForm((prev) => ({
+                ...prev,
+                openingHours: event.target.value,
+              }))
+            }
+          />
+          <Switch
+            label="Kantin Aktif"
+            checked={canteenForm.isActive}
+            onChange={(event) =>
+              setCanteenForm((prev) => ({
+                ...prev,
+                isActive: event.target.checked,
+              }))
+            }
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={closeCanteenModal}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              loading={
+                createCanteenMutation.isPending ||
+                updateCanteenMutation.isPending
+              }
+            >
+              Simpan
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isMenuModalOpen}
+        onClose={closeMenuModal}
+        title={editingMenu ? 'Edit Menu' : 'Tambah Menu'}
+        size="lg"
+      >
+        <form className="space-y-4" onSubmit={handleSubmitMenu}>
+          <Select
+            label="Kantin"
+            required
+            value={menuForm.canteenId ? String(menuForm.canteenId) : ''}
+            onChange={(event) =>
+              setMenuForm((prev) => ({
+                ...prev,
+                canteenId: Number(event.target.value),
+              }))
+            }
+            options={canteens.map((canteen) => ({
+              value: String(canteen.id),
+              label: canteen.name,
+            }))}
+          />
+          <Input
+            label="Nama Menu"
+            required
+            value={menuForm.name}
+            onChange={(event) =>
+              setMenuForm((prev) => ({
+                ...prev,
+                name: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label="Deskripsi"
+            value={menuForm.description}
+            onChange={(event) =>
+              setMenuForm((prev) => ({
+                ...prev,
+                description: event.target.value,
+              }))
+            }
+          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select
+              label="Kategori"
+              required
+              value={menuForm.category}
+              onChange={(event) =>
+                setMenuForm((prev) => ({
+                  ...prev,
+                  category: event.target.value as MenuCategory,
+                }))
+              }
+              options={Object.entries(categoryLabels).map(
+                ([value, label]) => ({
+                  value,
+                  label,
+                }),
+              )}
+            />
+            <Input
+              type="number"
+              label="Harga"
+              required
+              min={0}
+              value={menuForm.price}
+              onChange={(event) =>
+                setMenuForm((prev) => ({
+                  ...prev,
+                  price: Number(event.target.value),
+                }))
+              }
+            />
+            <Input
+              type="number"
+              label="Stok (opsional)"
+              min={0}
+              value={menuForm.stock ?? ''}
+              onChange={(event) =>
+                setMenuForm((prev) => ({
+                  ...prev,
+                  stock: event.target.value
+                    ? Number(event.target.value)
+                    : undefined,
+                }))
+              }
+            />
+          </div>
+          <Input
+            label="URL Gambar"
+            value={menuForm.image ?? ''}
+            onChange={(event) =>
+              setMenuForm((prev) => ({
+                ...prev,
+                image: event.target.value,
+              }))
+            }
+          />
+          <Switch
+            label="Menu tersedia"
+            checked={menuForm.isAvailable ?? true}
+            onChange={(event) =>
+              setMenuForm((prev) => ({
+                ...prev,
+                isAvailable: event.target.checked,
+              }))
+            }
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={closeMenuModal}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              loading={
+                createMenuMutation.isPending || updateMenuMutation.isPending
+              }
+            >
+              Simpan
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isOrderModalOpen}
+        onClose={closeOrderModal}
+        title="Buat Pesanan"
+        size="lg"
+      >
+        <form className="space-y-4" onSubmit={handleSubmitOrder}>
+          <Select
+            label="Kantin"
+            required
+            value={orderForm.canteenId ? String(orderForm.canteenId) : ''}
+            options={canteens.map((canteen) => ({
+              value: String(canteen.id),
+              label: canteen.name,
+            }))}
+            onChange={(event) =>
+              setOrderForm((prev) => ({
+                ...prev,
+                canteenId: Number(event.target.value),
+                menuItems: [{ menuId: undefined, quantity: 1 }],
+              }))
+            }
+          />
+          <Input
+            label="ID Siswa"
+            type="number"
+            required
+            value={orderForm.studentId ?? ''}
+            onChange={(event) =>
+              setOrderForm((prev) => ({
+                ...prev,
+                studentId: event.target.value
+                  ? Number(event.target.value)
+                  : undefined,
+              }))
+            }
+          />
+          <Textarea
+            label="Catatan"
+            value={orderForm.notes}
+            onChange={(event) =>
+              setOrderForm((prev) => ({
+                ...prev,
+                notes: event.target.value,
+              }))
+            }
+          />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-gray-800">Menu dipesan</h4>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setOrderForm((prev) => ({
+                    ...prev,
+                    menuItems: [
+                      ...prev.menuItems,
+                      { menuId: undefined, quantity: 1 },
+                    ],
+                  }))
+                }
+              >
+                + Tambah Item
+              </Button>
+            </div>
+            {orderForm.menuItems.map((item, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end"
+              >
+                <div className="md:col-span-4">
+                  <Select
+                    label="Menu"
+                    required
+                    value={item.menuId ? String(item.menuId) : ''}
+                    onChange={(event) =>
+                      setOrderForm((prev) => {
+                        const menuItems = [...prev.menuItems];
+                        menuItems[index] = {
+                          ...menuItems[index],
+                          menuId: event.target.value
+                            ? Number(event.target.value)
+                            : undefined,
+                        };
+                        return { ...prev, menuItems };
+                      })
+                    }
+                    options={availableOrderMenus.map((menu) => ({
+                      value: String(menu.id),
+                      label: `${menu.name} (${currency(Number(menu.price))})`,
+                    }))}
+                  />
+                </div>
+                <Input
+                  label="Jumlah"
+                  type="number"
+                  min={1}
+                  value={item.quantity}
+                  onChange={(event) =>
+                    setOrderForm((prev) => {
+                      const menuItems = [...prev.menuItems];
+                      menuItems[index] = {
+                        ...menuItems[index],
+                        quantity: Number(event.target.value) || 1,
+                      };
+                      return { ...prev, menuItems };
+                    })
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={orderForm.menuItems.length === 1}
+                  onClick={() =>
+                    setOrderForm((prev) => ({
+                      ...prev,
+                      menuItems: prev.menuItems.filter(
+                        (_, itemIndex) => itemIndex !== index,
+                      ),
+                    }))
+                  }
+                >
+                  Hapus
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={closeOrderModal}
+            >
+              Batal
+            </Button>
+            <Button type="submit" loading={createOrderMutation.isPending}>
+              Simpan
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isPaymentModalOpen}
+        onClose={closePaymentModal}
+        title={
+          selectedPaymentOrder
+            ? `Pembayaran Pesanan #${selectedPaymentOrder.id}`
+            : 'Pembayaran Pesanan'
+        }
+      >
+        <form className="space-y-4" onSubmit={handleSubmitPayment}>
+          <Select
+            label="Metode Pembayaran"
+            required
+            value={paymentForm.paymentMethod}
+            onChange={(event) =>
+              setPaymentForm((prev) => ({
+                ...prev,
+                paymentMethod: event.target.value as
+                  | 'cash'
+                  | 'card'
+                  | 'transfer'
+                  | 'qris',
+              }))
+            }
+            options={paymentMethodOptions.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+          />
+          <Input
+            type="number"
+            label="Nominal Pembayaran"
+            min={0}
+            required
+            value={paymentForm.paymentAmount}
+            onChange={(event) =>
+              setPaymentForm((prev) => ({
+                ...prev,
+                paymentAmount: Number(event.target.value),
+              }))
+            }
+          />
+          <Input
+            label="Referensi Pembayaran"
+            value={paymentForm.paymentReference}
+            onChange={(event) =>
+              setPaymentForm((prev) => ({
+                ...prev,
+                paymentReference: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label="Catatan"
+            value={paymentForm.notes}
+            onChange={(event) =>
+              setPaymentForm((prev) => ({
+                ...prev,
+                notes: event.target.value,
+              }))
+            }
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={closePaymentModal}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              loading={processPaymentMutation.isPending}
+            >
+              Proses Pembayaran
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </TenantLayout>
   );
 }
+
+function SummaryCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: number;
+  icon: string;
+}) {
+  return (
+    <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 flex items-center gap-4">
+      <div className="text-3xl">{icon}</div>
+      <div>
+        <p className="text-sm uppercase tracking-wide text-gray-500">
+          {label}
+        </p>
+        <p className="text-2xl font-bold text-gray-900">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="py-12 text-center space-y-3 text-gray-600">
+      <div className="animate-spin h-10 w-10 border-4 border-indigo-200 border-t-indigo-500 rounded-full mx-auto" />
+      <p>{message}</p>
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="py-12 text-center text-gray-500">
+      <p>{message}</p>
+    </div>
+  );
+}
+
+

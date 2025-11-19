@@ -3,7 +3,7 @@ import {
   IsEnum,
   IsString,
   IsOptional,
-  IsBoolean,
+  Min,
 } from 'class-validator';
 import { RegistrationStatus } from '../entities/event-registration.entity';
 
@@ -33,6 +33,7 @@ export class CreateEventRegistrationDto {
 
   @IsNumber()
   @IsOptional()
+  @Min(0)
   paymentAmount?: number;
 
   @IsString()

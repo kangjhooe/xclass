@@ -71,223 +71,184 @@ export default function PublicContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href={`/${tenantId}/public`}>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <ArrowLeft className="w-4 h-4" />
-                  Kembali
-                </Button>
-              </Link>
-              <div className="flex items-center gap-2">
-                <Mail className="w-6 h-6 text-blue-600" />
-                <h1 className="text-xl font-bold text-gray-900">Kontak</h1>
-              </div>
-            </div>
-            <nav className="hidden md:flex items-center gap-4">
-              <Link href={`/${tenantId}/public`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Beranda
-              </Link>
-              <Link href={`/${tenantId}/public/profile`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Profil
-              </Link>
-              <Link href={`/${tenantId}/public/news`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Berita
-              </Link>
-              <Link href={`/${tenantId}/public/gallery`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Galeri
-              </Link>
-              <Link href={`/${tenantId}/public/download`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Download
-              </Link>
-              <Link href={`/${tenantId}/public/ppdb`} className="text-gray-700 hover:text-blue-600 font-medium">
-                PPDB
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Contact Information */}
+    <div className="grid gap-10 py-4 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="space-y-6 rounded-[32px] border border-white/10 bg-white/90 p-8 text-slate-900 shadow-[0_30px_90px_rgba(15,23,42,0.25)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">Hubungi Kami</h2>
-            <p className="text-gray-600 mb-8">
-              Kami siap membantu menjawab pertanyaan Anda. Jangan ragu untuk menghubungi kami melalui form di samping atau informasi kontak di bawah ini.
+            <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1 text-sm font-semibold text-blue-600">
+              <Mail className="h-4 w-4" />
+              Kontak Sekolah
             </p>
-
-            {profile && (
-              <div className="space-y-4">
-                {profile.address && (
-                  <div className="flex items-start gap-4">
-                    <div className="bg-blue-100 p-3 rounded-lg">
-                      <MapPin className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 mb-1">Alamat</h3>
-                      <p className="text-gray-600">{profile.address}</p>
-                    </div>
-                  </div>
-                )}
-
-                {profile.phone && (
-                  <div className="flex items-start gap-4">
-                    <div className="bg-green-100 p-3 rounded-lg">
-                      <Phone className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 mb-1">Telepon</h3>
-                      <a href={`tel:${profile.phone}`} className="text-blue-600 hover:underline">
-                        {profile.phone}
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {profile.email && (
-                  <div className="flex items-start gap-4">
-                    <div className="bg-purple-100 p-3 rounded-lg">
-                      <Mail className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 mb-1">Email</h3>
-                      <a href={`mailto:${profile.email}`} className="text-blue-600 hover:underline">
-                        {profile.email}
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {profile.website && (
-                  <div className="flex items-start gap-4">
-                    <div className="bg-orange-100 p-3 rounded-lg">
-                      <Globe className="w-6 h-6 text-orange-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 mb-1">Website</h3>
-                      <a 
-                        href={profile.website} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {profile.website}
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <h2 className="mt-4 text-3xl font-bold text-slate-900">Hubungi Kami</h2>
+            <p className="mt-2 text-slate-600">
+              Kami siap membantu menjawab pertanyaan Anda melalui berbagai kanal komunikasi.
+            </p>
           </div>
-
-          {/* Contact Form */}
-          <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Kirim Pesan</h2>
-            
-            {isSubmitted && (
-              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <p className="text-green-800">Pesan berhasil dikirim!</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nama <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Telepon
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subjek <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Pesan <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={5}
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={submitMutation.isPending}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-              >
-                {submitMutation.isPending ? (
-                  'Mengirim...'
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Kirim Pesan
-                  </>
-                )}
-              </Button>
-            </form>
-          </div>
+          <Link href={`/${tenantId}/public`}>
+            <Button variant="outline" className="rounded-full border-slate-200 text-slate-900 hover:border-blue-200">
+              <ArrowLeft className="h-4 w-4" />
+              Kembali
+            </Button>
+          </Link>
         </div>
+
+        {profile && (
+          <div className="space-y-5">
+            {profile.address && (
+              <div className="glass-panel-light rounded-2xl p-5">
+                <div className="flex items-start gap-4">
+                  <span className="rounded-2xl bg-blue-100 p-3 text-blue-600">
+                    <MapPin className="h-6 w-6" />
+                  </span>
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-slate-500">Alamat</p>
+                    <p className="text-lg font-semibold text-slate-900">{profile.address}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {profile.phone && (
+              <div className="glass-panel-light rounded-2xl p-5">
+                <div className="flex items-start gap-4">
+                  <span className="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
+                    <Phone className="h-6 w-6" />
+                  </span>
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-slate-500">Telepon</p>
+                    <a href={`tel:${profile.phone}`} className="text-lg font-semibold text-blue-600 hover:underline">
+                      {profile.phone}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {profile.email && (
+              <div className="glass-panel-light rounded-2xl p-5">
+                <div className="flex items-start gap-4">
+                  <span className="rounded-2xl bg-purple-100 p-3 text-purple-600">
+                    <Mail className="h-6 w-6" />
+                  </span>
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-slate-500">Email</p>
+                    <a href={`mailto:${profile.email}`} className="text-lg font-semibold text-blue-600 hover:underline">
+                      {profile.email}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {profile.website && (
+              <div className="glass-panel-light rounded-2xl p-5">
+                <div className="flex items-start gap-4">
+                  <span className="rounded-2xl bg-orange-100 p-3 text-orange-600">
+                    <Globe className="h-6 w-6" />
+                  </span>
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-slate-500">Website</p>
+                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-lg font-semibold text-blue-600 hover:underline">
+                      {profile.website}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">
-            © {new Date().getFullYear()} Website Sekolah. Semua hak dilindungi.
-          </p>
-        </div>
-      </footer>
+      <div className="glass-panel rounded-[32px] border border-white/20 bg-white/5 p-8 text-white">
+        <h2 className="text-2xl font-bold">Kirim Pesan</h2>
+        <p className="mt-2 text-sm text-slate-200">Lengkapi formulir berikut dan tim kami akan segera menghubungi Anda.</p>
+
+        {isSubmitted && (
+          <div className="mt-6 flex items-center gap-2 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+            <CheckCircle className="h-5 w-5" />
+            Pesan berhasil dikirim!
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-200">
+              Nama <span className="text-rose-300">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/50 focus:border-blue-300 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-200">
+              Email <span className="text-rose-300">*</span>
+            </label>
+            <input
+              type="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/50 focus:border-blue-300 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-200">Telepon</label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/50 focus:border-blue-300 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-200">
+              Subjek <span className="text-rose-300">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/50 focus:border-blue-300 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-200">
+              Pesan <span className="text-rose-300">*</span>
+            </label>
+            <textarea
+              required
+              rows={5}
+              value={formData.message}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/50 focus:border-blue-300 focus:outline-none"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={submitMutation.isPending}
+            className="w-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 py-3 text-white shadow-lg shadow-blue-500/30"
+          >
+            {submitMutation.isPending ? (
+              'Mengirim...'
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Kirim Pesan
+              </>
+            )}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

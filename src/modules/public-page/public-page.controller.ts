@@ -1,11 +1,15 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
   Param,
+  Post,
   Query,
-  Body,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { PublicPageService } from './public-page.service';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 
@@ -110,6 +114,28 @@ export class PublicPageController {
   @Get('ppdb/info')
   getPublicPpdbInfo(@TenantId() instansiId: number) {
     return this.publicPageService.getPublicPpdbInfo(instansiId);
+  }
+
+  // Guest Book Form (Public - no auth required)
+  @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 requests per minute per IP
+  @UseInterceptors(FileInterceptor('photo'))
+  @Post('guest-book')
+  submitGuestBook(
+    @TenantId() instansiId: number,
+    @Body() body: {
+      name: string;
+      identity_number?: string;
+      phone?: string;
+      email?: string;
+      institution?: string;
+      purpose: string;
+      notes?: string;
+      check_in?: string;
+      recaptcha_token?: string;
+    },
+    @UploadedFile() photo?: Express.Multer.File,
+  ) {
+    return this.publicPageService.submitGuestBook(instansiId, body, photo);
   }
 
   // Downloads

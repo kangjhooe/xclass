@@ -5,8 +5,11 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { CafeteriaOrderItem } from './cafeteria-order-item.entity';
+import { CafeteriaOutlet } from './cafeteria-outlet.entity';
 
 @Entity('cafeteria_menus')
 export class CafeteriaMenu {
@@ -15,6 +18,9 @@ export class CafeteriaMenu {
 
   @Column()
   instansiId: number;
+
+  @Column({ name: 'canteen_id', nullable: true })
+  canteenId: number;
 
   @Column()
   name: string;
@@ -48,5 +54,11 @@ export class CafeteriaMenu {
 
   @OneToMany(() => CafeteriaOrderItem, (orderItem) => orderItem.menu)
   orderItems: CafeteriaOrderItem[];
+
+  @ManyToOne(() => CafeteriaOutlet, (canteen) => canteen.menus, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'canteen_id' })
+  canteen: CafeteriaOutlet;
 }
 

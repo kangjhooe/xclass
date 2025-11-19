@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { HttpModule } from '@nestjs/axios';
 import { PublicPageController } from './public-page.controller';
 import { PublicPageAdminController } from './public-page-admin.controller';
 import { PublicPageService } from './public-page.service';
@@ -16,6 +17,9 @@ import { PpdbRegistration } from '../ppdb/entities/ppdb-registration.entity';
 import { PpdbInterviewSchedule } from '../ppdb/entities/ppdb-interview-schedule.entity';
 import { Download } from './entities/download.entity';
 import { StorageModule } from '../storage/storage.module';
+import { GuestBookModule } from '../guest-book/guest-book.module';
+import { DataPokok } from '../data-pokok/entities/data-pokok.entity';
+import { Tenant } from '../tenant/entities/tenant.entity';
 
 @Module({
   imports: [
@@ -32,8 +36,12 @@ import { StorageModule } from '../storage/storage.module';
       PpdbRegistration,
       PpdbInterviewSchedule,
       Download,
+      DataPokok,
+      Tenant,
     ]),
     StorageModule,
+    GuestBookModule,
+    HttpModule,
   ],
   controllers: [PublicPageController, PublicPageAdminController],
   providers: [PublicPageService],

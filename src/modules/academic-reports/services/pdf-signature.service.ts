@@ -133,7 +133,7 @@ export class PdfSignatureService {
 
     // Grades Table
     doc.fontSize(10);
-    let y = doc.y;
+    const y = doc.y;
     doc.text('Mata Pelajaran', 50, y);
     doc.text('Nilai', 300, y);
     doc.text('Keterangan', 400, y);

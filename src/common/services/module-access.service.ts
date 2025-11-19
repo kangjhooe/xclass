@@ -12,6 +12,15 @@ export interface ModulePermission {
   canDelete: boolean;
 }
 
+export interface AuthenticatedUserContext {
+  userId?: number;
+  id?: number;
+  role?: string;
+  email?: string;
+  instansiId?: number;
+  teacherId?: number;
+}
+
 @Injectable()
 export class ModuleAccessService {
   constructor(
@@ -27,47 +36,64 @@ export class ModuleAccessService {
    * Cek apakah user memiliki akses ke modul tertentu
    */
   async hasModuleAccess(
-    userId: number,
+    userOrContext: number | AuthenticatedUserContext,
     moduleKey: string,
     requiredPermission: 'view' | 'create' | 'update' | 'delete' = 'view',
   ): Promise<boolean> {
+    const context =
+      typeof userOrContext === 'number'
+        ? { userId: userOrContext }
+        : {
+            ...userOrContext,
+            userId: userOrContext.userId ?? userOrContext.id,
+          };
+
+    if (!context.userId) {
+      return false;
+    }
+
     // Super admin dan admin tenant memiliki akses penuh
     const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ['id', 'role', 'instansiId'],
+      where: { id: context.userId },
+      select: ['id', 'role', 'instansiId', 'email'],
     });
 
     if (!user) {
       return false;
     }
 
+    const resolvedRole = context.role || user.role;
+    const resolvedInstansiId =
+      context.instansiId !== undefined ? context.instansiId : user.instansiId;
+    const resolvedEmail = context.email || user.email;
+    const resolvedTeacherId = context.teacherId;
+
     // Super admin dan admin tenant memiliki akses ke semua modul
-    if (user.role === 'super_admin' || user.role === 'admin_tenant') {
+    if (resolvedRole === 'super_admin' || resolvedRole === 'admin_tenant') {
       return true;
     }
 
     // Untuk teacher dan staff, cek berdasarkan position
-    if (user.role === 'teacher' || user.role === 'staff') {
+    if (resolvedRole === 'teacher' || resolvedRole === 'staff') {
       // Cari teacher - prioritas: teacherId dari JWT > email > nik
       let teacher = null;
       
       // Cek apakah ada teacherId di request (dari JWT payload)
       // Note: Ini perlu di-pass dari guard, untuk sekarang kita cari manual
       // Jika ada teacherId di user object, gunakan itu
-      const teacherId = (user as any).teacherId;
-      if (teacherId) {
+      if (resolvedTeacherId) {
         teacher = await this.teacherRepository.findOne({
-          where: { id: teacherId, instansiId: user.instansiId },
+          where: { id: resolvedTeacherId, instansiId: resolvedInstansiId },
           relations: ['position'],
         });
       }
       
       // Jika tidak ditemukan, cari berdasarkan email atau nik
-      if (!teacher) {
+      if (!teacher && resolvedEmail) {
         teacher = await this.teacherRepository.findOne({
           where: [
-            { email: user.email, instansiId: user.instansiId },
-            { nik: user.email, instansiId: user.instansiId }, // Fallback jika email tidak match
+            { email: resolvedEmail, instansiId: resolvedInstansiId },
+            { nik: resolvedEmail, instansiId: resolvedInstansiId }, // Fallback jika email tidak match
           ],
           relations: ['position'],
         });

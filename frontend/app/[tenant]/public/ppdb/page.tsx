@@ -119,12 +119,12 @@ export default function PublicPpdbPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-white/60 sticky top-0 z-50 animate-slide-in-from-top">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <GraduationCap className="w-6 h-6 text-blue-600" />
+            <div className="flex items-center gap-3 animate-fade-in">
+              <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-xl shadow-lg">
+                <GraduationCap className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">PPDB</h1>
@@ -135,7 +135,7 @@ export default function PublicPpdbPage() {
               {isAuthenticated ? (
                 <Button
                   onClick={handleGoToDashboard}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:scale-105 transition-transform"
                 >
                   <LogIn className="w-4 h-4 mr-2" />
                   Dashboard Saya
@@ -143,13 +143,13 @@ export default function PublicPpdbPage() {
               ) : (
                 <>
                   <Link href={`/ppdb/login`}>
-                    <Button variant="outline" className="border-gray-300">
+                    <Button variant="outline" className="border-gray-300 hover:scale-105 transition-transform">
                       <LogIn className="w-4 h-4 mr-2" />
                       Masuk
                     </Button>
                   </Link>
                   <Link href={`/ppdb/register`}>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:scale-105 transition-transform">
                       <UserPlus className="w-4 h-4 mr-2" />
                       Daftar
                     </Button>
@@ -163,8 +163,8 @@ export default function PublicPpdbPage() {
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+        <div className="text-center mb-12 animate-fade-in">
+          <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Selamat Datang di PPDB
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -174,71 +174,57 @@ export default function PublicPpdbPage() {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Pendaftar</p>
-                <p className="text-3xl font-bold text-gray-900">{ppdbInfo.totalRegistrations}</p>
+          {[
+            { label: 'Total Pendaftar', value: ppdbInfo.totalRegistrations, icon: Users, textColor: 'text-blue-600', bgColor: 'bg-blue-100', iconColor: 'text-blue-600', delay: 0 },
+            { label: 'Diterima', value: ppdbInfo.acceptedCount, icon: CheckCircle, textColor: 'text-green-600', bgColor: 'bg-green-100', iconColor: 'text-green-600', delay: 0.1 },
+            { label: 'Tertunda', value: ppdbInfo.pendingCount, icon: Clock, textColor: 'text-yellow-600', bgColor: 'bg-yellow-100', iconColor: 'text-yellow-600', delay: 0.2 },
+            { label: 'Terdaftar', value: ppdbInfo.registeredCount, icon: FileText, textColor: 'text-purple-600', bgColor: 'bg-purple-100', iconColor: 'text-purple-600', delay: 0.3 },
+          ].map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <div
+                key={stat.label}
+                className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 animate-fade-in"
+                style={{ animationDelay: `${stat.delay}s` }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
+                    <p className={`text-3xl font-bold ${stat.textColor}`}>{stat.value}</p>
+                  </div>
+                  <div className={`${stat.bgColor} p-3 rounded-xl shadow-md`}>
+                    <Icon className={`w-6 h-6 ${stat.iconColor}`} />
+                  </div>
+                </div>
               </div>
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Diterima</p>
-                <p className="text-3xl font-bold text-green-600">{ppdbInfo.acceptedCount}</p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Tertunda</p>
-                <p className="text-3xl font-bold text-yellow-600">{ppdbInfo.pendingCount}</p>
-              </div>
-              <div className="bg-yellow-100 p-3 rounded-lg">
-                <Clock className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Terdaftar</p>
-                <p className="text-3xl font-bold text-blue-600">{ppdbInfo.registeredCount}</p>
-              </div>
-              <div className="bg-purple-100 p-3 rounded-lg">
-                <FileText className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
 
         {/* Registration Paths */}
         {Object.keys(ppdbInfo.byPath).length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-12 border border-gray-100">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-12 border border-gray-100 animate-fade-in">
             <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-blue-600" />
+              <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-xl">
+                <BookOpen className="w-6 h-6 text-white" />
+              </div>
               Jalur Pendaftaran
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(ppdbInfo.byPath).map(([path, count]) => (
-                <div key={path} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              {Object.entries(ppdbInfo.byPath).map(([path, count], index) => (
+                <div
+                  key={path}
+                  className="border-2 border-gray-200 rounded-xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-white to-gray-50 animate-fade-in"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-gray-900">{pathLabels[path] || path}</p>
-                      <p className="text-sm text-gray-600">{count} pendaftar</p>
+                      <p className="font-semibold text-gray-900 text-lg">{pathLabels[path] || path}</p>
+                      <p className="text-sm text-gray-600 mt-1">{count} pendaftar</p>
                     </div>
-                    <Award className="w-5 h-5 text-blue-600" />
+                    <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-lg shadow-md">
+                      <Award className="w-5 h-5 text-white" />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -248,32 +234,40 @@ export default function PublicPpdbPage() {
 
         {/* Available Schedules */}
         {ppdbInfo.availableSchedules.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-12 border border-gray-100">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-12 border border-gray-100 animate-fade-in">
             <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-blue-600" />
+              <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-xl">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
               Jadwal Wawancara Tersedia
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {ppdbInfo.availableSchedules.map((schedule) => (
-                <div key={schedule.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              {ppdbInfo.availableSchedules.map((schedule, index) => (
+                <div
+                  key={schedule.id}
+                  className="border-2 border-gray-200 rounded-xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-white to-gray-50 animate-fade-in"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
                   <div className="flex items-start gap-3">
-                    <div className="bg-blue-100 p-2 rounded-lg">
-                      <Calendar className="w-5 h-5 text-blue-600" />
+                    <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-lg shadow-md">
+                      <Calendar className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900">
                         {formatDate(new Date(schedule.scheduleDate))}
                       </p>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-sm text-gray-600 mt-1 flex items-center gap-1">
+                        <Clock className="w-4 h-4 text-blue-500" />
                         {schedule.startTime} - {schedule.endTime}
                       </p>
                       {schedule.location && (
                         <p className="text-sm text-gray-600 mt-1 flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
+                          <MapPin className="w-4 h-4 text-rose-500" />
                           {schedule.location}
                         </p>
                       )}
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                        <Users className="w-4 h-4 text-emerald-500" />
                         {schedule.currentParticipants}/{schedule.maxParticipants} peserta
                       </p>
                     </div>
@@ -285,42 +279,45 @@ export default function PublicPpdbPage() {
         )}
 
         {/* CTA Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-xl p-8 text-center text-white">
-          <h3 className="text-3xl font-bold mb-4">Siap untuk Bergabung?</h3>
-          <p className="text-lg mb-6 opacity-90">
-            Daftarkan diri Anda sekarang dan ikuti proses seleksi PPDB
-          </p>
-          <div className="flex gap-4 justify-center">
-            {isAuthenticated ? (
-              <Button
-                onClick={handleGoToDashboard}
-                className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg"
-              >
-                Buka Dashboard
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            ) : (
-              <>
-                <Link href={`/ppdb/register`}>
-                  <Button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg">
-                    <UserPlus className="w-5 h-5 mr-2" />
-                    Daftar Sekarang
-                  </Button>
-                </Link>
-                <Link href={`/ppdb/login`}>
-                  <Button variant="outline" className="border-white text-white hover:bg-white/10 px-8 py-3 text-lg">
-                    <LogIn className="w-5 h-5 mr-2" />
-                    Masuk ke Akun
-                  </Button>
-                </Link>
-              </>
-            )}
+        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl p-10 text-center text-white relative overflow-hidden animate-fade-in">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-white/20 to-transparent"></div>
+          <div className="relative z-10">
+            <h3 className="text-3xl lg:text-4xl font-bold mb-4">Siap untuk Bergabung?</h3>
+            <p className="text-lg mb-8 opacity-90">
+              Daftarkan diri Anda sekarang dan ikuti proses seleksi PPDB
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              {isAuthenticated ? (
+                <Button
+                  onClick={handleGoToDashboard}
+                  className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg shadow-xl hover:scale-105 transition-transform"
+                >
+                  Buka Dashboard
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              ) : (
+                <>
+                  <Link href={`/ppdb/register`}>
+                    <Button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg shadow-xl hover:scale-105 transition-transform">
+                      <UserPlus className="w-5 h-5 mr-2" />
+                      Daftar Sekarang
+                    </Button>
+                  </Link>
+                  <Link href={`/ppdb/login`}>
+                    <Button variant="outline" className="border-2 border-white text-white hover:bg-white/20 px-8 py-3 text-lg hover:scale-105 transition-transform">
+                      <LogIn className="w-5 h-5 mr-2" />
+                      Masuk ke Akun
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 mt-12">
+      <footer className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white py-10 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-gray-400">
             © {new Date().getFullYear()} PPDB. Semua hak dilindungi.

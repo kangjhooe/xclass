@@ -35,21 +35,24 @@ export interface EmployeeCreateData {
 
 export interface Attendance {
   id: number;
-  employee_id: number;
+  employeeId: number;
+  employee?: Employee;
   employee_name?: string;
-  date: string;
-  check_in?: string;
-  check_out?: string;
-  status?: 'present' | 'absent' | 'late' | 'leave';
+  attendanceDate: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  status?: 'present' | 'absent' | 'late' | 'excused';
   notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AttendanceCreateData {
-  employee_id: number;
-  date: string;
-  check_in?: string;
-  check_out?: string;
-  status?: 'present' | 'absent' | 'late' | 'leave';
+  employeeId: number;
+  attendanceDate: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  status?: 'present' | 'absent' | 'late' | 'excused';
   notes?: string;
 }
 
@@ -118,6 +121,88 @@ export const AVAILABLE_MODULES = [
   { key: 'facility', name: 'Fasilitas' },
 ];
 
+// Payroll interfaces
+export interface PayrollItem {
+  id?: number;
+  name: string;
+  amount: number;
+  type: 'allowance' | 'deduction';
+}
+
+export interface Payroll {
+  id: number;
+  employeeId: number;
+  employee?: Employee;
+  employeeType: 'employee' | 'teacher' | 'staff';
+  payrollDate: string;
+  basicSalary: number;
+  totalAllowances: number;
+  totalDeductions: number;
+  netSalary: number;
+  status: 'pending' | 'approved' | 'paid' | 'cancelled';
+  notes?: string;
+  items?: PayrollItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PayrollCreateData {
+  employeeId: number;
+  employeeType: 'employee' | 'teacher' | 'staff';
+  payrollDate: string;
+  basicSalary: number;
+  allowances?: PayrollItem[];
+  deductions?: PayrollItem[];
+  notes?: string;
+}
+
+// Department interfaces
+export interface Department {
+  id: number;
+  instansiId: number;
+  name: string;
+  description?: string;
+  headId?: number;
+  isActive: boolean;
+  employees?: Employee[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DepartmentCreateData {
+  name: string;
+  description?: string;
+  headId?: number;
+  isActive?: boolean;
+}
+
+// Performance Review interfaces
+export interface PerformanceReview {
+  id: number;
+  employeeId: number;
+  employee?: Employee;
+  reviewDate: string;
+  reviewPeriod: string;
+  rating: number;
+  strengths: string;
+  weaknesses?: string;
+  goals?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PerformanceReviewCreateData {
+  employeeId: number;
+  reviewDate: string;
+  reviewPeriod: string;
+  rating: number;
+  strengths: string;
+  weaknesses?: string;
+  goals?: string;
+  notes?: string;
+}
+
 export const hrApi = {
   // Employees
   getAllEmployees: async (tenantId: number, params?: any): Promise<{ data: Employee[]; total: number }> => {
@@ -136,7 +221,7 @@ export const hrApi = {
   },
 
   updateEmployee: async (tenantId: number, id: number, data: Partial<EmployeeCreateData>): Promise<Employee> => {
-    const response = await apiClient.put(`/tenants/${tenantId}/hr/employees/${id}`, data);
+    const response = await apiClient.patch(`/tenants/${tenantId}/hr/employees/${id}`, data);
     return response.data;
   },
 
@@ -145,23 +230,32 @@ export const hrApi = {
   },
 
   // Attendance
-  getAllAttendance: async (tenantId: number, params?: any): Promise<{ data: Attendance[]; total: number }> => {
-    const response = await apiClient.get(`/tenants/${tenantId}/hr/attendance`, { params });
+  getAllAttendance: async (tenantId: number, params?: any): Promise<Attendance[]> => {
+    const response = await apiClient.get(`/hr/attendance`, {
+      params,
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
     return response.data;
   },
 
   createAttendance: async (tenantId: number, data: AttendanceCreateData): Promise<Attendance> => {
-    const response = await apiClient.post(`/tenants/${tenantId}/hr/attendance`, data);
+    const response = await apiClient.post(`/hr/attendance`, data, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
     return response.data;
   },
 
   updateAttendance: async (tenantId: number, id: number, data: Partial<AttendanceCreateData>): Promise<Attendance> => {
-    const response = await apiClient.put(`/tenants/${tenantId}/hr/attendance/${id}`, data);
+    const response = await apiClient.patch(`/hr/attendance/${id}`, data, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
     return response.data;
   },
 
   deleteAttendance: async (tenantId: number, id: number): Promise<void> => {
-    await apiClient.delete(`/tenants/${tenantId}/hr/attendance/${id}`);
+    await apiClient.delete(`/hr/attendance/${id}`, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
   },
 
   // Positions
@@ -232,6 +326,113 @@ export const hrApi = {
 
   deletePositionModule: async (tenantId: number, id: number): Promise<void> => {
     await apiClient.delete(`/hr/position-modules/${id}`, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+  },
+
+  // Payroll
+  getAllPayrolls: async (tenantId: number, params?: any): Promise<Payroll[]> => {
+    const response = await apiClient.get(`/hr/payrolls`, {
+      params,
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  getPayrollById: async (tenantId: number, id: number): Promise<Payroll> => {
+    const response = await apiClient.get(`/hr/payrolls/${id}`, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  createPayroll: async (tenantId: number, data: PayrollCreateData): Promise<Payroll> => {
+    const response = await apiClient.post(`/hr/payrolls`, data, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  updatePayroll: async (tenantId: number, id: number, data: Partial<PayrollCreateData>): Promise<Payroll> => {
+    const response = await apiClient.patch(`/hr/payrolls/${id}`, data, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  deletePayroll: async (tenantId: number, id: number): Promise<void> => {
+    await apiClient.delete(`/hr/payrolls/${id}`, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+  },
+
+  // Departments
+  getAllDepartments: async (tenantId: number): Promise<Department[]> => {
+    const response = await apiClient.get(`/hr/departments`, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  getDepartmentById: async (tenantId: number, id: number): Promise<Department> => {
+    const response = await apiClient.get(`/hr/departments/${id}`, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  createDepartment: async (tenantId: number, data: DepartmentCreateData): Promise<Department> => {
+    const response = await apiClient.post(`/hr/departments`, data, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  updateDepartment: async (tenantId: number, id: number, data: Partial<DepartmentCreateData>): Promise<Department> => {
+    const response = await apiClient.patch(`/hr/departments/${id}`, data, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  deleteDepartment: async (tenantId: number, id: number): Promise<void> => {
+    await apiClient.delete(`/hr/departments/${id}`, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+  },
+
+  // Performance Reviews
+  getAllPerformanceReviews: async (tenantId: number, params?: any): Promise<PerformanceReview[]> => {
+    const response = await apiClient.get(`/hr/performance-reviews`, {
+      params,
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  getPerformanceReviewById: async (tenantId: number, id: number): Promise<PerformanceReview> => {
+    const response = await apiClient.get(`/hr/performance-reviews/${id}`, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  createPerformanceReview: async (tenantId: number, data: PerformanceReviewCreateData): Promise<PerformanceReview> => {
+    const response = await apiClient.post(`/hr/performance-reviews`, data, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  updatePerformanceReview: async (tenantId: number, id: number, data: Partial<PerformanceReviewCreateData>): Promise<PerformanceReview> => {
+    const response = await apiClient.patch(`/hr/performance-reviews/${id}`, data, {
+      headers: { 'x-tenant-id': tenantId.toString() },
+    });
+    return response.data;
+  },
+
+  deletePerformanceReview: async (tenantId: number, id: number): Promise<void> => {
+    await apiClient.delete(`/hr/performance-reviews/${id}`, {
       headers: { 'x-tenant-id': tenantId.toString() },
     });
   },

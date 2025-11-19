@@ -7,6 +7,9 @@ import {
 } from 'class-validator';
 
 export class CreateCafeteriaMenuDto {
+  @IsNumber()
+  canteenId: number;
+
   @IsString()
   name: string;
 

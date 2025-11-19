@@ -12,6 +12,7 @@ import {
 import { Student } from '../../students/entities/student.entity';
 import { CafeteriaOrderItem } from './cafeteria-order-item.entity';
 import { CafeteriaPayment } from './cafeteria-payment.entity';
+import { CafeteriaOutlet } from './cafeteria-outlet.entity';
 
 @Entity('cafeteria_orders')
 export class CafeteriaOrder {
@@ -20,6 +21,9 @@ export class CafeteriaOrder {
 
   @Column()
   instansiId: number;
+
+  @Column({ name: 'canteen_id', nullable: true })
+  canteenId: number;
 
   @Column()
   studentId: number;
@@ -61,5 +65,11 @@ export class CafeteriaOrder {
 
   @OneToMany(() => CafeteriaPayment, (payment) => payment.order)
   payments: CafeteriaPayment[];
+
+  @ManyToOne(() => CafeteriaOutlet, (canteen) => canteen.orders, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'canteen_id' })
+  canteen: CafeteriaOutlet;
 }
 

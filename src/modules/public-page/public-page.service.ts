@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 import { News } from './entities/news.entity';
 import { Gallery } from './entities/gallery.entity';
 import { Menu } from './entities/menu.entity';
@@ -16,6 +19,8 @@ import { Download } from './entities/download.entity';
 import { StorageService } from '../storage/storage.service';
 import { GuestBookService } from '../guest-book/guest-book.service';
 import { CreateGuestBookDto } from '../guest-book/dto/create-guest-book.dto';
+import { DataPokok } from '../data-pokok/entities/data-pokok.entity';
+import { Tenant } from '../tenant/entities/tenant.entity';
 
 @Injectable()
 export class PublicPageService {
@@ -44,6 +49,10 @@ export class PublicPageService {
     private ppdbInterviewScheduleRepository: Repository<PpdbInterviewSchedule>,
     @InjectRepository(Download)
     private downloadRepository: Repository<Download>,
+    @InjectRepository(DataPokok)
+    private dataPokokRepository: Repository<DataPokok>,
+    @InjectRepository(Tenant)
+    private tenantRepository: Repository<Tenant>,
     private storageService: StorageService,
     private guestBookService: GuestBookService,
     private configService: ConfigService,
@@ -136,9 +145,51 @@ export class PublicPageService {
 
   // Tenant Profile methods
   async getTenantProfile(instansiId: number) {
-    return this.tenantProfileRepository.findOne({
+    const existingProfile = await this.tenantProfileRepository.findOne({
       where: { instansiId, isActive: true },
     });
+
+    if (existingProfile) {
+      return existingProfile;
+    }
+
+    const [dataPokok, tenant] = await Promise.all([
+      this.dataPokokRepository.findOne({ where: { instansiId } }),
+      this.tenantRepository.findOne({ where: { id: instansiId } }),
+    ]);
+
+    if (!dataPokok && !tenant) {
+      return null;
+    }
+
+    const tenantSettings = tenant?.settings ?? {};
+    const fallbackDescription =
+      dataPokok?.description ||
+      dataPokok?.notes ||
+      (tenant?.name ? `Profil ${tenant.name}` : null);
+
+    return {
+      id: dataPokok?.id ? -Math.abs(dataPokok.id) : -(tenant?.id ?? instansiId),
+      instansiId,
+      description: fallbackDescription,
+      vision: dataPokok?.vision || null,
+      mission: dataPokok?.mission || null,
+      logo:
+        (tenantSettings.publicPageLogo as string) ||
+        (tenantSettings.logo as string) ||
+        null,
+      address: dataPokok?.address || tenant?.address || null,
+      phone: dataPokok?.phone || tenant?.phone || null,
+      email: dataPokok?.email || tenant?.email || null,
+      website:
+        dataPokok?.website ||
+        (tenantSettings.website as string) ||
+        (tenantSettings.publicWebsite as string) ||
+        null,
+      isActive: true,
+      createdAt: dataPokok?.createdAt || tenant?.createdAt || new Date(),
+      updatedAt: dataPokok?.updatedAt || tenant?.updatedAt || new Date(),
+    } as TenantProfile;
   }
 
   // Home page statistics
@@ -252,12 +303,16 @@ export class PublicPageService {
   }
 
   // Guest Book Form (Public - no auth required)
-  async submitGuestBook(instansiId: number, data: CreateGuestBookDto & { recaptcha_token?: string }) {
+  async submitGuestBook(
+    instansiId: number,
+    data: CreateGuestBookDto & { recaptcha_token?: string },
+    photo?: Express.Multer.File,
+  ) {
     // Verify reCAPTCHA if token is provided
     if (data.recaptcha_token) {
       const isValid = await this.verifyRecaptcha(data.recaptcha_token);
       if (!isValid) {
-        throw new Error('reCAPTCHA verification failed. Please try again.');
+        throw new BadRequestException('reCAPTCHA verification failed. Please try again.');
       }
     }
 
@@ -268,8 +323,18 @@ export class PublicPageService {
     
     // Remove recaptcha_token before saving
     const { recaptcha_token, ...guestBookData } = data;
+    const payload: CreateGuestBookDto = { ...guestBookData };
+
+    if (photo) {
+      const uploaded = await this.storageService.uploadFile(
+        photo,
+        'guest-book/photos',
+        instansiId,
+      );
+      payload.photo_url = uploaded.url;
+    }
     
-    return await this.guestBookService.create(guestBookData, instansiId);
+    return await this.guestBookService.create(payload, instansiId);
   }
 
   // Verify reCAPTCHA token
@@ -292,8 +357,8 @@ export class PublicPageService {
         }),
       );
 
-      const result = response.data;
-      return result.success === true && result.score >= 0.5; // Score threshold for v3
+      const result = response.data as { success: boolean; score?: number };
+      return result.success === true && (result.score ?? 0) >= 0.5; // Score threshold for v3
     } catch (error) {
       console.error('reCAPTCHA verification error:', error);
       return false;

@@ -26,7 +26,7 @@ import { AcademicYearModule } from './modules/academic-year/academic-year.module
 import { AnnouncementModule } from './modules/announcement/announcement.module';
 import { AlumniModule } from './modules/alumni/alumni.module';
 import { ExtracurricularModule } from './modules/extracurricular/extracurricular.module';
-import { EventModule } from './modules/event/event.module';
+import { EventsModule } from './modules/events/events.module';
 import { GradeWeightModule } from './modules/grade-weight/grade-weight.module';
 import { PromotionModule } from './modules/promotion/promotion.module';
 import { CounselingModule } from './modules/counseling/counseling.module';
@@ -162,7 +162,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     AnnouncementModule,
     AlumniModule,
     ExtracurricularModule,
-    EventModule,
+    EventsModule,
     GradeWeightModule,
     PromotionModule,
     CounselingModule,

@@ -27,6 +27,9 @@ import { SignedDocument } from '../../academic-reports/entities/signed-document.
 import { Promotion } from '../../promotion/entities/promotion.entity';
 import { BookLoan } from '../../library/entities/book-loan.entity';
 import { SppPayment } from '../../finance/entities/spp-payment.entity';
+import { StudentSavings } from '../../finance/entities/student-savings.entity';
+import { OtherBill } from '../../finance/entities/other-bill.entity';
+import { Scholarship } from '../../finance/entities/scholarship.entity';
 import { EventRegistration } from '../../events/entities/event-registration.entity';
 import { CourseVideoProgress } from '../../elearning/entities/course-video-progress.entity';
 import { CourseQuizAttempt } from '../../elearning/entities/course-quiz-attempt.entity';
@@ -372,6 +375,15 @@ export class Student {
 
   @OneToMany(() => SppPayment, (payment) => payment.student)
   sppPayments: SppPayment[];
+
+  @OneToMany(() => StudentSavings, (savings) => savings.student)
+  savings: StudentSavings[];
+
+  @OneToMany(() => OtherBill, (bill) => bill.student)
+  otherBills: OtherBill[];
+
+  @OneToMany(() => Scholarship, (scholarship) => scholarship.student)
+  scholarships: Scholarship[];
 
   @OneToMany(() => EventRegistration, (registration) => registration.student)
   eventRegistrations: EventRegistration[];

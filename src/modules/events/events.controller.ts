@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -15,8 +16,10 @@ import { CreateEventRegistrationDto } from './dto/create-event-registration.dto'
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { EventType, EventCategory, EventStatus } from './entities/event.entity';
 import { RegistrationStatus } from './entities/event-registration.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('events')
+@UseGuards(JwtAuthGuard)
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
@@ -122,6 +125,21 @@ export class EventsController {
     @TenantId() instansiId: number,
   ) {
     return this.eventsService.updateRegistrationStatus(+id, status, instansiId);
+  }
+
+  @Post('registrations/:id/confirm-payment')
+  confirmPayment(
+    @Param('id') id: string,
+    @TenantId() instansiId: number,
+    @Body('paymentReceipt') paymentReceipt?: string,
+    @Query('createdBy') createdBy?: number,
+  ) {
+    return this.eventsService.confirmPayment(
+      +id,
+      instansiId,
+      paymentReceipt,
+      createdBy ? +createdBy : undefined,
+    );
   }
 
   @Get('statistics')

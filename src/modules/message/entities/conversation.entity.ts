@@ -2,12 +2,14 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ConversationMember } from './conversation-member.entity';
 
-@Entity('events')
-export class Event {
+@Entity('conversations')
+export class Conversation {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -15,26 +17,23 @@ export class Event {
   instansiId: number;
 
   @Column()
-  title: string;
+  name: string;
 
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'datetime' })
-  startDate: Date;
-
-  @Column({ type: 'datetime' })
-  endDate: Date;
+  @Column({ nullable: true })
+  createdBy: number;
 
   @Column({
     type: 'enum',
-    enum: ['academic', 'sports', 'cultural', 'other'],
-    default: 'academic',
+    enum: ['direct', 'group'],
+    default: 'group',
   })
   type: string;
 
   @Column({ nullable: true })
-  location: string;
+  avatar: string;
 
   @Column({ default: true })
   isActive: boolean;
@@ -44,5 +43,8 @@ export class Event {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => ConversationMember, (member) => member.conversation)
+  members: ConversationMember[];
 }
 

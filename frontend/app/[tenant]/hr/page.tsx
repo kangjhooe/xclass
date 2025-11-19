@@ -5,7 +5,7 @@ import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { hrApi, Employee, EmployeeCreateData, Attendance, AttendanceCreateData } from '@/lib/api/hr';
+import { hrApi, Employee, EmployeeCreateData, Attendance, AttendanceCreateData, Payroll, PayrollCreateData, PayrollItem, Department, DepartmentCreateData, PerformanceReview, PerformanceReviewCreateData } from '@/lib/api/hr';
 import { PositionsSection } from './positions-section';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,11 +13,17 @@ import { useTenantId } from '@/lib/hooks/useTenant';
 
 export default function HrPage() {
   const tenantId = useTenantId();
-  const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'positions'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'positions' | 'payroll' | 'departments' | 'performance'>('employees');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [isPayrollModalOpen, setIsPayrollModalOpen] = useState(false);
+  const [isDepartmentModalOpen, setIsDepartmentModalOpen] = useState(false);
+  const [isPerformanceModalOpen, setIsPerformanceModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
+  const [selectedPayroll, setSelectedPayroll] = useState<Payroll | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [selectedPerformance, setSelectedPerformance] = useState<PerformanceReview | null>(null);
   const [formData, setFormData] = useState<EmployeeCreateData>({
     employee_id: '',
     name: '',
@@ -33,11 +39,35 @@ export default function HrPage() {
     address: '',
   });
   const [attendanceData, setAttendanceData] = useState<AttendanceCreateData>({
-    employee_id: 0,
-    date: new Date().toISOString().split('T')[0],
-    check_in: '',
-    check_out: '',
+    employeeId: 0,
+    attendanceDate: new Date().toISOString().split('T')[0],
+    checkInTime: '',
+    checkOutTime: '',
     status: 'present',
+    notes: '',
+  });
+  const [payrollData, setPayrollData] = useState<PayrollCreateData>({
+    employeeId: 0,
+    employeeType: 'employee',
+    payrollDate: new Date().toISOString().split('T')[0],
+    basicSalary: 0,
+    allowances: [],
+    deductions: [],
+    notes: '',
+  });
+  const [departmentData, setDepartmentData] = useState<DepartmentCreateData>({
+    name: '',
+    description: '',
+    isActive: true,
+  });
+  const [performanceData, setPerformanceData] = useState<PerformanceReviewCreateData>({
+    employeeId: 0,
+    reviewDate: new Date().toISOString().split('T')[0],
+    reviewPeriod: '',
+    rating: 1,
+    strengths: '',
+    weaknesses: '',
+    goals: '',
     notes: '',
   });
 
@@ -53,6 +83,24 @@ export default function HrPage() {
     queryKey: ['hr-attendance', tenantId],
     queryFn: () => hrApi.getAllAttendance(tenantId!),
     enabled: activeTab === 'attendance' && !!tenantId,
+  });
+
+  const { data: payrollsData, isLoading: payrollsLoading } = useQuery({
+    queryKey: ['hr-payrolls', tenantId],
+    queryFn: () => hrApi.getAllPayrolls(tenantId!),
+    enabled: activeTab === 'payroll' && !!tenantId,
+  });
+
+  const { data: departmentsData, isLoading: departmentsLoading } = useQuery({
+    queryKey: ['hr-departments', tenantId],
+    queryFn: () => hrApi.getAllDepartments(tenantId!),
+    enabled: (activeTab === 'departments' || activeTab === 'employees') && !!tenantId,
+  });
+
+  const { data: performanceReviewsData, isLoading: performanceLoading } = useQuery({
+    queryKey: ['hr-performance', tenantId],
+    queryFn: () => hrApi.getAllPerformanceReviews(tenantId!),
+    enabled: activeTab === 'performance' && !!tenantId,
   });
 
   const createEmployeeMutation = useMutation({
@@ -110,6 +158,143 @@ export default function HrPage() {
     },
   });
 
+  const createPayrollMutation = useMutation({
+    mutationFn: (data: PayrollCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.createPayroll(tenantId, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-payrolls', tenantId] });
+      setIsPayrollModalOpen(false);
+      setPayrollData({
+        employeeId: 0,
+        employeeType: 'employee',
+        payrollDate: new Date().toISOString().split('T')[0],
+        basicSalary: 0,
+        allowances: [],
+        deductions: [],
+        notes: '',
+      });
+    },
+  });
+
+  const updatePayrollMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<PayrollCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.updatePayroll(tenantId, id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-payrolls', tenantId] });
+      setIsPayrollModalOpen(false);
+      setSelectedPayroll(null);
+    },
+  });
+
+  const deletePayrollMutation = useMutation({
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.deletePayroll(tenantId, id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-payrolls', tenantId] });
+    },
+  });
+
+  const createDepartmentMutation = useMutation({
+    mutationFn: (data: DepartmentCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.createDepartment(tenantId, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-departments', tenantId] });
+      setIsDepartmentModalOpen(false);
+      setDepartmentData({ name: '', description: '', isActive: true });
+    },
+  });
+
+  const updateDepartmentMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<DepartmentCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.updateDepartment(tenantId, id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-departments', tenantId] });
+      setIsDepartmentModalOpen(false);
+      setSelectedDepartment(null);
+    },
+  });
+
+  const deleteDepartmentMutation = useMutation({
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.deleteDepartment(tenantId, id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-departments', tenantId] });
+    },
+  });
+
+  const createPerformanceMutation = useMutation({
+    mutationFn: (data: PerformanceReviewCreateData) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.createPerformanceReview(tenantId, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-performance', tenantId] });
+      setIsPerformanceModalOpen(false);
+      setPerformanceData({
+        employeeId: 0,
+        reviewDate: new Date().toISOString().split('T')[0],
+        reviewPeriod: '',
+        rating: 1,
+        strengths: '',
+        weaknesses: '',
+        goals: '',
+        notes: '',
+      });
+    },
+  });
+
+  const updatePerformanceMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<PerformanceReviewCreateData> }) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.updatePerformanceReview(tenantId, id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-performance', tenantId] });
+      setIsPerformanceModalOpen(false);
+      setSelectedPerformance(null);
+    },
+  });
+
+  const deletePerformanceMutation = useMutation({
+    mutationFn: (id: number) => {
+      if (!tenantId) {
+        throw new Error('Tenant ID tidak tersedia.');
+      }
+      return hrApi.deletePerformanceReview(tenantId, id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-performance', tenantId] });
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       employee_id: '',
@@ -130,10 +315,10 @@ export default function HrPage() {
 
   const resetAttendanceForm = () => {
     setAttendanceData({
-      employee_id: 0,
-      date: new Date().toISOString().split('T')[0],
-      check_in: '',
-      check_out: '',
+      employeeId: 0,
+      attendanceDate: new Date().toISOString().split('T')[0],
+      checkInTime: '',
+      checkOutTime: '',
       status: 'present',
       notes: '',
     });
@@ -174,7 +359,7 @@ export default function HrPage() {
 
   const totalEmployees = employeesData?.data?.length || 0;
   const activeEmployees = employeesData?.data?.filter((e) => e.status === 'active').length || 0;
-  const totalAttendance = attendanceDataQuery?.data?.length || 0;
+  const totalAttendance = attendanceDataQuery?.length || 0;
 
   return (
     <TenantLayout>
@@ -293,6 +478,36 @@ export default function HrPage() {
               }`}
             >
               Jabatan
+            </button>
+            <button
+              onClick={() => setActiveTab('payroll')}
+              className={`flex-1 px-6 py-4 text-center font-semibold transition-all duration-200 ${
+                activeTab === 'payroll'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Penggajian
+            </button>
+            <button
+              onClick={() => setActiveTab('departments')}
+              className={`flex-1 px-6 py-4 text-center font-semibold transition-all duration-200 ${
+                activeTab === 'departments'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Departemen
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`flex-1 px-6 py-4 text-center font-semibold transition-all duration-200 ${
+                activeTab === 'performance'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Kinerja
             </button>
           </div>
         </div>
@@ -572,12 +787,12 @@ export default function HrPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {attendanceDataQuery?.data?.map((attendance) => (
+                      {attendanceDataQuery?.map((attendance) => (
                         <TableRow key={attendance.id} className="hover:bg-blue-50/50 transition-colors">
-                          <TableCell className="font-medium text-gray-800">{attendance.employee_name || '-'}</TableCell>
-                          <TableCell>{formatDate(attendance.date)}</TableCell>
-                          <TableCell>{attendance.check_in || '-'}</TableCell>
-                          <TableCell>{attendance.check_out || '-'}</TableCell>
+                          <TableCell className="font-medium text-gray-800">{attendance.employee?.name || attendance.employee_name || '-'}</TableCell>
+                          <TableCell>{formatDate(attendance.attendanceDate)}</TableCell>
+                          <TableCell>{attendance.checkInTime || '-'}</TableCell>
+                          <TableCell>{attendance.checkOutTime || '-'}</TableCell>
                           <TableCell>
                             <span className={`px-3 py-1 text-xs font-bold rounded-full ${
                               attendance.status === 'present' 
@@ -591,13 +806,13 @@ export default function HrPage() {
                               {attendance.status === 'present' ? 'Hadir' :
                                attendance.status === 'absent' ? 'Tidak Hadir' :
                                attendance.status === 'late' ? 'Terlambat' :
-                               attendance.status === 'leave' ? 'Cuti' : '-'}
+                               attendance.status === 'excused' ? 'Izin' : '-'}
                             </span>
                           </TableCell>
                           <TableCell>{attendance.notes || '-'}</TableCell>
                         </TableRow>
                       ))}
-                      {attendanceDataQuery?.data?.length === 0 && (
+                      {(!attendanceDataQuery || attendanceDataQuery.length === 0) && (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-12">
                             <div className="flex flex-col items-center">
@@ -639,8 +854,8 @@ export default function HrPage() {
                     Karyawan <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={attendanceData.employee_id}
-                    onChange={(e) => setAttendanceData({ ...attendanceData, employee_id: parseInt(e.target.value) })}
+                    value={attendanceData.employeeId}
+                    onChange={(e) => setAttendanceData({ ...attendanceData, employeeId: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
@@ -659,8 +874,8 @@ export default function HrPage() {
                   </label>
                   <input
                     type="date"
-                    value={attendanceData.date}
-                    onChange={(e) => setAttendanceData({ ...attendanceData, date: e.target.value })}
+                    value={attendanceData.attendanceDate}
+                    onChange={(e) => setAttendanceData({ ...attendanceData, attendanceDate: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -671,8 +886,8 @@ export default function HrPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Check In</label>
                     <input
                       type="time"
-                      value={attendanceData.check_in}
-                      onChange={(e) => setAttendanceData({ ...attendanceData, check_in: e.target.value })}
+                      value={attendanceData.checkInTime}
+                      onChange={(e) => setAttendanceData({ ...attendanceData, checkInTime: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -681,8 +896,8 @@ export default function HrPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Check Out</label>
                     <input
                       type="time"
-                      value={attendanceData.check_out}
-                      onChange={(e) => setAttendanceData({ ...attendanceData, check_out: e.target.value })}
+                      value={attendanceData.checkOutTime}
+                      onChange={(e) => setAttendanceData({ ...attendanceData, checkOutTime: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -698,7 +913,7 @@ export default function HrPage() {
                     <option value="present">Hadir</option>
                     <option value="absent">Tidak Hadir</option>
                     <option value="late">Terlambat</option>
-                    <option value="leave">Cuti</option>
+                    <option value="excused">Izin</option>
                   </select>
                 </div>
 
@@ -736,6 +951,529 @@ export default function HrPage() {
         )}
         {activeTab === 'positions' && (
           <PositionsSection />
+        )}
+        {activeTab === 'payroll' && (
+          <>
+            {payrollsLoading ? (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-gray-600">Memuat data...</p>
+              </div>
+            ) : (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div className="p-4 flex justify-between items-center border-b">
+                  <h2 className="text-xl font-bold">Data Penggajian</h2>
+                  <Button
+                    onClick={() => {
+                      setPayrollData({
+                        employeeId: 0,
+                        employeeType: 'employee',
+                        payrollDate: new Date().toISOString().split('T')[0],
+                        basicSalary: 0,
+                        allowances: [],
+                        deductions: [],
+                        notes: '',
+                      });
+                      setSelectedPayroll(null);
+                      setIsPayrollModalOpen(true);
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                  >
+                    Tambah Penggajian
+                  </Button>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50">
+                        <TableHead>Karyawan</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead>Gaji Pokok</TableHead>
+                        <TableHead>Tunjangan</TableHead>
+                        <TableHead>Potongan</TableHead>
+                        <TableHead>Gaji Bersih</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {payrollsData && payrollsData.length > 0 ? (
+                        payrollsData.map((payroll) => (
+                          <TableRow key={payroll.id}>
+                            <TableCell>{payroll.employee?.name || '-'}</TableCell>
+                            <TableCell>{formatDate(payroll.payrollDate)}</TableCell>
+                            <TableCell>Rp {payroll.basicSalary.toLocaleString('id-ID')}</TableCell>
+                            <TableCell>Rp {payroll.totalAllowances.toLocaleString('id-ID')}</TableCell>
+                            <TableCell>Rp {payroll.totalDeductions.toLocaleString('id-ID')}</TableCell>
+                            <TableCell className="font-bold">Rp {payroll.netSalary.toLocaleString('id-ID')}</TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                payroll.status === 'paid' ? 'bg-green-100 text-green-800' :
+                                payroll.status === 'approved' ? 'bg-blue-100 text-blue-800' :
+                                payroll.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {payroll.status === 'paid' ? 'Dibayar' :
+                                 payroll.status === 'approved' ? 'Disetujui' :
+                                 payroll.status === 'pending' ? 'Menunggu' : 'Dibatalkan'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => {
+                                  setSelectedPayroll(payroll);
+                                  setPayrollData({
+                                    employeeId: payroll.employeeId,
+                                    employeeType: payroll.employeeType,
+                                    payrollDate: typeof payroll.payrollDate === 'string' ? payroll.payrollDate.split('T')[0] : new Date(payroll.payrollDate).toISOString().split('T')[0],
+                                    basicSalary: payroll.basicSalary,
+                                    allowances: payroll.items?.filter(i => i.type === 'allowance') || [],
+                                    deductions: payroll.items?.filter(i => i.type === 'deduction') || [],
+                                    notes: payroll.notes || '',
+                                  });
+                                  setIsPayrollModalOpen(true);
+                                }}>Edit</Button>
+                                <Button variant="danger" size="sm" onClick={() => {
+                                  if (confirm('Hapus data penggajian ini?')) {
+                                    deletePayrollMutation.mutate(payroll.id);
+                                  }
+                                }}>Hapus</Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8">Belum ada data penggajian</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+            <Modal
+              isOpen={isPayrollModalOpen}
+              onClose={() => {
+                setIsPayrollModalOpen(false);
+                setSelectedPayroll(null);
+              }}
+              title={selectedPayroll ? 'Edit Penggajian' : 'Tambah Penggajian'}
+              size="lg"
+            >
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (selectedPayroll) {
+                  updatePayrollMutation.mutate({ id: selectedPayroll.id, data: payrollData });
+                } else {
+                  createPayrollMutation.mutate(payrollData);
+                }
+              }} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Karyawan *</label>
+                    <select
+                      value={payrollData.employeeId}
+                      onChange={(e) => setPayrollData({ ...payrollData, employeeId: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      required
+                    >
+                      <option value="0">Pilih Karyawan</option>
+                      {employeesData?.data?.map((emp) => (
+                        <option key={emp.id} value={emp.id}>{emp.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tipe *</label>
+                    <select
+                      value={payrollData.employeeType}
+                      onChange={(e) => setPayrollData({ ...payrollData, employeeType: e.target.value as any })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      required
+                    >
+                      <option value="employee">Karyawan</option>
+                      <option value="teacher">Guru</option>
+                      <option value="staff">Staff</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tanggal *</label>
+                    <input
+                      type="date"
+                      value={payrollData.payrollDate}
+                      onChange={(e) => setPayrollData({ ...payrollData, payrollDate: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Gaji Pokok *</label>
+                    <input
+                      type="number"
+                      value={payrollData.basicSalary}
+                      onChange={(e) => setPayrollData({ ...payrollData, basicSalary: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      required
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Catatan</label>
+                  <textarea
+                    value={payrollData.notes}
+                    onChange={(e) => setPayrollData({ ...payrollData, notes: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="secondary" onClick={() => setIsPayrollModalOpen(false)}>Batal</Button>
+                  <Button type="submit" loading={createPayrollMutation.isPending || updatePayrollMutation.isPending}>
+                    {selectedPayroll ? 'Update' : 'Simpan'}
+                  </Button>
+                </div>
+              </form>
+            </Modal>
+          </>
+        )}
+        {activeTab === 'departments' && (
+          <>
+            {departmentsLoading ? (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-gray-600">Memuat data...</p>
+              </div>
+            ) : (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div className="p-4 flex justify-between items-center border-b">
+                  <h2 className="text-xl font-bold">Data Departemen</h2>
+                  <Button
+                    onClick={() => {
+                      setDepartmentData({ name: '', description: '', isActive: true });
+                      setSelectedDepartment(null);
+                      setIsDepartmentModalOpen(true);
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                  >
+                    Tambah Departemen
+                  </Button>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50">
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Deskripsi</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Jumlah Karyawan</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {departmentsData && departmentsData.length > 0 ? (
+                        departmentsData.map((dept) => (
+                          <TableRow key={dept.id}>
+                            <TableCell className="font-semibold">{dept.name}</TableCell>
+                            <TableCell>{dept.description || '-'}</TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                dept.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {dept.isActive ? 'Aktif' : 'Tidak Aktif'}
+                              </span>
+                            </TableCell>
+                            <TableCell>{dept.employees?.length || 0}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => {
+                                  setSelectedDepartment(dept);
+                                  setDepartmentData({
+                                    name: dept.name,
+                                    description: dept.description || '',
+                                    isActive: dept.isActive,
+                                  });
+                                  setIsDepartmentModalOpen(true);
+                                }}>Edit</Button>
+                                <Button variant="danger" size="sm" onClick={() => {
+                                  if (confirm('Hapus departemen ini?')) {
+                                    deleteDepartmentMutation.mutate(dept.id);
+                                  }
+                                }}>Hapus</Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">Belum ada data departemen</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+            <Modal
+              isOpen={isDepartmentModalOpen}
+              onClose={() => {
+                setIsDepartmentModalOpen(false);
+                setSelectedDepartment(null);
+              }}
+              title={selectedDepartment ? 'Edit Departemen' : 'Tambah Departemen'}
+            >
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (selectedDepartment) {
+                  updateDepartmentMutation.mutate({ id: selectedDepartment.id, data: departmentData });
+                } else {
+                  createDepartmentMutation.mutate(departmentData);
+                }
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Nama *</label>
+                  <input
+                    type="text"
+                    value={departmentData.name}
+                    onChange={(e) => setDepartmentData({ ...departmentData, name: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Deskripsi</label>
+                  <textarea
+                    value={departmentData.description}
+                    onChange={(e) => setDepartmentData({ ...departmentData, description: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={departmentData.isActive}
+                      onChange={(e) => setDepartmentData({ ...departmentData, isActive: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm font-medium">Aktif</span>
+                  </label>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="secondary" onClick={() => setIsDepartmentModalOpen(false)}>Batal</Button>
+                  <Button type="submit" loading={createDepartmentMutation.isPending || updateDepartmentMutation.isPending}>
+                    {selectedDepartment ? 'Update' : 'Simpan'}
+                  </Button>
+                </div>
+              </form>
+            </Modal>
+          </>
+        )}
+        {activeTab === 'performance' && (
+          <>
+            {performanceLoading ? (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-gray-600">Memuat data...</p>
+              </div>
+            ) : (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div className="p-4 flex justify-between items-center border-b">
+                  <h2 className="text-xl font-bold">Penilaian Kinerja</h2>
+                  <Button
+                    onClick={() => {
+                      setPerformanceData({
+                        employeeId: 0,
+                        reviewDate: new Date().toISOString().split('T')[0],
+                        reviewPeriod: '',
+                        rating: 1,
+                        strengths: '',
+                        weaknesses: '',
+                        goals: '',
+                        notes: '',
+                      });
+                      setSelectedPerformance(null);
+                      setIsPerformanceModalOpen(true);
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                  >
+                    Tambah Penilaian
+                  </Button>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50">
+                        <TableHead>Karyawan</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead>Periode</TableHead>
+                        <TableHead>Rating</TableHead>
+                        <TableHead>Kekuatan</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {performanceReviewsData && performanceReviewsData.length > 0 ? (
+                        performanceReviewsData.map((perf) => (
+                          <TableRow key={perf.id}>
+                            <TableCell className="font-semibold">{perf.employee?.name || '-'}</TableCell>
+                            <TableCell>{formatDate(perf.reviewDate)}</TableCell>
+                            <TableCell>{perf.reviewPeriod}</TableCell>
+                            <TableCell>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                                {perf.rating}/5
+                              </span>
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">{perf.strengths}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => {
+                                  setSelectedPerformance(perf);
+                                  setPerformanceData({
+                                    employeeId: perf.employeeId,
+                                    reviewDate: typeof perf.reviewDate === 'string' ? perf.reviewDate.split('T')[0] : new Date(perf.reviewDate).toISOString().split('T')[0],
+                                    reviewPeriod: perf.reviewPeriod,
+                                    rating: perf.rating,
+                                    strengths: perf.strengths,
+                                    weaknesses: perf.weaknesses || '',
+                                    goals: perf.goals || '',
+                                    notes: perf.notes || '',
+                                  });
+                                  setIsPerformanceModalOpen(true);
+                                }}>Edit</Button>
+                                <Button variant="danger" size="sm" onClick={() => {
+                                  if (confirm('Hapus penilaian ini?')) {
+                                    deletePerformanceMutation.mutate(perf.id);
+                                  }
+                                }}>Hapus</Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">Belum ada data penilaian</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+            <Modal
+              isOpen={isPerformanceModalOpen}
+              onClose={() => {
+                setIsPerformanceModalOpen(false);
+                setSelectedPerformance(null);
+              }}
+              title={selectedPerformance ? 'Edit Penilaian Kinerja' : 'Tambah Penilaian Kinerja'}
+              size="lg"
+            >
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (selectedPerformance) {
+                  updatePerformanceMutation.mutate({ id: selectedPerformance.id, data: performanceData });
+                } else {
+                  createPerformanceMutation.mutate(performanceData);
+                }
+              }} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Karyawan *</label>
+                    <select
+                      value={performanceData.employeeId}
+                      onChange={(e) => setPerformanceData({ ...performanceData, employeeId: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      required
+                    >
+                      <option value="0">Pilih Karyawan</option>
+                      {employeesData?.data?.map((emp) => (
+                        <option key={emp.id} value={emp.id}>{emp.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tanggal *</label>
+                    <input
+                      type="date"
+                      value={performanceData.reviewDate}
+                      onChange={(e) => setPerformanceData({ ...performanceData, reviewDate: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Periode *</label>
+                    <input
+                      type="text"
+                      value={performanceData.reviewPeriod}
+                      onChange={(e) => setPerformanceData({ ...performanceData, reviewPeriod: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="Contoh: Q1 2024"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Rating (1-5) *</label>
+                    <input
+                      type="number"
+                      value={performanceData.rating}
+                      onChange={(e) => setPerformanceData({ ...performanceData, rating: parseInt(e.target.value) || 1 })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      min="1"
+                      max="5"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Kekuatan *</label>
+                  <textarea
+                    value={performanceData.strengths}
+                    onChange={(e) => setPerformanceData({ ...performanceData, strengths: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Kelemahan</label>
+                  <textarea
+                    value={performanceData.weaknesses}
+                    onChange={(e) => setPerformanceData({ ...performanceData, weaknesses: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tujuan</label>
+                  <textarea
+                    value={performanceData.goals}
+                    onChange={(e) => setPerformanceData({ ...performanceData, goals: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Catatan</label>
+                  <textarea
+                    value={performanceData.notes}
+                    onChange={(e) => setPerformanceData({ ...performanceData, notes: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="secondary" onClick={() => setIsPerformanceModalOpen(false)}>Batal</Button>
+                  <Button type="submit" loading={createPerformanceMutation.isPending || updatePerformanceMutation.isPending}>
+                    {selectedPerformance ? 'Update' : 'Simpan'}
+                  </Button>
+                </div>
+              </form>
+            </Modal>
+          </>
         )}
       </div>
     </TenantLayout>

@@ -17,6 +17,9 @@ export class OrderItemDto {
 
 export class CreateCafeteriaOrderDto {
   @IsNumber()
+  canteenId: number;
+
+  @IsNumber()
   studentId: number;
 
   @IsArray()

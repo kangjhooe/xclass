@@ -7,6 +7,7 @@ import { ClassRoom } from '../classes/entities/class-room.entity';
 import { Subject } from '../subjects/entities/subject.entity';
 import { Attendance } from '../attendance/entities/attendance.entity';
 import { AcademicReport, ReportType } from './entities/academic-report.entity';
+import { AcademicYear } from '../academic-year/entities/academic-year.entity';
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
@@ -29,6 +30,8 @@ export class AcademicReportsService {
     private attendanceRepository: Repository<Attendance>,
     @InjectRepository(AcademicReport)
     private academicReportRepository: Repository<AcademicReport>,
+    @InjectRepository(AcademicYear)
+    private academicYearRepository: Repository<AcademicYear>,
   ) {}
 
   async getDashboard(instansiId: number) {
@@ -228,6 +231,289 @@ export class AcademicReportsService {
     }
 
     return await queryBuilder.orderBy('student.name', 'ASC').getMany();
+  }
+
+  // New methods for report management
+  async getAllReports(instansiId: number, params?: { classId?: number; subjectId?: number }) {
+    const queryBuilder = this.academicReportRepository
+      .createQueryBuilder('report')
+      .where('report.instansiId = :instansiId', { instansiId })
+      .orderBy('report.created_at', 'DESC');
+
+    if (params?.classId) {
+      queryBuilder.andWhere('report.class_id = :classId', { classId: params.classId });
+    }
+
+    if (params?.subjectId) {
+      // Note: subjectId filter might need to be handled differently based on report type
+      queryBuilder.andWhere('report.metadata LIKE :subjectId', {
+        subjectId: `%${params.subjectId}%`,
+      });
+    }
+
+    const [data, total] = await queryBuilder.getManyAndCount();
+    return { data, total };
+  }
+
+  async getReportById(id: number, instansiId: number): Promise<AcademicReport> {
+    const report = await this.academicReportRepository.findOne({
+      where: { id, instansiId },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+
+    return report;
+  }
+
+  async generateReport(
+    instansiId: number,
+    data: {
+      report_type: ReportType;
+      title: string;
+      academic_year_id?: number;
+      class_id?: number;
+      student_id?: number;
+      period?: string;
+    },
+  ): Promise<AcademicReport> {
+    // Get additional data based on filters
+    let academicYearName: string | undefined;
+    let className: string | undefined;
+    let studentName: string | undefined;
+
+    if (data.academic_year_id) {
+      const academicYear = await this.academicYearRepository.findOne({
+        where: { id: data.academic_year_id, instansiId },
+      });
+      academicYearName = academicYear?.name || `Tahun ${data.academic_year_id}`;
+    }
+
+    if (data.class_id) {
+      const classRoom = await this.classRepository.findOne({
+        where: { id: data.class_id, instansiId },
+      });
+      className = classRoom?.name;
+    }
+
+    if (data.student_id) {
+      const student = await this.studentRepository.findOne({
+        where: { id: data.student_id, instansiId },
+      });
+      studentName = student?.name;
+    }
+
+    // Generate report file
+    const reportData = await this.getReportData(data.report_type, instansiId, {
+      classId: data.class_id,
+      studentId: data.student_id,
+      academicYearId: data.academic_year_id,
+    });
+
+    // Create storage directory
+    const storageDir = path.join(process.cwd(), 'storage', 'academic-reports');
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true });
+    }
+
+    // Generate file
+    const fileName = `report_${Date.now()}.pdf`;
+    const filePath = path.join(storageDir, fileName);
+    const fileUrl = `/storage/academic-reports/${fileName}`;
+
+    await this.generateReportFile(data.report_type, reportData, filePath);
+
+    // Create report record
+    const report = this.academicReportRepository.create({
+      instansiId,
+      report_type: data.report_type,
+      title: data.title,
+      academic_year_id: data.academic_year_id,
+      academic_year_name: academicYearName,
+      class_id: data.class_id,
+      class_name: className,
+      student_id: data.student_id,
+      student_name: studentName,
+      period: data.period,
+      file_path: filePath,
+      file_url: fileUrl,
+      generated_at: new Date(),
+      metadata: {
+        report_type: data.report_type,
+        filters: {
+          classId: data.class_id,
+          studentId: data.student_id,
+          academicYearId: data.academic_year_id,
+        },
+      },
+    });
+
+    return await this.academicReportRepository.save(report);
+  }
+
+  async deleteReport(id: number, instansiId: number): Promise<void> {
+    const report = await this.getReportById(id, instansiId);
+
+    // Delete file if exists
+    if (report.file_path && fs.existsSync(report.file_path)) {
+      try {
+        fs.unlinkSync(report.file_path);
+      } catch (error) {
+        this.logger.warn(`Failed to delete file: ${error.message}`);
+      }
+    }
+
+    await this.academicReportRepository.remove(report);
+  }
+
+  async exportReport(
+    format: 'pdf' | 'excel',
+    instansiId: number,
+    filters?: { classId?: number; subjectId?: number },
+  ): Promise<Buffer> {
+    const grades = await this.exportGrades({
+      ...filters,
+      instansiId,
+    });
+
+    if (format === 'excel') {
+      return await this.generateExcelBuffer(grades);
+    } else {
+      return await this.generatePdfBuffer(grades);
+    }
+  }
+
+  // Private helper methods
+  private async getReportData(
+    reportType: ReportType,
+    instansiId: number,
+    filters?: { classId?: number; studentId?: number; academicYearId?: number },
+  ): Promise<any> {
+    switch (reportType) {
+      case ReportType.STUDENT_GRADE:
+        if (filters?.studentId) {
+          return await this.getStudentReport(filters.studentId, instansiId);
+        }
+        break;
+      case ReportType.CLASS_SUMMARY:
+        if (filters?.classId) {
+          return await this.getClassReport(filters.classId, instansiId);
+        }
+        break;
+      default:
+        return {};
+    }
+    return {};
+  }
+
+  private async generateReportFile(reportType: ReportType, data: any, filePath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        const stream = fs.createWriteStream(filePath);
+
+        doc.pipe(stream);
+
+        // Header
+        doc.fontSize(20).font('Helvetica-Bold').text('LAPORAN AKADEMIK', { align: 'center' });
+        doc.moveDown();
+
+        // Content based on report type
+        doc.fontSize(12).font('Helvetica');
+        if (data.student) {
+          doc.text(`Nama: ${data.student.name}`);
+          doc.text(`NISN: ${data.student.nisn || '-'}`);
+          if (data.student.classRoom) {
+            doc.text(`Kelas: ${data.student.classRoom.name}`);
+          }
+          doc.moveDown();
+        }
+
+        if (data.averageScore) {
+          doc.text(`Rata-rata Nilai: ${data.averageScore}`);
+        }
+
+        if (data.subjectAverages && data.subjectAverages.length > 0) {
+          doc.moveDown();
+          doc.fontSize(14).font('Helvetica-Bold').text('Nilai per Mata Pelajaran:');
+          doc.moveDown(0.5);
+          doc.fontSize(12).font('Helvetica');
+          data.subjectAverages.forEach((item: any) => {
+            doc.text(`${item.subject}: ${item.average}`);
+          });
+        }
+
+        doc.end();
+        stream.on('finish', resolve);
+        stream.on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  private async generateExcelBuffer(grades: StudentGrade[]): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Laporan Nilai');
+
+    worksheet.columns = [
+      { header: 'Nama Siswa', key: 'studentName', width: 30 },
+      { header: 'Mata Pelajaran', key: 'subjectName', width: 25 },
+      { header: 'Nilai', key: 'score', width: 15 },
+      { header: 'Tanggal', key: 'date', width: 20 },
+    ];
+
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    grades.forEach((grade) => {
+      worksheet.addRow({
+        studentName: grade.student?.name || '-',
+        subjectName: grade.subject?.name || '-',
+        score: grade.score,
+        date: grade.date ? new Date(grade.date).toLocaleDateString('id-ID') : '-',
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
+  private async generatePdfBuffer(grades: StudentGrade[]): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        const buffers: Buffer[] = [];
+
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          resolve(pdfBuffer);
+        });
+        doc.on('error', reject);
+
+        doc.fontSize(20).font('Helvetica-Bold').text('LAPORAN NILAI', { align: 'center' });
+        doc.moveDown(2);
+
+        doc.fontSize(12).font('Helvetica');
+        grades.forEach((grade, index) => {
+          if (index > 0 && index % 20 === 0) {
+            doc.addPage();
+          }
+          doc.text(`${index + 1}. ${grade.student?.name || '-'} - ${grade.subject?.name || '-'}: ${grade.score}`);
+          doc.moveDown(0.5);
+        });
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 }
 

@@ -8,7 +8,7 @@ import { PayrollItem } from './entities/payroll-item.entity';
 import { Position } from './entities/position.entity';
 import { PositionModule } from './entities/position-module.entity';
 import { Department } from './entities/department.entity';
-// import { EmployeeAttendance } from './entities/employee-attendance.entity';
+import { EmployeeAttendance } from './entities/employee-attendance.entity';
 import { PerformanceReview } from './entities/performance-review.entity';
 import { ModuleAccessModule } from '../../common/module-access.module';
 
@@ -21,7 +21,7 @@ import { ModuleAccessModule } from '../../common/module-access.module';
       Position,
       PositionModule,
       Department,
-      // EmployeeAttendance,
+      EmployeeAttendance,
       PerformanceReview,
     ]),
     ModuleAccessModule,

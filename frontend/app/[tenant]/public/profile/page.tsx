@@ -40,11 +40,13 @@ export default function PublicProfilePage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Profil tidak ditemukan</p>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="text-center text-slate-200">
+          <p className="text-base">Profil tidak ditemukan</p>
           <Link href={`/${tenantId}/public`}>
-            <Button className="mt-4">Kembali ke Beranda</Button>
+            <Button className="mt-4 rounded-full bg-white/90 text-slate-900 hover:bg-white">
+              Kembali ke Beranda
+            </Button>
           </Link>
         </div>
       </div>
@@ -52,172 +54,118 @@ export default function PublicProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href={`/${tenantId}/public`}>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <ArrowLeft className="w-4 h-4" />
-                  Kembali
-                </Button>
-              </Link>
+    <div className="space-y-12 py-4">
+      <div className="rounded-[32px] border border-white/10 bg-white/90 p-8 text-slate-900 shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start">
+          {profile.logo && (
+            <div className="flex-shrink-0">
+              <img src={profile.logo} alt="Logo Sekolah" className="h-32 w-32 rounded-2xl object-contain shadow-lg" />
             </div>
-            <nav className="hidden md:flex items-center gap-4">
-              <Link href={`/${tenantId}/public`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Beranda
-              </Link>
-              <Link href={`/${tenantId}/public/news`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Berita
-              </Link>
-              <Link href={`/${tenantId}/public/gallery`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Galeri
-              </Link>
-              <Link href={`/${tenantId}/public/download`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Download
-              </Link>
-              <Link href={`/${tenantId}/public/ppdb`} className="text-gray-700 hover:text-blue-600 font-medium">
-                PPDB
-              </Link>
-              <Link href={`/${tenantId}/public/contact`} className="text-gray-700 hover:text-blue-600 font-medium">
-                Kontak
-              </Link>
-            </nav>
+          )}
+          <div className="flex-1 text-center md:text-left">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-600">
+              <GraduationCap className="h-4 w-4" />
+              Profil Sekolah
+            </div>
+            <h1 className="text-4xl font-bold text-slate-900">Tentang Kami</h1>
+            {profile.description && <p className="mt-4 text-lg text-slate-600">{profile.description}</p>}
           </div>
+          <Link href={`/${tenantId}/public`}>
+            <Button variant="outline" className="rounded-full border-slate-200 text-slate-900 hover:border-blue-200">
+              <ArrowLeft className="h-4 w-4" />
+              Kembali
+            </Button>
+          </Link>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Profile Header */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8 border border-gray-100">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-            {profile.logo && (
-              <div className="flex-shrink-0">
-                <img 
-                  src={profile.logo} 
-                  alt="Logo Sekolah"
-                  className="w-32 h-32 object-contain rounded-lg"
-                />
-              </div>
-            )}
-            <div className="flex-1 text-center md:text-left">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">Profil Sekolah</h1>
-              {profile.description && (
-                <p className="text-lg text-gray-600 leading-relaxed">
-                  {profile.description}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Contact Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {profile.address && (
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="bg-blue-100 p-3 rounded-lg">
-                  <MapPin className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-2">Alamat</h3>
-                  <p className="text-gray-600">{profile.address}</p>
-                </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        {profile.address && (
+          <div className="glass-panel-light rounded-2xl p-6 text-slate-900">
+            <div className="flex items-start gap-4">
+              <span className="rounded-2xl bg-blue-100 p-3 text-blue-600">
+                <MapPin className="h-6 w-6" />
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold">Alamat</h3>
+                <p className="text-slate-600">{profile.address}</p>
               </div>
             </div>
-          )}
-
-          {profile.phone && (
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="bg-green-100 p-3 rounded-lg">
-                  <Phone className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-2">Telepon</h3>
-                  <p className="text-gray-600">{profile.phone}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {profile.email && (
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="bg-purple-100 p-3 rounded-lg">
-                  <Mail className="w-6 h-6 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-2">Email</h3>
-                  <p className="text-gray-600">{profile.email}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {profile.website && (
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="bg-orange-100 p-3 rounded-lg">
-                  <Globe className="w-6 h-6 text-orange-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-2">Website</h3>
-                  <a 
-                    href={profile.website} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {profile.website}
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Vision */}
-        {profile.vision && (
-          <div className="bg-white rounded-xl shadow-lg p-8 mb-8 border border-gray-100">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <Eye className="w-6 h-6 text-blue-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900">Visi</h2>
-            </div>
-            <p className="text-lg text-gray-700 leading-relaxed whitespace-pre-line">
-              {profile.vision}
-            </p>
           </div>
         )}
 
-        {/* Mission */}
-        {profile.mission && (
-          <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-green-100 p-2 rounded-lg">
-                <Target className="w-6 h-6 text-green-600" />
+        {profile.phone && (
+          <div className="glass-panel-light rounded-2xl p-6 text-slate-900">
+            <div className="flex items-start gap-4">
+              <span className="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
+                <Phone className="h-6 w-6" />
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold">Telepon</h3>
+                <a href={`tel:${profile.phone}`} className="text-blue-600 underline-offset-4 hover:underline">
+                  {profile.phone}
+                </a>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Misi</h2>
             </div>
-            <div className="text-lg text-gray-700 leading-relaxed whitespace-pre-line">
-              {profile.mission}
+          </div>
+        )}
+
+        {profile.email && (
+          <div className="glass-panel-light rounded-2xl p-6 text-slate-900">
+            <div className="flex items-start gap-4">
+              <span className="rounded-2xl bg-purple-100 p-3 text-purple-600">
+                <Mail className="h-6 w-6" />
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold">Email</h3>
+                <a href={`mailto:${profile.email}`} className="text-blue-600 underline-offset-4 hover:underline">
+                  {profile.email}
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {profile.website && (
+          <div className="glass-panel-light rounded-2xl p-6 text-slate-900">
+            <div className="flex items-start gap-4">
+              <span className="rounded-2xl bg-orange-100 p-3 text-orange-600">
+                <Globe className="h-6 w-6" />
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold">Website</h3>
+                <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-4 hover:underline">
+                  {profile.website}
+                </a>
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">
-            © {new Date().getFullYear()} Website Sekolah. Semua hak dilindungi.
-          </p>
+      {profile.vision && (
+        <div className="glass-panel-light rounded-[28px] p-8 text-slate-900">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-2xl bg-blue-100 p-3 text-blue-600">
+              <Eye className="h-6 w-6" />
+            </div>
+            <h2 className="text-2xl font-bold">Visi</h2>
+          </div>
+          <p className="text-lg text-slate-600 whitespace-pre-line">{profile.vision}</p>
         </div>
-      </footer>
+      )}
+
+      {profile.mission && (
+        <div className="glass-panel-light rounded-[28px] p-8 text-slate-900">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
+              <Target className="h-6 w-6" />
+            </div>
+            <h2 className="text-2xl font-bold">Misi</h2>
+          </div>
+          <div className="text-lg text-slate-600 whitespace-pre-line">{profile.mission}</div>
+        </div>
+      )}
     </div>
   );
 }

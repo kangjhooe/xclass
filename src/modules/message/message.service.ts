@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Inject,
   forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,6 +14,7 @@ import { User } from '../users/entities/user.entity';
 import { Student } from '../students/entities/student.entity';
 import { Teacher } from '../teachers/entities/teacher.entity';
 import { ClassRoom } from '../classes/entities/class-room.entity';
+import { ConversationMember } from './entities/conversation-member.entity';
 import { MessagesGateway } from './messages.gateway';
 
 @Injectable()
@@ -28,6 +30,10 @@ export class MessageService {
     private teacherRepository: Repository<Teacher>,
     @InjectRepository(ClassRoom)
     private classRoomRepository: Repository<ClassRoom>,
+    @InjectRepository(ConversationMember)
+    private conversationMemberRepository: Repository<ConversationMember>,
+    @Inject(forwardRef(() => MessagesGateway))
+    @Optional()
     private messagesGateway?: MessagesGateway,
   ) {}
 
@@ -59,15 +65,76 @@ export class MessageService {
     return 'unread';
   }
 
+  // Create message in conversation
+  private async createConversationMessage(
+    createDto: CreateMessageDto,
+    instansiId: number,
+    senderId: number,
+    conversationId: number,
+  ) {
+    const { recipient_type, recipient_id, receiverId, priority, ...rest } = createDto;
+    
+    // Get conversation members
+    const members = await this.conversationMemberRepository.find({
+      where: { conversationId, isActive: true },
+    });
+
+    if (members.length === 0) {
+      throw new BadRequestException('Conversation tidak memiliki anggota');
+    }
+
+    // Create messages for all members except sender
+    const receiverIds = members
+      .map((m) => m.userId)
+      .filter((id) => id !== senderId);
+
+    if (receiverIds.length === 0) {
+      throw new BadRequestException('Tidak ada penerima yang ditemukan');
+    }
+
+    const messages = receiverIds.map((receiverId) => {
+      return this.messageRepository.create({
+        ...rest,
+        receiverId,
+        instansiId,
+        senderId,
+        conversationId,
+        priority: this.mapPriorityToDb(priority),
+        attachments: createDto.attachments ? JSON.stringify(createDto.attachments) : null,
+      });
+    });
+
+    const savedMessages = await this.messageRepository.save(messages);
+
+    // Send real-time notifications
+    if (this.messagesGateway) {
+      for (const savedMessage of savedMessages) {
+        const formattedMessage = await this.formatMessageResponse(savedMessage);
+        await this.messagesGateway.notifyNewMessage(savedMessage.receiverId, formattedMessage);
+        
+        const unreadCount = await this.getUnreadCount(savedMessage.instansiId, savedMessage.receiverId);
+        await this.messagesGateway.updateUnreadCount(savedMessage.receiverId, unreadCount);
+      }
+    }
+
+    return this.formatMessageResponse(savedMessages[0]);
+  }
+
   async create(
     createDto: CreateMessageDto,
     instansiId: number,
     senderId: number,
+    conversationId?: number,
   ) {
     const { recipient_type, recipient_id, receiverId, priority, ...rest } = createDto;
     
+    // If conversationId is provided, send to conversation
+    if (conversationId) {
+      return this.createConversationMessage(createDto, instansiId, senderId, conversationId);
+    }
+    
     // Determine receiverId
-    let finalReceiverId: number | null = receiverId || recipient_id || null;
+    const finalReceiverId: number | null = receiverId || recipient_id || null;
     const recipientType = recipient_type || (finalReceiverId ? 'user' : 'all');
 
     // Handle different recipient types
@@ -111,12 +178,16 @@ export class MessageService {
 
     // Create messages for all receivers
     const messages = receiverIds.map(receiverId => {
+      // Convert attachments from object array to string array (URLs)
+      const attachmentUrls = createDto.attachments?.map(att => att.url) || [];
+      
       return this.messageRepository.create({
         ...rest,
         receiverId,
         instansiId,
         senderId,
         priority: this.mapPriorityToDb(priority),
+        attachments: attachmentUrls,
       });
     });
 
@@ -145,6 +216,19 @@ export class MessageService {
       this.getUserInfo(message.receiverId),
     ]);
 
+    // Parse attachments from JSON
+    let attachments = [];
+    if (message.attachments) {
+      try {
+        attachments = typeof message.attachments === 'string' 
+          ? JSON.parse(message.attachments) 
+          : message.attachments;
+      } catch (error) {
+        console.error('Error parsing attachments:', error);
+        attachments = [];
+      }
+    }
+
     return {
       id: message.id,
       subject: message.subject,
@@ -156,6 +240,8 @@ export class MessageService {
       recipient_type: 'user',
       status: this.mapStatusFromDb(message),
       priority: this.mapPriorityFromDb(message.priority),
+      attachments: attachments,
+      conversationId: message.conversationId || undefined,
       created_at: message.createdAt,
       read_at: message.readAt,
     };
@@ -183,6 +269,15 @@ export class MessageService {
     userId: number;
     type?: 'inbox' | 'sent' | 'archived';
     isRead?: boolean;
+    search?: string;
+    priority?: string;
+    startDate?: string;
+    endDate?: string;
+    senderId?: number;
+    receiverId?: number;
+    conversationId?: number;
+    sortBy?: 'date' | 'priority' | 'subject';
+    sortOrder?: 'ASC' | 'DESC';
     page?: number;
     limit?: number;
   }) {
@@ -191,15 +286,24 @@ export class MessageService {
       userId,
       type = 'inbox',
       isRead,
+      search,
+      priority,
+      startDate,
+      endDate,
+      senderId,
+      receiverId,
+      conversationId,
+      sortBy = 'date',
+      sortOrder = 'DESC',
       page = 1,
       limit = 20,
     } = filters;
 
     const queryBuilder = this.messageRepository
       .createQueryBuilder('message')
-      .where('message.instansiId = :instansiId', { instansiId })
-      .orderBy('message.createdAt', 'DESC');
+      .where('message.instansiId = :instansiId', { instansiId });
 
+    // Type filter
     if (type === 'inbox') {
       queryBuilder.andWhere('message.receiverId = :userId', { userId });
     } else if (type === 'sent') {
@@ -214,8 +318,57 @@ export class MessageService {
       });
     }
 
+    // Read status filter
     if (isRead !== undefined) {
       queryBuilder.andWhere('message.isRead = :isRead', { isRead });
+    }
+
+    // Full-text search
+    if (search) {
+      queryBuilder.andWhere(
+        '(message.subject LIKE :search OR message.content LIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    // Priority filter
+    if (priority) {
+      const dbPriority = this.mapPriorityToDb(priority);
+      queryBuilder.andWhere('message.priority = :priority', { priority: dbPriority });
+    }
+
+    // Date range filter
+    if (startDate) {
+      queryBuilder.andWhere('message.createdAt >= :startDate', { startDate });
+    }
+    if (endDate) {
+      queryBuilder.andWhere('message.createdAt <= :endDate', { endDate });
+    }
+
+    // Sender filter (for inbox)
+    if (senderId && type === 'inbox') {
+      queryBuilder.andWhere('message.senderId = :senderId', { senderId });
+    }
+
+    // Receiver filter (for sent)
+    if (receiverId && type === 'sent') {
+      queryBuilder.andWhere('message.receiverId = :receiverId', { receiverId });
+    }
+
+    // Conversation filter
+    if (conversationId) {
+      queryBuilder.andWhere('message.conversationId = :conversationId', { conversationId });
+    }
+
+    // Sorting
+    if (sortBy === 'date') {
+      queryBuilder.orderBy('message.createdAt', sortOrder);
+    } else if (sortBy === 'priority') {
+      queryBuilder.orderBy('message.priority', sortOrder);
+    } else if (sortBy === 'subject') {
+      queryBuilder.orderBy('message.subject', sortOrder);
+    } else {
+      queryBuilder.orderBy('message.createdAt', 'DESC');
     }
 
     const [data, total] = await queryBuilder

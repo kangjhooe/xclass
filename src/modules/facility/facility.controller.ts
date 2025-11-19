@@ -7,9 +7,11 @@ import {
   Delete,
   Query,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import { FacilityService } from './facility.service';
 import { CreateFacilityDto } from './dto/create-facility.dto';
+import { UpdateFacilityDto } from './dto/update-facility.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -37,6 +39,15 @@ export class FacilityController {
   @Get(':id')
   findOne(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.facilityService.findOne(+id, instansiId);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateFacilityDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.facilityService.update(+id, instansiId, updateDto);
   }
 
   @Delete(':id')

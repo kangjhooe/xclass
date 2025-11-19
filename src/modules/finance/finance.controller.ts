@@ -21,11 +21,17 @@ import { CreateOtherBillDto } from './dto/create-other-bill.dto';
 import { UpdateOtherBillDto } from './dto/update-other-bill.dto';
 import { CreateIncomeExpenseDto } from './dto/create-income-expense.dto';
 import { UpdateIncomeExpenseDto } from './dto/update-income-expense.dto';
+import { CreateScholarshipDto } from './dto/create-scholarship.dto';
+import { UpdateScholarshipDto } from './dto/update-scholarship.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { PaymentStatus, PaymentMethod } from './entities/spp-payment.entity';
 import { SavingsTransactionType } from './entities/student-savings.entity';
 import { BillCategory } from './entities/other-bill.entity';
 import { TransactionType } from './entities/income-expense.entity';
+import { ScholarshipType, ScholarshipStatus } from './entities/scholarship.entity';
+import { BudgetCategory, BudgetPeriod, BudgetStatus } from './entities/budget.entity';
+import { CreateBudgetDto } from './dto/create-budget.dto';
+import { UpdateBudgetDto } from './dto/update-budget.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { ModuleAccessGuard } from '../../common/guards/module-access.guard';
@@ -471,6 +477,216 @@ export class FinanceController {
   @ModuleAccess('finance', 'delete')
   deleteIncomeExpense(@Param('id') id: string, @TenantId() instansiId: number) {
     return this.financeService.removeIncomeExpense(+id, instansiId);
+  }
+
+  // ========== SCHOLARSHIP ENDPOINTS ==========
+
+  @Post('scholarships')
+  @ModuleAccess('finance', 'create')
+  createScholarship(
+    @Body() createDto: CreateScholarshipDto,
+    @TenantId() instansiId: number,
+    @Query('createdBy') createdBy?: number,
+  ) {
+    return this.financeService.createScholarship(
+      createDto,
+      instansiId,
+      createdBy ? +createdBy : undefined,
+    );
+  }
+
+  @Get('scholarships')
+  @ModuleAccess('finance', 'view')
+  getAllScholarships(
+    @TenantId() instansiId: number,
+    @Query('studentId') studentId?: number,
+    @Query('type') type?: ScholarshipType,
+    @Query('status') status?: ScholarshipStatus,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return this.financeService.findAllScholarships({
+      studentId: studentId ? +studentId : undefined,
+      scholarshipType: type,
+      status,
+      page: +page,
+      limit: +limit,
+      instansiId,
+    });
+  }
+
+  @Get('scholarships/statistics')
+  @ModuleAccess('finance', 'view')
+  getScholarshipStatistics(@TenantId() instansiId: number) {
+    return this.financeService.getScholarshipStatistics(instansiId);
+  }
+
+  @Get('scholarships/:id')
+  @ModuleAccess('finance', 'view')
+  getOneScholarship(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.financeService.findOneScholarship(+id, instansiId);
+  }
+
+  @Patch('scholarships/:id')
+  @ModuleAccess('finance', 'update')
+  updateScholarship(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateScholarshipDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.financeService.updateScholarship(+id, updateDto, instansiId);
+  }
+
+  @Delete('scholarships/:id')
+  @ModuleAccess('finance', 'delete')
+  deleteScholarship(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.financeService.removeScholarship(+id, instansiId);
+  }
+
+  // ========== FINANCIAL REPORTS ENDPOINTS ==========
+
+  @Get('reports/dashboard')
+  @ModuleAccess('finance', 'view')
+  getFinancialDashboard(
+    @TenantId() instansiId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.financeService.getFinancialDashboard(instansiId, startDate, endDate);
+  }
+
+  @Get('reports/monthly-trends')
+  @ModuleAccess('finance', 'view')
+  getMonthlyTrends(
+    @TenantId() instansiId: number,
+    @Query('months') months: number = 12,
+  ) {
+    return this.financeService.getMonthlyTrends(instansiId, +months);
+  }
+
+  @Get('reports/category-breakdown')
+  @ModuleAccess('finance', 'view')
+  getCategoryBreakdown(
+    @TenantId() instansiId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.financeService.getCategoryBreakdown(instansiId, startDate, endDate);
+  }
+
+  @Get('reports/payment-status')
+  @ModuleAccess('finance', 'view')
+  getPaymentStatusSummary(
+    @TenantId() instansiId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.financeService.getPaymentStatusSummary(instansiId, startDate, endDate);
+  }
+
+  // ========== REMINDERS & NOTIFICATIONS ENDPOINTS ==========
+
+  @Get('reminders')
+  @ModuleAccess('finance', 'view')
+  getPaymentReminders(
+    @TenantId() instansiId: number,
+    @Query('daysAhead') daysAhead: number = 7,
+  ) {
+    return this.financeService.getPaymentReminders(instansiId, +daysAhead);
+  }
+
+  @Get('reminders/summary')
+  @ModuleAccess('finance', 'view')
+  getReminderSummary(@TenantId() instansiId: number) {
+    return this.financeService.getReminderSummary(instansiId);
+  }
+
+  // ========== BUDGET ENDPOINTS ==========
+
+  @Post('budgets')
+  @ModuleAccess('finance', 'create')
+  createBudget(
+    @Body() createDto: CreateBudgetDto,
+    @TenantId() instansiId: number,
+    @Query('createdBy') createdBy?: number,
+  ) {
+    return this.financeService.createBudget(
+      createDto,
+      instansiId,
+      createdBy ? +createdBy : undefined,
+    );
+  }
+
+  @Get('budgets')
+  @ModuleAccess('finance', 'view')
+  getAllBudgets(
+    @TenantId() instansiId: number,
+    @Query('category') category?: BudgetCategory,
+    @Query('period') period?: BudgetPeriod,
+    @Query('year') year?: number,
+    @Query('status') status?: BudgetStatus,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return this.financeService.findAllBudgets({
+      category,
+      period,
+      year: year ? +year : undefined,
+      status,
+      page: +page,
+      limit: +limit,
+      instansiId,
+    });
+  }
+
+  @Get('budgets/summary')
+  @ModuleAccess('finance', 'view')
+  getBudgetSummary(
+    @TenantId() instansiId: number,
+    @Query('year') year?: number,
+  ) {
+    return this.financeService.getBudgetSummary(instansiId, year ? +year : undefined);
+  }
+
+  @Get('budgets/:id')
+  @ModuleAccess('finance', 'view')
+  getOneBudget(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.financeService.findOneBudget(+id, instansiId);
+  }
+
+  @Patch('budgets/:id')
+  @ModuleAccess('finance', 'update')
+  updateBudget(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateBudgetDto,
+    @TenantId() instansiId: number,
+  ) {
+    return this.financeService.updateBudget(+id, updateDto, instansiId);
+  }
+
+  @Patch('budgets/:id/approve')
+  @ModuleAccess('finance', 'update')
+  approveBudget(
+    @Param('id') id: string,
+    @TenantId() instansiId: number,
+    @Query('approvedBy') approvedBy: number,
+  ) {
+    return this.financeService.approveBudget(+id, instansiId, +approvedBy);
+  }
+
+  @Patch('budgets/:id/update-actual')
+  @ModuleAccess('finance', 'update')
+  updateBudgetActual(
+    @Param('id') id: string,
+    @TenantId() instansiId: number,
+  ) {
+    return this.financeService.updateBudgetActual(+id, instansiId);
+  }
+
+  @Delete('budgets/:id')
+  @ModuleAccess('finance', 'delete')
+  deleteBudget(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.financeService.removeBudget(+id, instansiId);
   }
 }
 

@@ -14,14 +14,24 @@ export class GuestBookService {
     private guestBookRepository: Repository<GuestBook>,
   ) {}
 
-  async create(createDto: CreateGuestBookDto, instansiId: number) {
+  async create(createDto: CreateGuestBookDto, instansiId: number, userId?: number) {
+    const checkInDate = createDto.check_in 
+      ? new Date(createDto.check_in) 
+      : createDto.visitDate 
+        ? new Date(createDto.visitDate)
+        : new Date();
+
     const guestBook = this.guestBookRepository.create({
       ...createDto,
       instansiId,
-      visitDate: new Date(createDto.visitDate),
+      check_in: checkInDate,
+      status: 'checked_in' as const,
+      visitDate: checkInDate, // Legacy field
+      created_by: userId,
     });
 
-    return await this.guestBookRepository.save(guestBook);
+    const saved = await this.guestBookRepository.save(guestBook);
+    return this.mapToFrontendFormat(saved);
   }
 
   async findAll(filters: {
@@ -36,14 +46,20 @@ export class GuestBookService {
     const queryBuilder = this.guestBookRepository
       .createQueryBuilder('guest')
       .where('guest.instansiId = :instansiId', { instansiId })
-      .orderBy('guest.visitDate', 'DESC');
+      .orderBy('COALESCE(guest.check_in, guest.visitDate)', 'DESC');
 
     if (startDate) {
-      queryBuilder.andWhere('guest.visitDate >= :startDate', { startDate });
+      queryBuilder.andWhere(
+        '(guest.check_in >= :startDate OR guest.visitDate >= :startDate)',
+        { startDate }
+      );
     }
 
     if (endDate) {
-      queryBuilder.andWhere('guest.visitDate <= :endDate', { endDate });
+      queryBuilder.andWhere(
+        '(guest.check_in <= :endDate OR guest.visitDate <= :endDate)',
+        { endDate }
+      );
     }
 
     const [data, total] = await queryBuilder
@@ -52,7 +68,7 @@ export class GuestBookService {
       .getManyAndCount();
 
     return {
-      data,
+      data: data.map(item => this.mapToFrontendFormat(item)),
       total,
       page,
       limit,
@@ -71,13 +87,69 @@ export class GuestBookService {
       );
     }
 
-    return guestBook;
+    return this.mapToFrontendFormat(guestBook);
+  }
+
+  async checkout(id: number, instansiId: number) {
+    const guestBook = await this.guestBookRepository.findOne({
+      where: { id, instansiId },
+    });
+
+    if (!guestBook) {
+      throw new NotFoundException(
+        `Buku tamu dengan ID ${id} tidak ditemukan`,
+      );
+    }
+
+    if (guestBook.status === 'checked_out') {
+      throw new NotFoundException('Tamu sudah melakukan checkout');
+    }
+
+    guestBook.status = 'checked_out';
+    guestBook.check_out = new Date();
+    guestBook.leaveTime = new Date().toTimeString().split(' ')[0]; // Legacy field
+
+    const saved = await this.guestBookRepository.save(guestBook);
+    return this.mapToFrontendFormat(saved);
   }
 
   async remove(id: number, instansiId: number) {
-    const guestBook = await this.findOne(id, instansiId);
+    const guestBook = await this.guestBookRepository.findOne({
+      where: { id, instansiId },
+    });
+
+    if (!guestBook) {
+      throw new NotFoundException(
+        `Buku tamu dengan ID ${id} tidak ditemukan`,
+      );
+    }
+
     await this.guestBookRepository.remove(guestBook);
     return { message: 'Buku tamu berhasil dihapus' };
+  }
+
+  private mapToFrontendFormat(guestBook: GuestBook) {
+    return {
+      id: guestBook.id,
+      name: guestBook.name,
+      identity_number: guestBook.identity_number || null,
+      phone: guestBook.phone || null,
+      email: guestBook.email || null,
+      institution: guestBook.institution || null,
+      purpose: guestBook.purpose || '',
+      check_in: guestBook.check_in 
+        ? guestBook.check_in.toISOString() 
+        : guestBook.visitDate 
+          ? guestBook.visitDate.toISOString()
+          : null,
+      check_out: guestBook.check_out ? guestBook.check_out.toISOString() : null,
+      status: guestBook.status || (guestBook.check_out ? 'checked_out' : 'checked_in'),
+      notes: guestBook.notes || null,
+      photo_url: guestBook.photo_url || null,
+      created_at: guestBook.createdAt ? guestBook.createdAt.toISOString() : null,
+      created_by: guestBook.created_by || null,
+      created_by_name: null, // Bisa ditambahkan jika ada relation ke users
+    };
   }
 }
 

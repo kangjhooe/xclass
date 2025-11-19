@@ -124,6 +124,32 @@ export const publicPageApi = {
     return response.data;
   },
 
+  submitGuestBook: async (
+    tenantId: number,
+    data:
+      | FormData
+      | {
+          name: string;
+          identity_number?: string;
+          phone?: string;
+          email?: string;
+          institution?: string;
+          purpose: string;
+          notes?: string;
+          check_in?: string;
+        },
+  ): Promise<{ data: any }> => {
+    const isFormData =
+      typeof FormData !== 'undefined' && data instanceof FormData;
+    const response = await apiClient.post(`/public/guest-book`, data, {
+      headers: {
+        'x-tenant-id': tenantId.toString(),
+        ...(isFormData ? { 'Content-Type': 'multipart/form-data' } : {}),
+      },
+    });
+    return response.data;
+  },
+
   getHomeStatistics: async (tenantId: number): Promise<any> => {
     const response = await apiClient.get(`/public/home`, {
       headers: {

@@ -55,7 +55,7 @@ apiClient.interceptors.response.use(
       const errorMessage = error.code === 'ECONNABORTED' 
         ? `Network Error: Request timeout. Backend tidak merespons dalam 30 detik. Pastikan backend berjalan di ${API_URL}`
         : error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')
-        ? `Network Error: Backend tidak dapat dijangkau di ${API_URL}. Pastikan backend berjalan dan CORS dikonfigurasi dengan benar.`
+        ? `Network Error: Backend tidak dapat dijangkau di ${API_URL}.\n\n💡 Solusi:\n1. Pastikan backend (NestJS) berjalan di terminal terpisah\n2. Jalankan: npm run start:dev (di root directory)\n3. Tunggu sampai muncul: "Application is running on: http://localhost:3000"\n4. Pastikan MySQL/XAMPP berjalan jika diperlukan\n5. Cek file .env di root directory sudah dikonfigurasi dengan benar`
         : `Network Error: ${error.message || 'Backend tidak dapat dijangkau'}. Pastikan backend berjalan di ${API_URL}`;
       
       const networkError = new Error(errorMessage);
@@ -99,48 +99,73 @@ apiClient.interceptors.response.use(
       
       // Log error details with safe serialization
       try {
-        // Safely extract error information
-        const safeErrorInfo: Record<string, any> = {
-          message: errorMessage,
-          baseURL: API_URL,
+        // Ensure we have valid values before building the object
+        const errorMsg = errorMessage ? String(errorMessage) : 'Unknown network error';
+        const apiUrl = API_URL ? String(API_URL) : 'Not configured';
+        
+        // Build a plain object with only serializable primitive values
+        const safeErrorInfo: Record<string, string | boolean | number> = {
+          message: errorMsg,
+          baseURL: apiUrl,
         };
 
         // Add error details if they exist and are meaningful
-        if (errorDetails.message && errorDetails.message !== 'Unknown network error') {
-          safeErrorInfo.details = errorDetails.message;
+        if (errorDetails.message && typeof errorDetails.message === 'string' && errorDetails.message !== 'Unknown network error') {
+          safeErrorInfo.details = String(errorDetails.message);
         }
-        if (errorDetails.code && errorDetails.code !== 'N/A') {
-          safeErrorInfo.code = errorDetails.code;
+        if (errorDetails.code && typeof errorDetails.code === 'string' && errorDetails.code !== 'N/A') {
+          safeErrorInfo.code = String(errorDetails.code);
         }
-        if (errorDetails.url && errorDetails.url !== 'N/A') {
-          safeErrorInfo.url = errorDetails.url;
+        if (errorDetails.url && typeof errorDetails.url === 'string' && errorDetails.url !== 'N/A') {
+          safeErrorInfo.url = String(errorDetails.url);
         }
-        if (errorDetails.method && errorDetails.method !== 'N/A') {
-          safeErrorInfo.method = errorDetails.method;
+        if (errorDetails.method && typeof errorDetails.method === 'string' && errorDetails.method !== 'N/A') {
+          safeErrorInfo.method = String(errorDetails.method);
         }
         if (errorDetails.requestMade !== undefined) {
-          safeErrorInfo.requestMade = errorDetails.requestMade;
+          safeErrorInfo.requestMade = Boolean(errorDetails.requestMade);
         }
 
         // Safely include original error information
         if (error) {
-          if (error.message) safeErrorInfo.originalMessage = error.message;
-          if (error.code) safeErrorInfo.originalCode = error.code;
-          if (error.name) safeErrorInfo.errorName = error.name;
-          if (error.stack) safeErrorInfo.stack = error.stack;
+          if (error.message && typeof error.message === 'string' && error.message.trim()) {
+            safeErrorInfo.originalMessage = String(error.message);
+          }
+          if (error.code && typeof error.code === 'string') {
+            safeErrorInfo.originalCode = String(error.code);
+          }
+          if (error.name && typeof error.name === 'string') {
+            safeErrorInfo.errorName = String(error.name);
+          }
+          // Only include stack if it's a string and not too long
+          if (error.stack && typeof error.stack === 'string' && error.stack.length < 5000) {
+            safeErrorInfo.stack = String(error.stack);
+          }
         }
 
-        // Ensure we always log something meaningful
-        if (Object.keys(safeErrorInfo).length === 0) {
-          safeErrorInfo.message = errorMessage || 'Unknown API error occurred';
+        // Verify object has at least message before logging
+        if (!safeErrorInfo.message || safeErrorInfo.message === 'undefined' || safeErrorInfo.message === 'null') {
+          safeErrorInfo.message = 'Unknown API error occurred';
         }
         
-        console.error('API Client Error:', safeErrorInfo);
+        // Log with both formatted message and object to ensure visibility
+        console.error(`API Client Error: ${safeErrorInfo.message}`, safeErrorInfo);
+        
+        // Also log as a single string for better visibility in some console environments
+        if (Object.keys(safeErrorInfo).length === 0) {
+          console.error('API Client Error: Empty error object detected!', {
+            errorMessage,
+            API_URL,
+            errorDetails,
+            errorType: error?.constructor?.name,
+            errorKeys: error ? Object.keys(error) : [],
+          });
+        }
       } catch (logError) {
         // Ultimate fallback if even logging fails
         console.error('API Client Error (fallback):', {
-          message: errorMessage || 'Unknown error',
-          baseURL: API_URL,
+          message: String(errorMessage || 'Unknown error'),
+          baseURL: String(API_URL || 'Not configured'),
           originalErrorType: error?.constructor?.name || typeof error,
           logError: logError instanceof Error ? logError.message : String(logError),
         });
@@ -164,23 +189,52 @@ apiClient.interceptors.response.use(
     } else if (error.response?.status === 404) {
       // Endpoint not found - log but don't show error for public endpoints
       const url = error.config?.url || 'unknown';
+      const fullUrl = error.config?.baseURL 
+        ? `${error.config.baseURL}${url}` 
+        : url;
+      
       if (url.includes('/public/')) {
         // Silently handle missing public endpoints (they're optional)
-        console.warn(`Public endpoint not found: ${url}. Using fallback data.`);
+        console.warn(`Public endpoint not found: ${fullUrl}. Using fallback data.`);
       } else {
         console.error('API Endpoint Not Found:', {
-          url,
-          method: error.config?.method,
+          url: fullUrl,
+          method: error.config?.method?.toUpperCase() || 'GET',
           status: error.response.status,
+          baseURL: error.config?.baseURL || API_URL,
         });
       }
     } else if (error.response?.status >= 500) {
       // Server errors
+      const url = error.config?.url || 'unknown';
+      const fullUrl = error.config?.baseURL 
+        ? `${error.config.baseURL}${url}` 
+        : url;
+      
       console.error('API Server Error:', {
-        url: error.config?.url,
-        method: error.config?.method,
+        url: fullUrl,
+        method: error.config?.method?.toUpperCase() || 'GET',
         status: error.response.status,
+        statusText: error.response.statusText,
         message: error.response.data?.message || 'Internal server error',
+        baseURL: error.config?.baseURL || API_URL,
+        data: error.response.data,
+      });
+    } else if (error.response) {
+      // Other HTTP errors (400, 403, etc.)
+      const url = error.config?.url || 'unknown';
+      const fullUrl = error.config?.baseURL 
+        ? `${error.config.baseURL}${url}` 
+        : url;
+      
+      console.error('API Client Error:', {
+        url: fullUrl,
+        method: error.config?.method?.toUpperCase() || 'GET',
+        status: error.response.status,
+        statusText: error.response.statusText,
+        message: error.response.data?.message || `HTTP ${error.response.status} error`,
+        baseURL: error.config?.baseURL || API_URL,
+        data: error.response.data,
       });
     }
     return Promise.reject(error);

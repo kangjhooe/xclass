@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Facility } from './entities/facility.entity';
 import { CreateFacilityDto } from './dto/create-facility.dto';
+import { UpdateFacilityDto } from './dto/update-facility.dto';
 
 @Injectable()
 export class FacilityService {
@@ -46,6 +47,16 @@ export class FacilityService {
     }
 
     return facility;
+  }
+
+  async update(
+    id: number,
+    instansiId: number,
+    updateDto: UpdateFacilityDto,
+  ) {
+    const facility = await this.findOne(id, instansiId);
+    Object.assign(facility, updateDto);
+    return this.facilityRepository.save(facility);
   }
 
   async remove(id: number, instansiId: number) {

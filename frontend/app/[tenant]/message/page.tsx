@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { messageApi, Message, MessageCreateData } from '@/lib/api/message';
 import { conversationApi, Conversation, ConversationCreateData } from '@/lib/api/conversation';
+import { studentsApi } from '@/lib/api/students';
+import { teachersApi } from '@/lib/api/teachers';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
@@ -88,7 +90,7 @@ export default function MessagePage() {
   // Conversation messages
   const { data: conversationMessagesData, isLoading: conversationMessagesLoading } = useQuery({
     queryKey: ['messages', 'conversation', selectedConversation?.id, tenantId],
-    queryFn: () => messageApi.getAll(tenantId!, { conversationId: selectedConversation?.id }),
+    queryFn: () => messageApi.getByConversation(tenantId!, selectedConversation!.id),
     enabled: !!selectedConversation && !!tenantId,
   });
 
@@ -887,8 +889,18 @@ function CreateConversationForm({
   });
   const queryClient = useQueryClient();
 
-  // Get users for member selection (simplified - you may want to fetch from API)
-  const [availableUsers, setAvailableUsers] = useState<Array<{ id: number; name: string }>>([]);
+  // Fetch students and teachers for member selection
+  const { data: studentsData } = useQuery({
+    queryKey: ['students', tenantId],
+    queryFn: () => studentsApi.getAll(tenantId!, { limit: 1000 }),
+    enabled: !!tenantId,
+  });
+
+  const { data: teachersData } = useQuery({
+    queryKey: ['teachers', tenantId],
+    queryFn: () => teachersApi.getAll(tenantId!, { limit: 1000 }),
+    enabled: !!tenantId,
+  });
 
   const createMutation = useMutation({
     mutationFn: (data: ConversationCreateData) => {
@@ -901,8 +913,6 @@ function CreateConversationForm({
     },
   });
 
-  // TODO: Fetch users from API
-  // For now, using placeholder
   const handleMemberToggle = (userId: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -911,6 +921,12 @@ function CreateConversationForm({
         : [...prev.memberIds, userId],
     }));
   };
+
+  // Combine students and teachers for selection
+  const availableUsers = [
+    ...(studentsData?.data?.map((s) => ({ id: s.id, name: s.name, type: 'Siswa' })) || []),
+    ...(teachersData?.data?.map((t) => ({ id: t.id, name: t.name, type: 'Guru' })) || []),
+  ];
 
   return (
     <form
@@ -952,12 +968,31 @@ function CreateConversationForm({
           Pilih Anggota <span className="text-red-500">*</span>
         </label>
         <p className="text-xs text-gray-500 mb-2">
-          Pilih minimal 1 anggota untuk membuat grup
+          Pilih minimal 1 anggota untuk membuat grup ({formData.memberIds.length} dipilih)
         </p>
         <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
-          <p className="text-sm text-gray-500 text-center py-4">
-            Fitur pemilihan anggota akan diimplementasikan dengan API users/students/teachers
-          </p>
+          {availableUsers.length > 0 ? (
+            <div className="space-y-2">
+              {availableUsers.map((user) => (
+                <label
+                  key={user.id}
+                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.memberIds.includes(user.id)}
+                    onChange={() => handleMemberToggle(user.id)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    {user.name} <span className="text-xs text-gray-500">({user.type})</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">Memuat data...</p>
+          )}
         </div>
       </div>
 

@@ -4,24 +4,40 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
+  IsEnum,
 } from 'class-validator';
 
 export class CreateGraduationDto {
   @IsNumber()
-  studentId: number;
+  student_id: number;
 
   @IsNumber()
-  graduationYear: number;
+  @IsOptional()
+  academic_year_id?: number;
+
+  @IsNumber()
+  @IsOptional()
+  class_id?: number;
+
+  @IsNumber()
+  @IsOptional()
+  graduationYear?: number;
 
   @IsDateString()
-  graduationDate: string;
+  @IsOptional()
+  graduation_date?: string;
 
   @IsNumber()
-  finalGrade: number;
+  @IsOptional()
+  finalGrade?: number;
 
   @IsNumber()
   @IsOptional()
   rank?: number;
+
+  @IsEnum(['pending', 'approved', 'graduated'])
+  @IsOptional()
+  status?: string;
 
   @IsBoolean()
   @IsOptional()
@@ -29,7 +45,7 @@ export class CreateGraduationDto {
 
   @IsString()
   @IsOptional()
-  certificateNumber?: string;
+  certificate_number?: string;
 
   @IsString()
   @IsOptional()

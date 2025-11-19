@@ -29,7 +29,7 @@ export class ModuleAccessGuard implements CanActivate {
     }
 
     const hasAccess = await this.moduleAccessService.hasModuleAccess(
-      user.userId || user.id,
+      user,
       moduleAccess.moduleKey,
       moduleAccess.permission || 'view',
     );

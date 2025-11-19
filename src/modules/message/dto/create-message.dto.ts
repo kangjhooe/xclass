@@ -4,12 +4,20 @@ import {
   IsEnum,
   IsOptional,
   IsArray,
-  IsBoolean,
 } from 'class-validator';
 
 export class CreateMessageDto {
   @IsNumber()
-  receiverId: number;
+  @IsOptional()
+  receiverId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  recipient_id?: number;
+
+  @IsEnum(['user', 'class', 'all'])
+  @IsOptional()
+  recipient_type?: 'user' | 'class' | 'all';
 
   @IsNumber()
   @IsOptional()
@@ -21,12 +29,22 @@ export class CreateMessageDto {
   @IsString()
   content: string;
 
-  @IsEnum(['normal', 'urgent', 'important'])
+  @IsEnum(['low', 'medium', 'high', 'normal', 'urgent', 'important'])
   @IsOptional()
   priority?: string;
 
   @IsArray()
   @IsOptional()
-  attachments?: string[];
+  attachments?: Array<{
+    filename: string;
+    originalName: string;
+    url: string;
+    size: number;
+    mimeType: string;
+  }>;
+
+  @IsNumber()
+  @IsOptional()
+  conversationId?: number;
 }
 

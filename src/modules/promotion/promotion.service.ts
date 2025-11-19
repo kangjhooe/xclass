@@ -10,8 +10,6 @@ import { Promotion } from './entities/promotion.entity';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { CreateBatchPromotionDto } from './dto/create-batch-promotion.dto';
 import { RejectPromotionDto } from './dto/reject-promotion.dto';
-import { StudentsService } from '../students/students.service';
-import { ClassesService } from '../classes/classes.service';
 import { Student } from '../students/entities/student.entity';
 import { ClassRoom } from '../classes/entities/class-room.entity';
 
@@ -24,8 +22,6 @@ export class PromotionService {
     private studentRepository: Repository<Student>,
     @InjectRepository(ClassRoom)
     private classRoomRepository: Repository<ClassRoom>,
-    private studentsService: StudentsService,
-    private classesService: ClassesService,
   ) {}
 
   async create(createDto: CreatePromotionDto, instansiId: number) {
@@ -86,7 +82,31 @@ export class PromotionService {
       status: createDto.status || 'pending',
     });
 
-    return await this.promotionRepository.save(promotion);
+    const saved = await this.promotionRepository.save(promotion);
+
+    // Reload dengan relations untuk transform
+    const promotionWithRelations = await this.promotionRepository.findOne({
+      where: { id: saved.id, instansiId },
+      relations: ['student', 'fromClass', 'toClass'],
+    });
+
+    // Transform untuk frontend
+    return {
+      id: promotionWithRelations.id,
+      academic_year_id: promotionWithRelations.academicYear,
+      academic_year_name: promotionWithRelations.academicYear?.toString() || '-',
+      from_class_id: promotionWithRelations.fromClassId,
+      from_class_name: promotionWithRelations.fromClass?.name || '-',
+      to_class_id: promotionWithRelations.toClassId,
+      to_class_name: promotionWithRelations.toClass?.name || '-',
+      student_id: promotionWithRelations.studentId,
+      student_name: promotionWithRelations.student?.name || '-',
+      student_nis: promotionWithRelations.student?.studentNumber || promotionWithRelations.student?.nisn || '-',
+      status: promotionWithRelations.status,
+      notes: promotionWithRelations.notes,
+      created_at: promotionWithRelations.createdAt?.toISOString(),
+      processed_at: promotionWithRelations.completedAt?.toISOString() || promotionWithRelations.approvedAt?.toISOString(),
+    };
   }
 
   async findAll(filters: {
@@ -278,7 +298,14 @@ export class PromotionService {
   }
 
   async reject(id: number, instansiId: number, rejectDto: RejectPromotionDto) {
-    const promotion = await this.findOne(id, instansiId);
+    const promotion = await this.promotionRepository.findOne({
+      where: { id, instansiId },
+      relations: ['student', 'fromClass', 'toClass'],
+    });
+
+    if (!promotion) {
+      throw new NotFoundException(`Kenaikan kelas dengan ID ${id} tidak ditemukan`);
+    }
 
     if (promotion.status !== 'pending') {
       throw new BadRequestException('Hanya pengajuan yang pending yang bisa ditolak');
@@ -294,36 +321,56 @@ export class PromotionService {
     }
 
     const saved = await this.promotionRepository.save(promotion);
-    
-    // Reload dengan relations untuk transform
-    const promotionWithRelations = await this.promotionRepository.findOne({
-      where: { id: saved.id, instansiId },
-      relations: ['student', 'fromClass', 'toClass'],
-    });
 
     // Transform untuk frontend
     return {
-      id: promotionWithRelations.id,
-      academic_year_id: promotionWithRelations.academicYear,
-      academic_year_name: promotionWithRelations.academicYear?.toString() || '-',
-      from_class_id: promotionWithRelations.fromClassId,
-      from_class_name: promotionWithRelations.fromClass?.name || '-',
-      to_class_id: promotionWithRelations.toClassId,
-      to_class_name: promotionWithRelations.toClass?.name || '-',
-      student_id: promotionWithRelations.studentId,
-      student_name: promotionWithRelations.student?.name || '-',
-      student_nis: promotionWithRelations.student?.studentNumber || promotionWithRelations.student?.nisn || '-',
+      id: saved.id,
+      academic_year_id: saved.academicYear,
+      academic_year_name: saved.academicYear?.toString() || '-',
+      from_class_id: saved.fromClassId,
+      from_class_name: saved.fromClass?.name || '-',
+      to_class_id: saved.toClassId,
+      to_class_name: saved.toClass?.name || '-',
+      student_id: saved.studentId,
+      student_name: saved.student?.name || '-',
+      student_nis: saved.student?.studentNumber || saved.student?.nisn || '-',
       status: 'rejected', // Frontend mengharapkan 'rejected'
-      notes: promotionWithRelations.notes,
-      created_at: promotionWithRelations.createdAt?.toISOString(),
-      processed_at: promotionWithRelations.completedAt?.toISOString() || promotionWithRelations.approvedAt?.toISOString(),
+      notes: saved.notes,
+      created_at: saved.createdAt?.toISOString(),
+      processed_at: saved.completedAt?.toISOString() || saved.approvedAt?.toISOString(),
     };
   }
 
   async cancel(id: number, instansiId: number) {
-    const promotion = await this.findOne(id, instansiId);
+    const promotion = await this.promotionRepository.findOne({
+      where: { id, instansiId },
+      relations: ['student', 'fromClass', 'toClass'],
+    });
+
+    if (!promotion) {
+      throw new NotFoundException(`Kenaikan kelas dengan ID ${id} tidak ditemukan`);
+    }
+
     promotion.status = 'cancelled';
-    return await this.promotionRepository.save(promotion);
+    const saved = await this.promotionRepository.save(promotion);
+
+    // Transform untuk frontend
+    return {
+      id: saved.id,
+      academic_year_id: saved.academicYear,
+      academic_year_name: saved.academicYear?.toString() || '-',
+      from_class_id: saved.fromClassId,
+      from_class_name: saved.fromClass?.name || '-',
+      to_class_id: saved.toClassId,
+      to_class_name: saved.toClass?.name || '-',
+      student_id: saved.studentId,
+      student_name: saved.student?.name || '-',
+      student_nis: saved.student?.studentNumber || saved.student?.nisn || '-',
+      status: saved.status,
+      notes: saved.notes,
+      created_at: saved.createdAt?.toISOString(),
+      processed_at: saved.completedAt?.toISOString() || saved.approvedAt?.toISOString(),
+    };
   }
 
   async createBatch(createBatchDto: CreateBatchPromotionDto, instansiId: number) {
@@ -424,7 +471,13 @@ export class PromotionService {
   }
 
   async remove(id: number, instansiId: number) {
-    const promotion = await this.findOne(id, instansiId);
+    const promotion = await this.promotionRepository.findOne({
+      where: { id, instansiId },
+    });
+
+    if (!promotion) {
+      throw new NotFoundException(`Kenaikan kelas dengan ID ${id} tidak ditemukan`);
+    }
     
     if (promotion.status === 'completed') {
       throw new BadRequestException('Tidak bisa menghapus pengajuan yang sudah selesai');
