@@ -258,15 +258,26 @@ apiClient.interceptors.response.use(
       const fullUrl = error.config?.baseURL 
         ? `${error.config.baseURL}${url}` 
         : url;
-      
+      const method = error.config?.method?.toUpperCase() || 'GET';
+      const responseStatus = typeof error.response.status === 'number'
+        ? error.response.status
+        : 'unknown';
+      const responseStatusText = error.response.statusText || 'Unknown status';
+      const responseData = error.response.data;
+      const responseMessage = responseData?.message;
+      const safeMessage = typeof responseMessage === 'string' && responseMessage.trim()
+        ? responseMessage
+        : `HTTP ${responseStatus} error`;
+      const baseURL = error.config?.baseURL || API_URL;
+
       console.error('API Client Error:', {
         url: fullUrl,
-        method: error.config?.method?.toUpperCase() || 'GET',
-        status: error.response.status,
-        statusText: error.response.statusText,
-        message: error.response.data?.message || `HTTP ${error.response.status} error`,
-        baseURL: error.config?.baseURL || API_URL,
-        data: error.response.data,
+        method,
+        status: responseStatus,
+        statusText: responseStatusText,
+        message: safeMessage,
+        baseURL,
+        data: responseData,
       });
     }
     return Promise.reject(error);
