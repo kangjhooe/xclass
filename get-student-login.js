@@ -5,7 +5,7 @@ async function getStudentLogin() {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'xclass'
+    database: 'class'
   });
 
   try {

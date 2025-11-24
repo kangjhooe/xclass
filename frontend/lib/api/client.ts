@@ -192,17 +192,49 @@ apiClient.interceptors.response.use(
       const fullUrl = error.config?.baseURL 
         ? `${error.config.baseURL}${url}` 
         : url;
+      const method = error.config?.method 
+        ? String(error.config.method).toUpperCase() 
+        : 'GET';
+      const status = error.response?.status ?? 404;
+      const baseURL = error.config?.baseURL 
+        ? String(error.config.baseURL) 
+        : (API_URL ? String(API_URL) : 'not configured');
+      const finalUrl = fullUrl ? String(fullUrl) : 'unknown';
+      const responseMessageRaw = error.response?.data?.message;
+      const responseMessage = Array.isArray(responseMessageRaw)
+        ? responseMessageRaw.join(', ')
+        : responseMessageRaw;
+      const isRouteMissing =
+        typeof responseMessage === 'string' && responseMessage.trim().startsWith('Cannot ');
       
       if (url.includes('/public/')) {
         // Silently handle missing public endpoints (they're optional)
-        console.warn(`Public endpoint not found: ${fullUrl}. Using fallback data.`);
+        console.warn(`Public endpoint not found: ${finalUrl}. Using fallback data.`);
+      } else if (isRouteMissing) {
+        const errorDetails: Record<string, string | number> = {
+          url: finalUrl,
+          method,
+          status,
+          baseURL,
+        };
+        console.error(`API Endpoint Not Found (${status}): ${method} ${finalUrl}`, errorDetails);
       } else {
-        console.error('API Endpoint Not Found:', {
-          url: fullUrl,
-          method: error.config?.method?.toUpperCase() || 'GET',
-          status: error.response.status,
-          baseURL: error.config?.baseURL || API_URL,
+        const resourceError = new Error(
+          responseMessage || `Resource not found for ${method} ${finalUrl}`,
+        );
+        (resourceError as any).status = status;
+        (resourceError as any).url = finalUrl;
+        (resourceError as any).isNotFound = true;
+        (resourceError as any).cause = error;
+        (resourceError as any).originalError = error;
+        
+        console.warn('API Resource Not Found:', {
+          url: finalUrl,
+          method,
+          status,
+          message: responseMessage || 'Resource not found',
         });
+        return Promise.reject(resourceError);
       }
     } else if (error.response?.status >= 500) {
       // Server errors

@@ -5,7 +5,7 @@ async function getTeacherLogin() {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'xclass'
+    database: 'class'
   });
 
   try {

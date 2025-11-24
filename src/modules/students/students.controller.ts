@@ -67,64 +67,105 @@ export class StudentsController {
     });
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Dapatkan detail siswa berdasarkan ID' })
-  @ApiResponse({ status: 200, description: 'Detail siswa berhasil diambil' })
-  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
-  findOne(@Param('id') id: string, @TenantId() instansiId: number) {
-    return this.studentsService.findOne(+id, instansiId);
-  }
+  @Get('export/template')
+  @ApiOperation({ summary: 'Download format Excel untuk import data siswa' })
+  @ApiResponse({ status: 200, description: 'File template Excel berhasil di-generate' })
+  async exportTemplate(@TenantId() instansiId: number, @Res() res: Response) {
+    const columns = [
+      { key: 'nik', header: 'NIK', width: 18, required: true },
+      { key: 'name', header: 'Nama', width: 30, required: true },
+      { key: 'studentNumber', header: 'NIS', width: 15 },
+      { key: 'nisn', header: 'NISN', width: 15 },
+      { key: 'email', header: 'Email', width: 30 },
+      { key: 'phone', header: 'Telepon', width: 15 },
+      { key: 'gender', header: 'Jenis Kelamin', width: 15 },
+      { key: 'birthDate', header: 'Tanggal Lahir', width: 15 },
+      { key: 'birthPlace', header: 'Tempat Lahir', width: 20 },
+      { key: 'religion', header: 'Agama', width: 15 },
+      { key: 'nationality', header: 'Kewarganegaraan', width: 20 },
+      { key: 'ethnicity', header: 'Suku', width: 20 },
+      { key: 'language', header: 'Bahasa', width: 20 },
+      { key: 'bloodType', header: 'Golongan Darah', width: 15 },
+      { key: 'address', header: 'Alamat', width: 40 },
+      { key: 'rt', header: 'RT', width: 10 },
+      { key: 'rw', header: 'RW', width: 10 },
+      { key: 'village', header: 'Kelurahan', width: 20 },
+      { key: 'subDistrict', header: 'Kecamatan', width: 20 },
+      { key: 'district', header: 'Kabupaten', width: 20 },
+      { key: 'city', header: 'Kota', width: 20 },
+      { key: 'province', header: 'Provinsi', width: 20 },
+      { key: 'postalCode', header: 'Kode Pos', width: 12 },
+      { key: 'residenceType', header: 'Jenis Tempat Tinggal', width: 20 },
+      { key: 'transportation', header: 'Transportasi', width: 20 },
+      { key: 'disabilityType', header: 'Jenis Disabilitas', width: 20 },
+      { key: 'disabilityDescription', header: 'Deskripsi Disabilitas', width: 30 },
+      { key: 'height', header: 'Tinggi Badan (cm)', width: 15 },
+      { key: 'weight', header: 'Berat Badan (kg)', width: 15 },
+      { key: 'healthCondition', header: 'Kondisi Kesehatan', width: 25 },
+      { key: 'healthNotes', header: 'Catatan Kesehatan', width: 30 },
+      { key: 'allergies', header: 'Alergi', width: 30 },
+      { key: 'medications', header: 'Obat-obatan', width: 30 },
+      { key: 'previousSchool', header: 'Sekolah Sebelumnya', width: 30 },
+      { key: 'previousSchoolAddress', header: 'Alamat Sekolah Sebelumnya', width: 40 },
+      { key: 'previousSchoolCity', header: 'Kota Sekolah Sebelumnya', width: 25 },
+      { key: 'previousSchoolProvince', header: 'Provinsi Sekolah Sebelumnya', width: 25 },
+      { key: 'previousSchoolPhone', header: 'Telepon Sekolah Sebelumnya', width: 20 },
+      { key: 'previousSchoolPrincipal', header: 'Kepala Sekolah Sebelumnya', width: 30 },
+      { key: 'previousSchoolGraduationYear', header: 'Tahun Lulus', width: 15 },
+      { key: 'previousSchoolCertificateNumber', header: 'No. Ijazah', width: 20 },
+      { key: 'enrollmentDate', header: 'Tanggal Pendaftaran', width: 18 },
+      { key: 'enrollmentSemester', header: 'Semester Pendaftaran', width: 20 },
+      { key: 'enrollmentYear', header: 'Tahun Pendaftaran', width: 18 },
+      { key: 'studentStatus', header: 'Status Siswa', width: 20 },
+      { key: 'academicLevel', header: 'Level Akademik', width: 20 },
+      { key: 'currentGrade', header: 'Kelas Saat Ini', width: 15 },
+      { key: 'academicYear', header: 'Tahun Ajaran', width: 15 },
+      { key: 'classId', header: 'ID Kelas', width: 12 },
+      { key: 'isActive', header: 'Status Aktif', width: 15 },
+      { key: 'fatherName', header: 'Nama Ayah', width: 30 },
+      { key: 'fatherNik', header: 'NIK Ayah', width: 18 },
+      { key: 'fatherBirthDate', header: 'Tanggal Lahir Ayah', width: 18 },
+      { key: 'fatherBirthPlace', header: 'Tempat Lahir Ayah', width: 20 },
+      { key: 'fatherEducation', header: 'Pendidikan Ayah', width: 20 },
+      { key: 'fatherOccupation', header: 'Pekerjaan Ayah', width: 25 },
+      { key: 'fatherCompany', header: 'Perusahaan Ayah', width: 30 },
+      { key: 'fatherPhone', header: 'Telepon Ayah', width: 15 },
+      { key: 'fatherEmail', header: 'Email Ayah', width: 30 },
+      { key: 'fatherIncome', header: 'Penghasilan Ayah', width: 18 },
+      { key: 'motherName', header: 'Nama Ibu', width: 30 },
+      { key: 'motherNik', header: 'NIK Ibu', width: 18 },
+      { key: 'motherBirthDate', header: 'Tanggal Lahir Ibu', width: 18 },
+      { key: 'motherBirthPlace', header: 'Tempat Lahir Ibu', width: 20 },
+      { key: 'motherEducation', header: 'Pendidikan Ibu', width: 20 },
+      { key: 'motherOccupation', header: 'Pekerjaan Ibu', width: 25 },
+      { key: 'motherCompany', header: 'Perusahaan Ibu', width: 30 },
+      { key: 'motherPhone', header: 'Telepon Ibu', width: 15 },
+      { key: 'motherEmail', header: 'Email Ibu', width: 30 },
+      { key: 'motherIncome', header: 'Penghasilan Ibu', width: 18 },
+      { key: 'guardianName', header: 'Nama Wali', width: 30 },
+      { key: 'guardianNik', header: 'NIK Wali', width: 18 },
+      { key: 'guardianBirthDate', header: 'Tanggal Lahir Wali', width: 18 },
+      { key: 'guardianBirthPlace', header: 'Tempat Lahir Wali', width: 20 },
+      { key: 'guardianEducation', header: 'Pendidikan Wali', width: 20 },
+      { key: 'guardianOccupation', header: 'Pekerjaan Wali', width: 25 },
+      { key: 'guardianCompany', header: 'Perusahaan Wali', width: 30 },
+      { key: 'guardianPhone', header: 'Telepon Wali', width: 15 },
+      { key: 'guardianEmail', header: 'Email Wali', width: 30 },
+      { key: 'guardianIncome', header: 'Penghasilan Wali', width: 18 },
+      { key: 'guardianRelationship', header: 'Hubungan Wali', width: 20 },
+      { key: 'emergencyContactName', header: 'Nama Kontak Darurat', width: 30 },
+      { key: 'emergencyContactPhone', header: 'Telepon Kontak Darurat', width: 20 },
+      { key: 'emergencyContactRelationship', header: 'Hubungan Kontak Darurat', width: 25 },
+      { key: 'notes', header: 'Catatan', width: 40 },
+    ];
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update data siswa' })
-  @ApiResponse({ status: 200, description: 'Data siswa berhasil diupdate' })
-  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
-  @ApiResponse({ status: 409, description: 'NIK sudah terdaftar' })
-  update(@Param('id') id: string, @Body() updateStudentDto: UpdateStudentDto, @TenantId() instansiId: number) {
-    return this.studentsService.update(+id, updateStudentDto, instansiId);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Hapus data siswa' })
-  @ApiResponse({ status: 200, description: 'Data siswa berhasil dihapus' })
-  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
-  remove(@Param('id') id: string, @TenantId() instansiId: number) {
-    return this.studentsService.remove(+id, instansiId);
-  }
-
-  @Get(':id/grades')
-  getGrades(@Param('id') id: string, @TenantId() instansiId: number) {
-    return this.studentsService.getGrades(+id, instansiId);
-  }
-
-  @Get(':id/attendance')
-  getAttendance(@Param('id') id: string, @TenantId() instansiId: number) {
-    return this.studentsService.getAttendance(+id, instansiId);
-  }
-
-  @Get('nik/:nik/lifetime')
-  @ApiOperation({ summary: 'Dapatkan riwayat lengkap siswa berdasarkan NIK (dari SD sampai SMA)' })
-  @ApiResponse({ status: 200, description: 'Riwayat lengkap siswa berhasil diambil' })
-  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
-  getLifetimeData(@Param('nik') nik: string, @TenantId() instansiId: number) {
-    return this.studentsService.getLifetimeData(nik, instansiId);
-  }
-
-  @Patch(':id/academic-level')
-  @ApiOperation({ summary: 'Update level akademik siswa (SD/SMP/SMA)' })
-  @ApiResponse({ status: 200, description: 'Level akademik berhasil diupdate' })
-  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
-  updateAcademicLevel(
-    @Param('id') id: string,
-    @Body() body: { academicLevel: string; currentGrade: string; academicYear: string },
-    @TenantId() instansiId: number,
-  ) {
-    return this.studentsService.updateAcademicLevel(
-      +id,
-      body.academicLevel,
-      body.currentGrade,
-      body.academicYear,
-      instansiId,
+    await this.exportImportService.exportTemplateToExcel(
+      {
+        filename: `format_import_data_siswa_${new Date().toISOString().split('T')[0]}.xlsx`,
+        sheetName: 'Format Data Siswa',
+        columns,
+      },
+      res,
     );
   }
 
@@ -231,6 +272,67 @@ export class StudentsController {
         columns,
       },
       res,
+    );
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Dapatkan detail siswa berdasarkan ID' })
+  @ApiResponse({ status: 200, description: 'Detail siswa berhasil diambil' })
+  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
+  findOne(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.studentsService.findOne(+id, instansiId);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update data siswa' })
+  @ApiResponse({ status: 200, description: 'Data siswa berhasil diupdate' })
+  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
+  @ApiResponse({ status: 409, description: 'NIK sudah terdaftar' })
+  update(@Param('id') id: string, @Body() updateStudentDto: UpdateStudentDto, @TenantId() instansiId: number) {
+    return this.studentsService.update(+id, updateStudentDto, instansiId);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Hapus data siswa' })
+  @ApiResponse({ status: 200, description: 'Data siswa berhasil dihapus' })
+  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
+  remove(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.studentsService.remove(+id, instansiId);
+  }
+
+  @Get(':id/grades')
+  getGrades(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.studentsService.getGrades(+id, instansiId);
+  }
+
+  @Get(':id/attendance')
+  getAttendance(@Param('id') id: string, @TenantId() instansiId: number) {
+    return this.studentsService.getAttendance(+id, instansiId);
+  }
+
+  @Get('nik/:nik/lifetime')
+  @ApiOperation({ summary: 'Dapatkan riwayat lengkap siswa berdasarkan NIK (dari SD sampai SMA)' })
+  @ApiResponse({ status: 200, description: 'Riwayat lengkap siswa berhasil diambil' })
+  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
+  getLifetimeData(@Param('nik') nik: string, @TenantId() instansiId: number) {
+    return this.studentsService.getLifetimeData(nik, instansiId);
+  }
+
+  @Patch(':id/academic-level')
+  @ApiOperation({ summary: 'Update level akademik siswa (SD/SMP/SMA)' })
+  @ApiResponse({ status: 200, description: 'Level akademik berhasil diupdate' })
+  @ApiResponse({ status: 404, description: 'Siswa tidak ditemukan' })
+  updateAcademicLevel(
+    @Param('id') id: string,
+    @Body() body: { academicLevel: string; currentGrade: string; academicYear: string },
+    @TenantId() instansiId: number,
+  ) {
+    return this.studentsService.updateAcademicLevel(
+      +id,
+      body.academicLevel,
+      body.currentGrade,
+      body.academicYear,
+      instansiId,
     );
   }
 

@@ -2,11 +2,22 @@ const mysql = require('mysql2/promise');
 
 async function createXClassDatabase() {
   // Database config - adjust if needed
+  const host = process.env.DB_HOST || 'localhost';
+  const port = parseInt(process.env.DB_PORT || '3306', 10);
+  const user =
+    process.env.DB_USERNAME ||
+    process.env.DB_USER ||
+    'root';
+  const password =
+    process.env.DB_PASSWORD ||
+    process.env.DB_PASS ||
+    '';
+
   const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '3306', 10),
-    user: process.env.DB_USERNAME || 'root',
-    password: process.env.DB_PASSWORD || '',
+    host,
+    port,
+    user,
+    password,
   };
 
   let connection;

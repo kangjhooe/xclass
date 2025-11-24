@@ -271,6 +271,36 @@ export default function StudentsPage() {
     }
   };
 
+  const handleDownloadFormat = async () => {
+    if (!tenantId) {
+      alert('Tenant ID tidak ditemukan');
+      return;
+    }
+
+    try {
+      const response = await apiClient.get(
+        `/tenants/${tenantId}/students/export/template`,
+        {
+          responseType: 'blob',
+        },
+      );
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `format_import_data_siswa_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error downloading format:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Gagal mengunduh format Excel';
+      alert(errorMessage);
+    }
+  };
+
   const handleImport = async (file: File, format: 'excel' | 'csv') => {
     if (!tenantId) {
       alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
@@ -1036,6 +1066,18 @@ export default function StudentsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
               Mutasi
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownloadFormat}
+              disabled={!isTenantReady}
+              className="flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Unduh Format
             </Button>
             <ImportButton
               onImport={handleImport}

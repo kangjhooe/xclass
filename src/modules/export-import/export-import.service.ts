@@ -83,6 +83,94 @@ export class ExportImportService {
   }
 
   /**
+   * Export template Excel kosong dengan header dan validasi
+   */
+  async exportTemplateToExcel(
+    options: {
+      filename?: string;
+      sheetName?: string;
+      columns: { key: string; header: string; width?: number; required?: boolean }[];
+    },
+    res: Response,
+  ): Promise<void> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(options.sheetName || 'Template');
+
+    // Helper function to convert column number to letter (supports beyond Z)
+    const getColumnLetter = (colNum: number): string => {
+      let result = '';
+      while (colNum > 0) {
+        colNum--;
+        result = String.fromCharCode(65 + (colNum % 26)) + result;
+        colNum = Math.floor(colNum / 26);
+      }
+      return result;
+    };
+
+    // Set columns
+    worksheet.columns = options.columns.map((col) => ({
+      header: col.header,
+      key: col.key,
+      width: col.width || 15,
+    }));
+
+    // Style header row
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Add data validation for required columns and style them
+    options.columns.forEach((col, index) => {
+      const columnLetter = getColumnLetter(index + 1);
+      const cell = headerRow.getCell(index + 1);
+
+      if (col.required) {
+        // Style required columns header in red
+        cell.font = { bold: true, color: { argb: 'FFFF0000' } };
+
+        // Add data validation: cell cannot be empty (starting from row 3, after instruction row)
+        // Type assertion needed because ExcelJS types don't fully include dataValidations
+        (worksheet as any).dataValidations.add(`${columnLetter}3:${columnLetter}1000`, {
+          type: 'custom',
+          formula1: `LEN(TRIM(${columnLetter}3))>0`,
+          showErrorMessage: true,
+          errorTitle: 'Data Wajib',
+          error: `Kolom ${col.header} wajib diisi`,
+          errorStyle: 'stop',
+        });
+      }
+    });
+
+    // Add instruction row (row 2)
+    const instructionRow = worksheet.addRow([]);
+    instructionRow.getCell(1).value = 'Catatan: Kolom yang berwarna merah adalah wajib diisi (NIK dan Nama)';
+    instructionRow.getCell(1).font = { italic: true, color: { argb: 'FF666666' } };
+    if (options.columns.length > 1) {
+      const lastColumnLetter = getColumnLetter(options.columns.length);
+      worksheet.mergeCells(`A2:${lastColumnLetter}2`);
+    }
+    instructionRow.height = 20;
+    instructionRow.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+
+    // Set response headers
+    const filename = options.filename || 'template.xlsx';
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  /**
    * Export data ke CSV
    */
   async exportToCSV(

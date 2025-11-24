@@ -170,13 +170,15 @@ export class StudentsService {
       effectiveAcademicYear = undefined;
     }
 
-    if (!effectiveAcademicYear) {
-      effectiveAcademicYear = await this.getActiveAcademicYear(instansiId) || undefined;
-    }
-
+    // Filter berdasarkan academicYear jika diberikan
+    // Include siswa dengan academicYear NULL untuk fleksibilitas (siswa yang belum di-assign academicYear)
     if (effectiveAcademicYear) {
-      queryBuilder.andWhere('student.academicYear = :academicYear', { academicYear: effectiveAcademicYear });
+      queryBuilder.andWhere(
+        '(student.academicYear = :academicYear OR student.academicYear IS NULL)',
+        { academicYear: effectiveAcademicYear }
+      );
     }
+    // Jika tidak ada academicYear yang diberikan, tampilkan semua siswa (tidak filter)
 
     if (classId) {
       queryBuilder.andWhere('student.classId = :classId', { classId });

@@ -34,6 +34,78 @@ export class WilayahIndonesiaService {
     });
   }
 
+  private unwrapApiPayload(raw: any, hintKeys: string[] = []): any {
+    if (!raw) {
+      return [];
+    }
+
+    if (Array.isArray(raw)) {
+      return raw;
+    }
+
+    if (raw.data !== undefined) {
+      const nested = this.unwrapApiPayload(raw.data, hintKeys);
+      if (Array.isArray(nested) || (nested && typeof nested === 'object')) {
+        return nested;
+      }
+    }
+
+    for (const key of hintKeys) {
+      const candidate = raw[key];
+      if (candidate !== undefined) {
+        const nested = this.unwrapApiPayload(candidate, hintKeys);
+        if (Array.isArray(nested) || (nested && typeof nested === 'object')) {
+          return nested;
+        }
+      }
+    }
+
+    return raw;
+  }
+
+  private normalizeLocationItem(
+    item: any,
+    extraCodeKeys: string[] = [],
+  ): { code: string; name: string } | null {
+    if (!item) return null;
+
+    const name =
+      item.name ??
+      item.nama ??
+      item.text ??
+      item.title ??
+      (typeof item === 'string' ? item : undefined);
+
+    const codeCandidates = [
+      item.code,
+      item.id,
+      item.kode,
+      item.kode_dagri,
+      item.kodeKemendagri,
+      ...extraCodeKeys.map((key) => item[key]),
+    ].filter((val) => val !== undefined && val !== null && val !== '');
+
+    if (!name || codeCandidates.length === 0) {
+      return null;
+    }
+
+    return {
+      code: String(codeCandidates[0]),
+      name: String(name),
+    };
+  }
+
+  private objectMapToArray(obj: any): Array<{ code: string; name: string }> {
+    if (!obj || typeof obj !== 'object') {
+      return [];
+    }
+
+    return Object.entries(obj).map(([code, name]) => ({
+      code: String(code),
+      name: String(name),
+    }));
+  }
+
   async getAllProvinces(): Promise<Province[]> {
     // Cek database lokal dulu
     const localData = await this.provinceRepository.find({
@@ -50,28 +122,29 @@ export class WilayahIndonesiaService {
       const response = await this.httpClient.get('/provinces.json');
       const apiData = response.data;
 
-      // Handle format API yang berbeda
-      let provinces: Province[] = [];
-      
-      if (Array.isArray(apiData)) {
-        // Format array: [{code: "11", name: "ACEH"}, ...]
-        provinces = apiData.map((item: any) => ({
-          code: item.code || item.id,
+      const rawPayload = this.unwrapApiPayload(apiData, ['data', 'result', 'provinces', 'provinsi']);
+      let provinceList: Province[] = [];
+
+      if (Array.isArray(rawPayload)) {
+        provinceList = rawPayload
+          .map((item: any) => this.normalizeLocationItem(item))
+          .filter(Boolean)
+          .map((item) => ({
+            code: item!.code,
+            name: item!.name,
+            regencies: [],
+          }));
+      } else if (rawPayload && typeof rawPayload === 'object') {
+        provinceList = this.objectMapToArray(rawPayload).map((item) => ({
+          code: item.code,
           name: item.name,
           regencies: [],
-        })) as Province[];
-      } else if (typeof apiData === 'object') {
-        // Format object: {"11": "ACEH", "12": "SUMATERA UTARA", ...}
-        provinces = Object.keys(apiData).map((code) => ({
-          code,
-          name: apiData[code],
-          regencies: [],
-        })) as Province[];
+        }));
       }
 
       // Cache ke database
-      if (provinces.length > 0) {
-        for (const province of provinces) {
+      if (provinceList.length > 0) {
+        for (const province of provinceList) {
           const existing = await this.provinceRepository.findOne({
             where: { code: province.code },
           });
@@ -81,10 +154,10 @@ export class WilayahIndonesiaService {
             );
           }
         }
-        this.logger.log(`Cached ${provinces.length} provinces to database`);
+        this.logger.log(`Cached ${provinceList.length} provinces to database`);
       }
 
-      return provinces;
+      return provinceList;
     } catch (error: any) {
       this.logger.error(
         `Failed to fetch provinces from API: ${error.message}`,
@@ -113,23 +186,26 @@ export class WilayahIndonesiaService {
       );
       const apiData = response.data;
 
-      // Handle format API yang berbeda
+      const rawPayload = this.unwrapApiPayload(apiData, ['data', 'result', 'regencies', 'kabupaten', 'kota']);
       let regencies: Regency[] = [];
-      
-      if (Array.isArray(apiData)) {
-        regencies = apiData.map((item: any) => ({
-          code: item.code || item.id,
+
+      if (Array.isArray(rawPayload)) {
+        regencies = rawPayload
+          .map((item: any) => this.normalizeLocationItem(item, ['kode', 'kode_kabupaten']))
+          .filter(Boolean)
+          .map((item) => ({
+            code: item!.code,
+            name: item!.name,
+            provinceCode,
+            districts: [],
+          }));
+      } else if (rawPayload && typeof rawPayload === 'object') {
+        regencies = this.objectMapToArray(rawPayload).map((item) => ({
+          code: item.code,
           name: item.name,
           provinceCode,
           districts: [],
-        })) as Regency[];
-      } else if (typeof apiData === 'object') {
-        regencies = Object.keys(apiData).map((code) => ({
-          code,
-          name: apiData[code],
-          provinceCode,
-          districts: [],
-        })) as Regency[];
+        }));
       }
 
       // Cache ke database
@@ -178,23 +254,26 @@ export class WilayahIndonesiaService {
       );
       const apiData = response.data;
 
-      // Handle format API yang berbeda
+      const rawPayload = this.unwrapApiPayload(apiData, ['data', 'result', 'districts', 'kecamatan']);
       let districts: District[] = [];
-      
-      if (Array.isArray(apiData)) {
-        districts = apiData.map((item: any) => ({
-          code: item.code || item.id,
+
+      if (Array.isArray(rawPayload)) {
+        districts = rawPayload
+          .map((item: any) => this.normalizeLocationItem(item, ['kode', 'kode_kecamatan']))
+          .filter(Boolean)
+          .map((item) => ({
+            code: item!.code,
+            name: item!.name,
+            regencyCode,
+            villages: [],
+          }));
+      } else if (rawPayload && typeof rawPayload === 'object') {
+        districts = this.objectMapToArray(rawPayload).map((item) => ({
+          code: item.code,
           name: item.name,
           regencyCode,
           villages: [],
-        })) as District[];
-      } else if (typeof apiData === 'object') {
-        districts = Object.keys(apiData).map((code) => ({
-          code,
-          name: apiData[code],
-          regencyCode,
-          villages: [],
-        })) as District[];
+        }));
       }
 
       // Cache ke database
@@ -243,21 +322,24 @@ export class WilayahIndonesiaService {
       );
       const apiData = response.data;
 
-      // Handle format API yang berbeda
+      const rawPayload = this.unwrapApiPayload(apiData, ['data', 'result', 'villages', 'desa', 'kelurahan']);
       let villages: Village[] = [];
-      
-      if (Array.isArray(apiData)) {
-        villages = apiData.map((item: any) => ({
-          code: item.code || item.id,
+
+      if (Array.isArray(rawPayload)) {
+        villages = rawPayload
+          .map((item: any) => this.normalizeLocationItem(item, ['kode', 'kode_desa', 'kode_kelurahan']))
+          .filter(Boolean)
+          .map((item) => ({
+            code: item!.code,
+            name: item!.name,
+            districtCode,
+          }));
+      } else if (rawPayload && typeof rawPayload === 'object') {
+        villages = this.objectMapToArray(rawPayload).map((item) => ({
+          code: item.code,
           name: item.name,
           districtCode,
-        })) as Village[];
-      } else if (typeof apiData === 'object') {
-        villages = Object.keys(apiData).map((code) => ({
-          code,
-          name: apiData[code],
-          districtCode,
-        })) as Village[];
+        }));
       }
 
       // Cache ke database

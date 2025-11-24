@@ -157,7 +157,103 @@ export interface TeacherCreateData {
   education?: string;
   specialization?: string;
   isActive?: boolean;
+  isMainTenant?: boolean;
   positionId?: number;
+  
+  // Data Pribadi Tambahan
+  pageId?: string;
+  npk?: string;
+  motherName?: string;
+  
+  // Detail Alamat
+  province?: string;
+  cityDistrict?: string;
+  subDistrict?: string;
+  village?: string;
+  postalCode?: string;
+  
+  // Data Pendidikan
+  educationLevel?: string;
+  studyProgramGroup?: string;
+  
+  // Status Kepegawaian
+  employmentStatusPtk?: string;
+  employmentStatus?: string;
+  employmentRank?: string;
+  tmtSkCpns?: string;
+  tmtSkAwal?: string;
+  tmtSkTerakhir?: string;
+  appointingInstitution?: string;
+  assignmentStatus?: string;
+  baseSalary?: number;
+  workLocationStatus?: string;
+  satminkalType?: string;
+  satminkalNpsn?: string;
+  satminkalIdentity?: string;
+  inpassingStatus?: string;
+  tmtInpassing?: string;
+  
+  // Tugas dan Mengajar
+  mainDutyEducator?: string;
+  additionalDuty?: string;
+  mainDutySchool?: string;
+  mainSubject?: string;
+  totalTeachingHours?: number;
+  dutyType?: string;
+  teachingHoursEquivalent?: number;
+  teachOtherSchool?: boolean;
+  otherWorkLocationType?: string;
+  otherWorkLocationNpsn?: string;
+  otherSchoolSubject?: string;
+  otherSchoolHours?: number;
+  
+  // Informasi Sertifikasi
+  certificationParticipationStatus?: string;
+  certificationPassStatus?: string;
+  certificationYear?: number;
+  certifiedSubject?: string;
+  nrg?: string;
+  nrgSkNumber?: string;
+  nrgSkDate?: string;
+  certificationParticipantNumber?: string;
+  certificationType?: string;
+  certificationPassDate?: string;
+  educatorCertificateNumber?: string;
+  certificateIssueDate?: string;
+  lptkName?: string;
+  
+  // Informasi Tunjangan
+  tpgRecipientStatus?: string;
+  tpgStartYear?: number;
+  tpgAmount?: number;
+  tfgRecipientStatus?: string;
+  tfgStartYear?: number;
+  tfgAmount?: number;
+  
+  // Penghargaan dan Pelatihan
+  hasReceivedAward?: boolean;
+  highestAward?: string;
+  awardField?: string;
+  awardLevel?: string;
+  awardYear?: number;
+  competencyTraining?: string;
+  trainingParticipation1?: string;
+  trainingYear1?: number;
+  trainingParticipation2?: string;
+  trainingYear2?: number;
+  trainingParticipation3?: string;
+  trainingYear3?: number;
+  trainingParticipation4?: string;
+  trainingYear4?: number;
+  trainingParticipation5?: string;
+  trainingYear5?: number;
+  
+  // Kompetensi Kepala Madrasah
+  personalityCompetency?: number;
+  managerialCompetency?: number;
+  entrepreneurshipCompetency?: number;
+  supervisionCompetency?: number;
+  socialCompetency?: number;
 }
 
 export const teachersApi = {

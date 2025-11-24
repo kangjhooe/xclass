@@ -115,16 +115,45 @@ export default function RegisterPage() {
       router.push('/login?registered=true');
     },
     onError: (err: any) => {
+      // Log full error object for debugging
+      console.error('Register error - full error object:', err);
       console.error('Register error details:', {
         message: err?.message,
         response: err?.response?.data,
         status: err?.response?.status,
+        code: err?.code,
+        config: err?.config ? {
+          url: err.config.url,
+          method: err.config.method,
+          baseURL: err.config.baseURL,
+        } : undefined,
       });
 
       let errorMessage = 'Registrasi gagal. Silakan coba lagi.';
       const responseData = err?.response?.data;
 
-      if (responseData?.errors) {
+      // Handle NestJS ValidationPipe errors (message as array)
+      if (Array.isArray(responseData?.message)) {
+        const backendErrors: Record<string, string> = {};
+        responseData.message.forEach((msg: string, index: number) => {
+          // Try to extract field name from message if possible
+          // Format: "property should not be empty" or "property must be..."
+          const fieldMatch = msg.match(/^(\w+)\s/);
+          if (fieldMatch) {
+            const fieldName = fieldMatch[1];
+            backendErrors[fieldName] = msg;
+          } else {
+            backendErrors[`error_${index}`] = msg;
+          }
+        });
+        if (Object.keys(backendErrors).length > 0) {
+          setErrors(backendErrors);
+          errorMessage = 'Terdapat kesalahan pada form. Silakan periksa kembali.';
+        } else {
+          errorMessage = responseData.message.join(', ');
+        }
+      } else if (responseData?.errors) {
+        // Handle errors object format
         const backendErrors: Record<string, string> = {};
         Object.keys(responseData.errors).forEach((key) => {
           backendErrors[key] = Array.isArray(responseData.errors[key])
@@ -133,9 +162,14 @@ export default function RegisterPage() {
         });
         setErrors(backendErrors);
         errorMessage = 'Terdapat kesalahan pada form. Silakan periksa kembali.';
-      } else if (responseData?.message || responseData?.error) {
-        errorMessage = responseData.message || responseData.error;
-      } else if (err?.request) {
+      } else if (responseData?.message) {
+        // Handle single message string
+        errorMessage = typeof responseData.message === 'string' 
+          ? responseData.message 
+          : String(responseData.message);
+      } else if (responseData?.error) {
+        errorMessage = responseData.error;
+      } else if (err?.request || err?.code === 'ERR_NETWORK' || err?.code === 'ECONNABORTED') {
         errorMessage = 'Tidak dapat terhubung ke server. Pastikan backend berjalan.';
       } else if (err?.message) {
         errorMessage = err.message;

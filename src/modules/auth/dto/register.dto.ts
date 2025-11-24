@@ -68,5 +68,9 @@ export class RegisterDto {
   @MaxLength(20, { message: 'No WA PIC maksimal 20 karakter' })
   @Matches(/^[0-9+\-\s()]*$/, { message: 'Format nomor WhatsApp tidak valid' })
   picWhatsapp: string;
+
+  @IsOptional()
+  @IsString()
+  recaptcha_token?: string;
 }
 

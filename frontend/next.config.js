@@ -1,8 +1,32 @@
+const DEFAULT_API_URL = 'http://localhost:3000/api';
+
+function getApiOrigins() {
+  const rawUrl = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL;
+  try {
+    const parsed = new URL(rawUrl);
+    const origin = `${parsed.protocol}//${parsed.host}`;
+    const websocketOrigin = origin.replace(/^http/, 'ws');
+    return {
+      rawUrl,
+      origin,
+      websocketOrigin,
+    };
+  } catch {
+    return {
+      rawUrl,
+      origin: DEFAULT_API_URL.replace(/\/api$/, ''),
+      websocketOrigin: DEFAULT_API_URL.replace(/\/api$/, '').replace(/^http/, 'ws'),
+    };
+  }
+}
+
+const { rawUrl: apiUrl, origin: apiOrigin, websocketOrigin: apiWsOrigin } = getApiOrigins();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api',
+    NEXT_PUBLIC_API_URL: apiUrl,
   },
   images: {
     // Enable image optimization
@@ -128,7 +152,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' https://fonts.gstatic.com data:",
-              "connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com",
+              `connect-src 'self' ${apiOrigin} ${apiWsOrigin} https://www.google-analytics.com https://www.googletagmanager.com`,
               "frame-src 'self' https://www.google.com",
             ].join('; '),
           },

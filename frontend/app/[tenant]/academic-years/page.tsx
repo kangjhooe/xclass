@@ -5,6 +5,9 @@ import TenantLayout from '@/components/layouts/TenantLayout';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { academicYearsApi, AcademicYear, AcademicYearCreateData, SemesterType } from '@/lib/api/academic-years';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -311,93 +314,75 @@ export default function AcademicYearsPage() {
           title={selectedAcademicYear ? 'Edit Tahun Pelajaran' : 'Tambah Tahun Pelajaran'}
           size="lg"
         >
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nama Tahun Pelajaran <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Contoh: 2024/2025"
+              <Input
+                type="text"
+                label="Nama Tahun Pelajaran"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Contoh: 2024/2025"
+                required
+                helperText="Masukkan nama tahun pelajaran, contoh: 2024/2025"
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  type="date"
+                  label="Tanggal Mulai"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   required
+                  helperText="Tanggal dimulainya tahun pelajaran"
+                />
+
+                <Input
+                  type="date"
+                  label="Tanggal Selesai"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  required
+                  helperText="Tanggal berakhirnya tahun pelajaran"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tanggal Mulai <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select
+                  label="Status"
+                  value={formData.isActive ? 'true' : 'false'}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
+                  options={[
+                    { value: 'false', label: 'Tidak Aktif' },
+                    { value: 'true', label: 'Aktif' }
+                  ]}
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tanggal Selesai <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={formData.isActive ? 'true' : 'false'}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="false">Tidak Aktif</option>
-                    <option value="true">Aktif</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Semester</label>
-                  <select
-                    value={formData.currentSemesterType || 'ganjil'}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      currentSemesterType: e.target.value as SemesterType,
-                      currentSemester: e.target.value === 'ganjil' ? 1 : 2
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="ganjil">Ganjil</option>
-                    <option value="genap">Genap</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Deskripsi tahun pelajaran (opsional)"
+                <Select
+                  label="Semester"
+                  value={formData.currentSemesterType || 'ganjil'}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    currentSemesterType: e.target.value as SemesterType,
+                    currentSemester: e.target.value === 'ganjil' ? 1 : 2
+                  })}
+                  options={[
+                    { value: 'ganjil', label: 'Ganjil' },
+                    { value: 'genap', label: 'Genap' }
+                  ]}
                 />
               </div>
+
+              <Textarea
+                label="Deskripsi"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                placeholder="Deskripsi tahun pelajaran (opsional)"
+                helperText="Tambahkan catatan atau deskripsi tambahan untuk tahun pelajaran ini"
+              />
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4">
+            <div className="flex justify-end space-x-2 pt-4 border-t">
               <Button
                 type="button"
                 variant="secondary"

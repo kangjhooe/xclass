@@ -92,7 +92,8 @@ export class AddCafeteriaOutlets1740000000000 implements MigrationInterface {
       true,
     );
 
-    await queryRunner.addColumn(
+    await this.addColumnIfMissing(
+      queryRunner,
       'cafeteria_menus',
       new TableColumn({
         name: 'canteen_id',
@@ -101,7 +102,8 @@ export class AddCafeteriaOutlets1740000000000 implements MigrationInterface {
       }),
     );
 
-    await queryRunner.addColumn(
+    await this.addColumnIfMissing(
+      queryRunner,
       'cafeteria_orders',
       new TableColumn({
         name: 'canteen_id',
@@ -110,11 +112,13 @@ export class AddCafeteriaOutlets1740000000000 implements MigrationInterface {
       }),
     );
 
-    await queryRunner.createForeignKey(
+    await this.createForeignKeySafely(
+      queryRunner,
       'cafeteria_menus',
       this.menuForeignKey,
     );
-    await queryRunner.createForeignKey(
+    await this.createForeignKeySafely(
+      queryRunner,
       'cafeteria_orders',
       this.orderForeignKey,
     );
@@ -128,6 +132,38 @@ export class AddCafeteriaOutlets1740000000000 implements MigrationInterface {
     await queryRunner.dropColumn('cafeteria_menus', 'canteen_id');
 
     await queryRunner.dropTable('cafeteria_outlets');
+  }
+
+  private async addColumnIfMissing(
+    queryRunner: QueryRunner,
+    tableName: string,
+    column: TableColumn,
+  ): Promise<void> {
+    const hasColumn = await queryRunner.hasColumn(tableName, column.name);
+    if (!hasColumn) {
+      await queryRunner.addColumn(tableName, column);
+    }
+  }
+
+  private async createForeignKeySafely(
+    queryRunner: QueryRunner,
+    tableName: string,
+    foreignKey: TableForeignKey,
+  ): Promise<void> {
+    try {
+      await queryRunner.createForeignKey(tableName, foreignKey);
+    } catch (error: any) {
+      const message = error?.message ?? '';
+      if (
+        error?.code === 'ER_CANT_CREATE_TABLE' ||
+        error?.code === 'ER_DUP_KEYNAME' ||
+        message.includes('Duplicate key') ||
+        message.includes('errno: 121')
+      ) {
+        return;
+      }
+      throw error;
+    }
   }
 }
 

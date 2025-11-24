@@ -44,6 +44,14 @@ const formatCurrencyIdr = (value?: number | string | null) => {
   }).format(numeric);
 };
 
+const TRAINING_FIELD_CONFIGS = [
+  { participationKey: 'trainingParticipation1', yearKey: 'trainingYear1', label: 'Pelatihan (1)' },
+  { participationKey: 'trainingParticipation2', yearKey: 'trainingYear2', label: 'Pelatihan (2)' },
+  { participationKey: 'trainingParticipation3', yearKey: 'trainingYear3', label: 'Pelatihan (3)' },
+  { participationKey: 'trainingParticipation4', yearKey: 'trainingYear4', label: 'Pelatihan (4)' },
+  { participationKey: 'trainingParticipation5', yearKey: 'trainingYear5', label: 'Pelatihan (5)' },
+] as const;
+
 // Subject Assignment Form Component
 function SubjectAssignmentForm({
   teacher,
@@ -161,6 +169,7 @@ export default function TeachersPage() {
     education: '',
     specialization: '',
     isActive: true,
+    isMainTenant: false,
     positionId: undefined,
     // Data Pribadi Tambahan
     pageId: '',
@@ -451,6 +460,7 @@ export default function TeachersPage() {
       education: '',
       specialization: '',
       isActive: true,
+    isMainTenant: false,
       positionId: undefined,
       // Data Pribadi Tambahan
       pageId: '',
@@ -561,6 +571,7 @@ export default function TeachersPage() {
       education: teacher.education || '',
       specialization: teacher.specialization || '',
       isActive: teacher.isActive ?? true,
+      isMainTenant: teacher.isMainTenant ?? false,
       positionId: teacher.positionId,
       // Data Pribadi Tambahan
       pageId: teacher.pageId || '',
@@ -1324,6 +1335,39 @@ export default function TeachersPage() {
                       </div>
 
                       <div className="col-span-2">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Data Pribadi Tambahan</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Page ID</label>
+                            <input
+                              type="text"
+                              value={formData.pageId}
+                              onChange={(e) => setFormData({ ...formData, pageId: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">NPK</label>
+                            <input
+                              type="text"
+                              value={formData.npk}
+                              onChange={(e) => setFormData({ ...formData, npk: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Ibu Kandung</label>
+                            <input
+                              type="text"
+                              value={formData.motherName}
+                              onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
                         <textarea
                           value={formData.address}
@@ -1508,6 +1552,57 @@ export default function TeachersPage() {
                           </div>
                         </div>
                       </div>
+
+                  <div className="col-span-2">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Informasi Satminkal & Inpassing</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Satminkal</label>
+                        <input
+                          type="text"
+                          value={formData.satminkalType}
+                          onChange={(e) => setFormData({ ...formData, satminkalType: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">NPSN Satminkal</label>
+                        <input
+                          type="text"
+                          value={formData.satminkalNpsn}
+                          onChange={(e) => setFormData({ ...formData, satminkalNpsn: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Identitas Satminkal</label>
+                        <input
+                          type="text"
+                          value={formData.satminkalIdentity}
+                          onChange={(e) => setFormData({ ...formData, satminkalIdentity: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status Inpassing</label>
+                        <input
+                          type="text"
+                          value={formData.inpassingStatus}
+                          onChange={(e) => setFormData({ ...formData, inpassingStatus: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">TMT Inpassing</label>
+                        <input
+                          type="date"
+                          value={formData.tmtInpassing}
+                          onChange={(e) => setFormData({ ...formData, tmtInpassing: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                       <div className="col-span-2">
                         <p className="text-sm font-semibold text-gray-700 mb-2">Tugas dan Mengajar</p>
@@ -1870,6 +1965,212 @@ export default function TeachersPage() {
                     </div>
                   </div>
 
+                  <div className="col-span-2">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Penghargaan & Pelatihan</p>
+                    <div className="space-y-4 border border-dashed border-gray-200 rounded-xl p-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Pernah menerima penghargaan?</label>
+                        <div className="flex items-center space-x-4">
+                          <label className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              className="h-4 w-4 text-blue-600 border-gray-300"
+                              checked={formData.hasReceivedAward === true}
+                              onChange={() => setFormData({ ...formData, hasReceivedAward: true })}
+                            />
+                            <span className="ml-2 text-sm text-gray-700">Ya</span>
+                          </label>
+                          <label className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              className="h-4 w-4 text-blue-600 border-gray-300"
+                              checked={formData.hasReceivedAward === false}
+                              onChange={() =>
+                                setFormData({
+                                  ...formData,
+                                  hasReceivedAward: false,
+                                  highestAward: '',
+                                  awardField: '',
+                                  awardLevel: '',
+                                  awardYear: undefined,
+                                })
+                              }
+                            />
+                            <span className="ml-2 text-sm text-gray-700">Tidak</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {formData.hasReceivedAward && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Penghargaan Tertinggi</label>
+                            <input
+                              type="text"
+                              value={formData.highestAward}
+                              onChange={(e) => setFormData({ ...formData, highestAward: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Bidang Penghargaan</label>
+                            <input
+                              type="text"
+                              value={formData.awardField}
+                              onChange={(e) => setFormData({ ...formData, awardField: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tingkat Penghargaan</label>
+                            <input
+                              type="text"
+                              value={formData.awardLevel}
+                              onChange={(e) => setFormData({ ...formData, awardLevel: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Penghargaan</label>
+                            <input
+                              type="number"
+                              value={formData.awardYear ?? ''}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  awardYear: e.target.value ? Number(e.target.value) : undefined,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Pelatihan Peningkatan Kompetensi (khusus kepala madrasah)</label>
+                        <textarea
+                          value={formData.competencyTraining}
+                          onChange={(e) => setFormData({ ...formData, competencyTraining: e.target.value })}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium text-gray-700">Riwayat Keikutsertaan Pelatihan</p>
+                        {TRAINING_FIELD_CONFIGS.map(({ participationKey, yearKey, label }) => (
+                          <div key={participationKey} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                              <input
+                                type="text"
+                                value={(formData as Record<string, any>)[participationKey] || ''}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    [participationKey]: e.target.value,
+                                  } as TeacherCreateData)
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Pelatihan</label>
+                              <input
+                                type="number"
+                                value={(formData as Record<string, any>)[yearKey] ?? ''}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    [yearKey]: e.target.value ? Number(e.target.value) : undefined,
+                                  } as TeacherCreateData)
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-span-2">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Kompetensi Kepala Madrasah (Opsional)</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Kompetensi Kepribadian</label>
+                        <input
+                          type="number"
+                          value={formData.personalityCompetency ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              personalityCompetency: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Kompetensi Manajerial</label>
+                        <input
+                          type="number"
+                          value={formData.managerialCompetency ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              managerialCompetency: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Kompetensi Kewirausahaan</label>
+                        <input
+                          type="number"
+                          value={formData.entrepreneurshipCompetency ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              entrepreneurshipCompetency: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Kompetensi Supervisi</label>
+                        <input
+                          type="number"
+                          value={formData.supervisionCompetency ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              supervisionCompetency: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Kompetensi Sosial</label>
+                        <input
+                          type="number"
+                          value={formData.socialCompetency ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              socialCompetency: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Jabatan</label>
                         <select
@@ -1903,6 +2204,29 @@ export default function TeachersPage() {
                           <option value="active">Aktif</option>
                           <option value="inactive">Tidak Aktif</option>
                         </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Jenis Tenant</label>
+                        <div className="flex items-center space-x-4">
+                          <label className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              className="h-4 w-4 text-blue-600 border-gray-300"
+                              checked={formData.isMainTenant === true}
+                              onChange={() => setFormData({ ...formData, isMainTenant: true })}
+                            />
+                            <span className="ml-2 text-sm text-gray-700">Tenant Induk</span>
+                          </label>
+                          <label className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              className="h-4 w-4 text-blue-600 border-gray-300"
+                              checked={formData.isMainTenant === false}
+                              onChange={() => setFormData({ ...formData, isMainTenant: false })}
+                            />
+                            <span className="ml-2 text-sm text-gray-700">Tenant Cabang</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
 
@@ -1961,6 +2285,7 @@ export default function TeachersPage() {
                           <DetailField label="NUPTK" value={selectedTeacher.nuptk} />
                           <DetailField label="Page ID" value={selectedTeacher.pageId} />
                           <DetailField label="NPK" value={selectedTeacher.npk} />
+                          <DetailField label="Jenis Tenant" value={selectedTeacher.isMainTenant ? 'Tenant Induk' : 'Tenant Cabang'} />
                           <DetailField label="NIK / No. KTP" value={selectedTeacher.nik} />
                           <DetailField label="Tempat Lahir" value={selectedTeacher.birthPlace} />
                           <DetailField label="Tanggal Lahir (dd/mm/yyyy)" value={formatDate(selectedTeacher.birthDate)} />

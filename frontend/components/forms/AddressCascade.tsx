@@ -4,6 +4,45 @@ import { useState, useEffect, useCallback } from 'react';
 import { wilayahIndonesiaApi, Province, Regency, District, Village } from '@/lib/api/wilayah-indonesia';
 import { Select } from '@/components/ui/Select';
 
+const normalizeName = (value?: string) => {
+  if (!value) return '';
+  return value
+    .toString()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const stripAdministrativePrefix = (value: string) =>
+  value.replace(
+    /^(provinsi|prov|kabupaten|kab|kota administrasi|kota|kecamatan|kec|kelurahan|kel|desa)\s+/,
+    '',
+  ).trim();
+
+const matchLocationByName = <T extends { name: string; code: string }>(
+  items: T[],
+  targetName?: string,
+): T | undefined => {
+  if (!targetName) return undefined;
+  const normalizedTarget = normalizeName(targetName);
+  if (!normalizedTarget) return undefined;
+
+  const directMatch = items.find((item) => normalizeName(item.name) === normalizedTarget);
+  if (directMatch) return directMatch;
+
+  const strippedTarget = stripAdministrativePrefix(normalizedTarget);
+  if (!strippedTarget) return undefined;
+
+  const fallbackCandidates = items.filter(
+    (item) => stripAdministrativePrefix(normalizeName(item.name)) === strippedTarget,
+  );
+
+  return fallbackCandidates.length === 1 ? fallbackCandidates[0] : undefined;
+};
+
 export interface AddressCascadeProps {
   provinceName?: string;
   regencyName?: string;
@@ -63,11 +102,15 @@ export function AddressCascade({
         const data = await wilayahIndonesiaApi.getProvinces();
         setProvinces(data);
         // Find matching code from name if provided
-        if (provinceName && data.length > 0) {
-          const matched = data.find((p) => p.name === provinceName);
-          if (matched) {
-            setSelectedProvinceCode(matched.code);
+        if (data.length > 0) {
+          if (provinceName) {
+            const matched = matchLocationByName(data, provinceName);
+            setSelectedProvinceCode(matched ? matched.code : '');
+          } else {
+            setSelectedProvinceCode('');
           }
+        } else {
+          setSelectedProvinceCode('');
         }
       } catch (error) {
         console.error('Failed to load provinces:', error);
@@ -92,11 +135,15 @@ export function AddressCascade({
         const data = await wilayahIndonesiaApi.getRegencies(selectedProvinceCode);
         setRegencies(data);
         // Find matching code from name if provided
-        if (regencyName && data.length > 0) {
-          const matched = data.find((r) => r.name === regencyName);
-          if (matched) {
-            setSelectedRegencyCode(matched.code);
+        if (data.length > 0) {
+          if (regencyName) {
+            const matched = matchLocationByName(data, regencyName);
+            setSelectedRegencyCode(matched ? matched.code : '');
+          } else {
+            setSelectedRegencyCode('');
           }
+        } else {
+          setSelectedRegencyCode('');
         }
         // Reset child selections if province changes and no match found
         if (!regencyName) {
@@ -128,11 +175,15 @@ export function AddressCascade({
         const data = await wilayahIndonesiaApi.getDistricts(selectedRegencyCode);
         setDistricts(data);
         // Find matching code from name if provided
-        if (districtName && data.length > 0) {
-          const matched = data.find((d) => d.name === districtName);
-          if (matched) {
-            setSelectedDistrictCode(matched.code);
+        if (data.length > 0) {
+          if (districtName) {
+            const matched = matchLocationByName(data, districtName);
+            setSelectedDistrictCode(matched ? matched.code : '');
+          } else {
+            setSelectedDistrictCode('');
           }
+        } else {
+          setSelectedDistrictCode('');
         }
         // Reset child selections if regency changes and no match found
         if (!districtName) {
@@ -161,11 +212,15 @@ export function AddressCascade({
         const data = await wilayahIndonesiaApi.getVillages(selectedDistrictCode);
         setVillages(data);
         // Find matching code from name if provided
-        if (villageName && data.length > 0) {
-          const matched = data.find((v) => v.name === villageName);
-          if (matched) {
-            setSelectedVillageCode(matched.code);
+        if (data.length > 0) {
+          if (villageName) {
+            const matched = matchLocationByName(data, villageName);
+            setSelectedVillageCode(matched ? matched.code : '');
+          } else {
+            setSelectedVillageCode('');
           }
+        } else {
+          setSelectedVillageCode('');
         }
         // Reset village selection if district changes and no match found
         if (!villageName && onVillageChange) {

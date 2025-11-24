@@ -22,7 +22,7 @@ export class Regency {
 
   @ManyToOne(() => Province, (province) => province.regencies)
   @JoinColumn({ name: 'provinceCode' })
-  province: Province;
+  province?: Province;
 
   @OneToMany(() => District, (district) => district.regency)
   districts: District[];

@@ -20,6 +20,6 @@ export class Village {
 
   @ManyToOne(() => District, (district) => district.villages)
   @JoinColumn({ name: 'districtCode' })
-  district: District;
+  district?: District;
 }
 

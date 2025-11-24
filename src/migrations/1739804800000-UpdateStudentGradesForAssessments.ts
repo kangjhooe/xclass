@@ -6,8 +6,10 @@ export class UpdateStudentGradesForAssessments1739804800000
   private readonly tableName = 'student_grades';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.addColumn(
-      this.tableName,
+    const hadAssignmentType = await queryRunner.hasColumn(this.tableName, 'assignment_type');
+
+    await this.addColumnIfMissing(
+      queryRunner,
       new TableColumn({
         name: 'assessment_type',
         type: 'enum',
@@ -16,8 +18,8 @@ export class UpdateStudentGradesForAssessments1739804800000
       }),
     );
 
-    await queryRunner.addColumn(
-      this.tableName,
+    await this.addColumnIfMissing(
+      queryRunner,
       new TableColumn({
         name: 'custom_assessment_label',
         type: 'varchar',
@@ -26,8 +28,8 @@ export class UpdateStudentGradesForAssessments1739804800000
       }),
     );
 
-    await queryRunner.addColumn(
-      this.tableName,
+    await this.addColumnIfMissing(
+      queryRunner,
       new TableColumn({
         name: 'weight',
         type: 'decimal',
@@ -37,8 +39,8 @@ export class UpdateStudentGradesForAssessments1739804800000
       }),
     );
 
-    await queryRunner.addColumn(
-      this.tableName,
+    await this.addColumnIfMissing(
+      queryRunner,
       new TableColumn({
         name: 'competency_id',
         type: 'int',
@@ -46,8 +48,8 @@ export class UpdateStudentGradesForAssessments1739804800000
       }),
     );
 
-    await queryRunner.addColumn(
-      this.tableName,
+    await this.addColumnIfMissing(
+      queryRunner,
       new TableColumn({
         name: 'learning_outcome',
         type: 'text',
@@ -55,34 +57,32 @@ export class UpdateStudentGradesForAssessments1739804800000
       }),
     );
 
-    // Migrasi data assignment_type yang lama ke assessment_type baru
-    await queryRunner.query(`
-      UPDATE ${this.tableName}
-      SET
-        assessment_type = CASE
-          WHEN LOWER(COALESCE(assignment_type, '')) IN ('nh', 'uh', 'ulangan harian', 'harian', 'daily', 'daily test') THEN 'NH'
-          WHEN LOWER(COALESCE(assignment_type, '')) IN ('pts', 'uts', 'midterm', 'tengah semester', 'penilaian tengah semester') THEN 'PTS'
-          WHEN LOWER(COALESCE(assignment_type, '')) IN ('pas', 'uas', 'final', 'akhir semester', 'penilaian akhir semester') THEN 'PAS'
-          WHEN LOWER(COALESCE(assignment_type, '')) IN ('project', 'projek', 'praktek', 'praktik', 'project based') THEN 'PROJECT'
-          WHEN assignment_type IS NULL OR assignment_type = '' THEN assessment_type
-          ELSE 'OTHER'
-        END,
-        custom_assessment_label = CASE
-          WHEN LOWER(COALESCE(assignment_type, '')) IN (
-            'nh', 'uh', 'ulangan harian', 'harian', 'daily', 'daily test',
-            'pts', 'uts', 'midterm', 'tengah semester', 'penilaian tengah semester',
-            'pas', 'uas', 'final', 'akhir semester', 'penilaian akhir semester',
-            'project', 'projek', 'praktek', 'praktik', 'project based'
-          )
-          OR assignment_type IS NULL OR assignment_type = ''
-          THEN NULL
-          ELSE assignment_type
-        END
-    `);
+    if (hadAssignmentType) {
+      // Migrasi data assignment_type yang lama ke assessment_type baru
+      await queryRunner.query(`
+        UPDATE ${this.tableName}
+        SET
+          assessment_type = CASE
+            WHEN LOWER(COALESCE(assignment_type, '')) IN ('nh', 'uh', 'ulangan harian', 'harian', 'daily', 'daily test') THEN 'NH'
+            WHEN LOWER(COALESCE(assignment_type, '')) IN ('pts', 'uts', 'midterm', 'tengah semester', 'penilaian tengah semester') THEN 'PTS'
+            WHEN LOWER(COALESCE(assignment_type, '')) IN ('pas', 'uas', 'final', 'akhir semester', 'penilaian akhir semester') THEN 'PAS'
+            WHEN LOWER(COALESCE(assignment_type, '')) IN ('project', 'projek', 'praktek', 'praktik', 'project based') THEN 'PROJECT'
+            WHEN assignment_type IS NULL OR assignment_type = '' THEN assessment_type
+            ELSE 'OTHER'
+          END,
+          custom_assessment_label = CASE
+            WHEN LOWER(COALESCE(assignment_type, '')) IN (
+              'nh', 'uh', 'ulangan harian', 'harian', 'daily', 'daily test',
+              'pts', 'uts', 'midterm', 'tengah semester', 'penilaian tengah semester',
+              'pas', 'uas', 'final', 'akhir semester', 'penilaian akhir semester',
+              'project', 'projek', 'praktek', 'praktik', 'project based'
+            )
+            OR assignment_type IS NULL OR assignment_type = ''
+            THEN NULL
+            ELSE assignment_type
+          END
+      `);
 
-    // Hapus kolom lama assignment_type
-    const hasAssignmentType = await queryRunner.hasColumn(this.tableName, 'assignment_type');
-    if (hasAssignmentType) {
       await queryRunner.dropColumn(this.tableName, 'assignment_type');
     }
   }
@@ -115,6 +115,13 @@ export class UpdateStudentGradesForAssessments1739804800000
     await queryRunner.dropColumn(this.tableName, 'weight');
     await queryRunner.dropColumn(this.tableName, 'custom_assessment_label');
     await queryRunner.dropColumn(this.tableName, 'assessment_type');
+  }
+
+  private async addColumnIfMissing(queryRunner: QueryRunner, column: TableColumn): Promise<void> {
+    const hasColumn = await queryRunner.hasColumn(this.tableName, column.name);
+    if (!hasColumn) {
+      await queryRunner.addColumn(this.tableName, column);
+    }
   }
 }
 

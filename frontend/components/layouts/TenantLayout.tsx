@@ -242,7 +242,7 @@ export default function TenantLayout({ children }: TenantLayoutProps) {
         label: 'Pengaturan',
         icon: Cog,
         children: [
-          { label: 'Profil Instansi', href: `/${tenantNpsn}/settings`, icon: Building },
+          { label: 'Profil Instansi', href: `/${tenantNpsn}/data-pokok`, icon: Building },
           { label: 'Perubahan NPSN', href: `/${tenantNpsn}/settings/npsn-change`, icon: RefreshCw },
           { label: 'Akses Super Admin', href: `/${tenantNpsn}/settings/admin-access`, icon: ShieldCheck },
         ],
@@ -356,12 +356,6 @@ export default function TenantLayout({ children }: TenantLayoutProps) {
 
               return (
                 <div key={`${item.label}-${index}`} className="mb-1">
-                  {item.section && sidebarOpen && (
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-6 mb-2">
-                      {item.section}
-                    </p>
-                  )}
-
                   {item.href ? (
                     <Link
                       href={item.href}

@@ -30,7 +30,7 @@ async function createSuperAdmin() {
 
     // Create super admin user
     await connection.execute(
-      `INSERT INTO users (name, email, password, role, is_active, created_at, updated_at) 
+      `INSERT INTO users (name, email, password, role, isActive, createdAt, updatedAt) 
        VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
       ['Super Admin', 'admin@class.app', hashedPassword, 'super_admin', true]
     );

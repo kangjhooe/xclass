@@ -4,6 +4,21 @@ import { useAuthStore } from '@/lib/store/auth';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import {
+  LayoutDashboard,
+  Building2,
+  RefreshCw,
+  Users,
+  Settings,
+  Database,
+  Wrench,
+  CreditCard,
+  Megaphone,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -12,7 +27,7 @@ interface AdminLayoutProps {
 interface MenuItem {
   label: string;
   href: string;
-  icon?: string;
+  icon?: LucideIcon;
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -35,47 +50,47 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       label: 'Dashboard',
       href: '/admin/dashboard',
-      icon: '📊',
+      icon: LayoutDashboard,
     },
     {
       label: 'Tenants',
       href: '/admin/tenants',
-      icon: '🏢',
+      icon: Building2,
     },
     {
       label: 'NPSN Change Requests',
       href: '/admin/npsn-change-requests',
-      icon: '🔄',
+      icon: RefreshCw,
     },
     {
       label: 'Users',
       href: '/admin/users',
-      icon: '👥',
+      icon: Users,
     },
     {
       label: 'System Settings',
       href: '/admin/system-settings',
-      icon: '⚙️',
+      icon: Settings,
     },
     {
       label: 'Backup & Recovery',
       href: '/admin/backup',
-      icon: '💾',
+      icon: Database,
     },
     {
       label: 'Tenant Features',
       href: '/admin/tenant-features',
-      icon: '🔧',
+      icon: Wrench,
     },
     {
       label: 'Subscription',
       href: '/admin/subscription',
-      icon: '💳',
+      icon: CreditCard,
     },
     {
       label: 'Pengumuman',
       href: '/admin/announcements',
-      icon: '📢',
+      icon: Megaphone,
     },
   ];
 
@@ -100,28 +115,42 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             )}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             >
-              {sidebarOpen ? '←' : '→'}
+              {sidebarOpen ? (
+                <ChevronLeft className="h-5 w-5 text-gray-600" />
+              ) : (
+                <ChevronRight className="h-5 w-5 text-gray-600" />
+              )}
             </button>
           </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          {menuItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive(item.href)
-                  ? 'bg-blue-50 text-blue-600 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {item.icon && <span className="text-xl">{item.icon}</span>}
-              {sidebarOpen && <span>{item.label}</span>}
-            </Link>
-          ))}
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  isActive(item.href)
+                    ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                {Icon && (
+                  <Icon
+                    className={`h-5 w-5 flex-shrink-0 ${
+                      isActive(item.href) ? 'text-blue-600' : 'text-gray-500'
+                    }`}
+                  />
+                )}
+                {sidebarOpen && <span className="truncate">{item.label}</span>}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t">
@@ -137,10 +166,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     logout();
                     router.push('/login');
                   }}
-                  className="p-2 rounded-lg hover:bg-gray-100 text-red-600"
+                  className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
                   title="Keluar"
+                  aria-label="Logout"
                 >
-                  🚪
+                  <LogOut className="h-5 w-5" />
                 </button>
               </>
             )}

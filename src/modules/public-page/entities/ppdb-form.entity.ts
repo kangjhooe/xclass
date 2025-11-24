@@ -18,8 +18,8 @@ export enum PPDBFormStatus {
 @Entity('ppdb_forms')
 @Index(['instansiId', 'status'])
 @Index(['instansiId', 'createdAt'])
-@Index(['email'])
-@Index(['phone'])
+@Index(['parentEmail'])
+@Index(['parentPhone'])
 export class PPDBForm {
   @PrimaryGeneratedColumn()
   id: number;
