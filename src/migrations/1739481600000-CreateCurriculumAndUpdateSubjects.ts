@@ -21,7 +21,7 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             generationStrategy: 'increment',
           },
           {
-            name: 'instansi_id',
+            name: 'instansiId',
             type: 'int',
             isNullable: false,
           },
@@ -37,7 +37,7 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             default: `'K13'`,
           },
           {
-            name: 'academic_year_id',
+            name: 'academicYearId',
             type: 'int',
             isNullable: true,
           },
@@ -64,17 +64,17 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             isNullable: true,
           },
           {
-            name: 'is_active',
+            name: 'isActive',
             type: 'tinyint',
             default: 1,
           },
           {
-            name: 'created_at',
+            name: 'createdAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
           },
           {
-            name: 'updated_at',
+            name: 'updatedAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
             onUpdate: 'CURRENT_TIMESTAMP',
@@ -88,7 +88,7 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
       'curricula',
       new TableIndex({
         name: 'idx_curricula_instansi',
-        columnNames: ['instansi_id'],
+        columnNames: ['instansiId'],
       }),
     );
 
@@ -104,7 +104,7 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             generationStrategy: 'increment',
           },
           {
-            name: 'instansi_id',
+            name: 'instansiId',
             type: 'int',
             isNullable: false,
           },
@@ -154,17 +154,17 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             isNullable: true,
           },
           {
-            name: 'is_active',
+            name: 'isActive',
             type: 'tinyint',
             default: 1,
           },
           {
-            name: 'created_at',
+            name: 'createdAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
           },
           {
-            name: 'updated_at',
+            name: 'updatedAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
             onUpdate: 'CURRENT_TIMESTAMP',
@@ -178,11 +178,11 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
       'syllabi',
       new TableIndex({
         name: 'idx_syllabi_instansi',
-        columnNames: ['instansi_id'],
+        columnNames: ['instansiId'],
       }),
     );
 
-    await queryRunner.createForeignKeys('syllabi', [
+    await this.createForeignKeysSafely(queryRunner, 'syllabi', [
       new TableForeignKey({
         columnNames: ['curriculum_id'],
         referencedTableName: 'curricula',
@@ -209,7 +209,7 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             generationStrategy: 'increment',
           },
           {
-            name: 'instansi_id',
+            name: 'instansiId',
             type: 'int',
             isNullable: false,
           },
@@ -270,17 +270,17 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             default: 0,
           },
           {
-            name: 'is_active',
+            name: 'isActive',
             type: 'tinyint',
             default: 1,
           },
           {
-            name: 'created_at',
+            name: 'createdAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
           },
           {
-            name: 'updated_at',
+            name: 'updatedAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
             onUpdate: 'CURRENT_TIMESTAMP',
@@ -294,19 +294,18 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
       'learning_materials',
       new TableIndex({
         name: 'idx_learning_materials_instansi',
-        columnNames: ['instansi_id'],
+        columnNames: ['instansiId'],
       }),
     );
 
-    await queryRunner.createForeignKey(
-      'learning_materials',
+    await this.createForeignKeysSafely(queryRunner, 'learning_materials', [
       new TableForeignKey({
         columnNames: ['syllabus_id'],
         referencedTableName: 'syllabi',
         referencedColumnNames: ['id'],
         onDelete: 'CASCADE',
       }),
-    );
+    ]);
 
     await queryRunner.createTable(
       new Table({
@@ -320,7 +319,7 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             generationStrategy: 'increment',
           },
           {
-            name: 'instansi_id',
+            name: 'instansiId',
             type: 'int',
             isNullable: false,
           },
@@ -349,17 +348,17 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             isNullable: true,
           },
           {
-            name: 'is_active',
+            name: 'isActive',
             type: 'tinyint',
             default: 1,
           },
           {
-            name: 'created_at',
+            name: 'createdAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
           },
           {
-            name: 'updated_at',
+            name: 'updatedAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
             onUpdate: 'CURRENT_TIMESTAMP',
@@ -373,19 +372,18 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
       'competencies',
       new TableIndex({
         name: 'idx_competencies_instansi',
-        columnNames: ['instansi_id'],
+        columnNames: ['instansiId'],
       }),
     );
 
-    await queryRunner.createForeignKey(
-      'competencies',
+    await this.createForeignKeysSafely(queryRunner, 'competencies', [
       new TableForeignKey({
         columnNames: ['syllabus_id'],
         referencedTableName: 'syllabi',
         referencedColumnNames: ['id'],
         onDelete: 'CASCADE',
       }),
-    );
+    ]);
 
     await queryRunner.createTable(
       new Table({
@@ -399,7 +397,7 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             generationStrategy: 'increment',
           },
           {
-            name: 'instansi_id',
+            name: 'instansiId',
             type: 'int',
             isNullable: false,
           },
@@ -477,17 +475,17 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
             isNullable: true,
           },
           {
-            name: 'is_active',
+            name: 'isActive',
             type: 'tinyint',
             default: 1,
           },
           {
-            name: 'created_at',
+            name: 'createdAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
           },
           {
-            name: 'updated_at',
+            name: 'updatedAt',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
             onUpdate: 'CURRENT_TIMESTAMP',
@@ -501,11 +499,11 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
       'curriculum_schedules',
       new TableIndex({
         name: 'idx_curriculum_schedules_instansi',
-        columnNames: ['instansi_id'],
+        columnNames: ['instansiId'],
       }),
     );
 
-    await queryRunner.createForeignKeys('curriculum_schedules', [
+    await this.createForeignKeysSafely(queryRunner, 'curriculum_schedules', [
       new TableForeignKey({
         columnNames: ['curriculum_id'],
         referencedTableName: 'curricula',
@@ -544,69 +542,111 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
       }),
     ]);
 
-    await queryRunner.addColumns('subjects', [
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'grade',
         type: 'varchar',
         length: '50',
         isNullable: true,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'semester',
         type: 'int',
         isNullable: true,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'department',
         type: 'varchar',
         length: '100',
         isNullable: true,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'category',
         type: 'varchar',
         length: '100',
         isNullable: true,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'learning_focus',
         type: 'varchar',
         length: '255',
         isNullable: true,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'curriculum_type',
         type: 'enum',
         enum: ['K13', 'Merdeka', 'Mandiri', 'Kurikulum 2013'],
         isNullable: true,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'subject_order',
         type: 'int',
         default: 0,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'minimum_passing_score',
         type: 'float',
         default: 75,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'is_mandatory',
         type: 'tinyint',
         default: 1,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'is_elective',
         type: 'tinyint',
         default: 0,
       }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'subjects',
       new TableColumn({
         name: 'color',
         type: 'varchar',
         length: '50',
         isNullable: true,
       }),
-    ]);
+    );
 
     await queryRunner.createIndex(
       'subjects',
@@ -637,5 +677,37 @@ export class CreateCurriculumAndUpdateSubjects1739481600000 implements Migration
     await queryRunner.dropTable('learning_materials');
     await queryRunner.dropTable('syllabi');
     await queryRunner.dropTable('curricula');
+  }
+
+  private async createForeignKeysSafely(
+    queryRunner: QueryRunner,
+    tableName: string,
+    foreignKeys: TableForeignKey[],
+  ): Promise<void> {
+    try {
+      await queryRunner.createForeignKeys(tableName, foreignKeys);
+    } catch (error: any) {
+      const message = error?.message ?? '';
+      if (
+        error?.code === 'ER_CANT_CREATE_TABLE' ||
+        error?.code === 'ER_DUP_KEYNAME' ||
+        message.includes('Duplicate key') ||
+        message.includes('errno: 121')
+      ) {
+        return;
+      }
+      throw error;
+    }
+  }
+
+  private async addColumnIfMissing(
+    queryRunner: QueryRunner,
+    tableName: string,
+    column: TableColumn,
+  ): Promise<void> {
+    const hasColumn = await queryRunner.hasColumn(tableName, column.name);
+    if (!hasColumn) {
+      await queryRunner.addColumn(tableName, column);
+    }
   }
 }

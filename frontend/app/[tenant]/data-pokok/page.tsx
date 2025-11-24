@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import TenantLayout from '@/components/layouts/TenantLayout';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -13,12 +13,24 @@ import {
   ModuleSection,
 } from '@/components/ui/module';
 import { dataPokokApi, DataPokok, DataPokokCreateData } from '@/lib/api/data-pokok';
+import { academicYearsApi } from '@/lib/api/academic-years';
 import { cn } from '@/lib/utils/cn';
 import { useToastStore } from '@/lib/store/toast';
 import { formatDate } from '@/lib/utils/date';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTenantId } from '@/lib/hooks/useTenant';
 import { AddressCascade } from '@/components/forms/AddressCascade';
+import {
+  Building2,
+  GraduationCap,
+  MapPin,
+  Medal,
+  CalendarCheck,
+  Phone,
+  Mail,
+  Globe,
+  Layers,
+} from 'lucide-react';
 
 export default function DataPokokPage() {
   const tenantId = useTenantId();
@@ -35,11 +47,22 @@ export default function DataPokokPage() {
     enabled: !!tenantId,
   });
 
+  const { data: academicYearsResponse } = useQuery({
+    queryKey: ['academic-years', tenantId],
+    queryFn: () => academicYearsApi.getAll(tenantId!),
+    enabled: !!tenantId,
+  });
+
+  const academicYearOptions = academicYearsResponse?.data ?? [];
+  const activeAcademicYearName = academicYearOptions.find((year) => year.isActive)?.name;
+
   const [formData, setFormData] = useState<DataPokokCreateData>({
     npsn: '',
     name: '',
     type: '',
     jenjang: '',
+    kurikulum: '',
+    tahunPelajaranAktif: '',
     address: '',
     village: '',
     subDistrict: '',
@@ -72,6 +95,8 @@ export default function DataPokokPage() {
         name: data.name || '',
         type: data.type || '',
         jenjang: data.jenjang || '',
+        kurikulum: data.kurikulum || '',
+        tahunPelajaranAktif: data.tahunPelajaranAktif || '',
         address: data.address || '',
         village: data.village || '',
         subDistrict: data.subDistrict || '',
@@ -99,6 +124,22 @@ export default function DataPokokPage() {
       setIsEditMode(true);
     }
   }, [data]);
+
+  useEffect(() => {
+    if (!activeAcademicYearName) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.tahunPelajaranAktif === activeAcademicYearName) {
+        return prev;
+      }
+      return {
+        ...prev,
+        tahunPelajaranAktif: activeAcademicYearName,
+      };
+    });
+  }, [activeAcademicYearName]);
 
   const createMutation = useMutation({
     mutationFn: (data: DataPokokCreateData) => {
@@ -134,23 +175,6 @@ export default function DataPokokPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () => {
-      if (!tenantId) {
-        throw new Error('Tenant ID tidak tersedia.');
-      }
-      return dataPokokApi.delete(tenantId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['data-pokok', tenantId] });
-      setIsEditMode(false);
-      success('Data pokok berhasil dihapus');
-    },
-    onError: () => {
-      showError('Gagal menghapus data pokok');
-    },
-  });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantId) {
@@ -162,17 +186,6 @@ export default function DataPokokPage() {
       updateMutation.mutate(formData);
     } else {
       createMutation.mutate(formData);
-    }
-  };
-
-  const handleDelete = () => {
-    if (!tenantId) {
-      alert('Tenant belum siap. Silakan tunggu beberapa saat dan coba lagi.');
-      return;
-    }
-
-    if (confirm('Apakah Anda yakin ingin menghapus data pokok ini?')) {
-      deleteMutation.mutate();
     }
   };
 
@@ -196,12 +209,7 @@ export default function DataPokokPage() {
           actions={
             <div className="flex items-center gap-2">
               {data ? (
-                <>
-                  <Button variant="danger" onClick={handleDelete} loading={deleteMutation.isPending}>
-                    Hapus Data
-                  </Button>
-                  <Button onClick={() => setIsModalOpen(true)}>Edit Data</Button>
-                </>
+                <Button onClick={() => setIsModalOpen(true)}>Edit Data</Button>
               ) : (
                 <Button onClick={() => setIsModalOpen(true)}>Tambah Data Pokok</Button>
               )}
@@ -212,128 +220,192 @@ export default function DataPokokPage() {
         {isLoading ? (
           <ModuleLoadingState description="Mengambil informasi data pokok terbaru." />
         ) : data ? (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ModuleSection
-              title="Informasi Dasar"
-              description="Detail identitas instansi dan informasi kontak."
-            >
-              <InfoGrid
-                items={[
-                  { label: 'NPSN', value: data.npsn },
-                  { label: 'Nama Instansi', value: data.name, emphasize: true },
-                  {
-                    label: 'Tipe',
-                    value: data.type,
-                    secondaryLabel: 'Jenjang',
-                    secondaryValue: data.jenjang,
-                  },
-                  { label: 'Alamat', value: data.address, fullRow: true },
-                  {
-                    label: 'Desa/Kelurahan',
-                    value: data.village,
-                    secondaryLabel: 'Kecamatan',
-                    secondaryValue: data.subDistrict,
-                  },
-                  {
-                    label: 'Kabupaten/Kota',
-                    value: data.city,
-                    secondaryLabel: 'Provinsi',
-                    secondaryValue: data.province,
-                  },
-                  { label: 'Kode Pos', value: data.postalCode },
-                  {
-                    label: 'Telepon',
-                    value: data.phone,
-                    secondaryLabel: 'Email',
-                    secondaryValue: data.email,
-                  },
-                  { label: 'Website', value: data.website },
-                  {
-                    label: 'Tanggal Berdiri',
-                    value: data.establishedDate ? formatDate(data.establishedDate) : undefined,
-                  },
-                ]}
-              />
-            </ModuleSection>
+          <>
+            <ProfileHero data={data} />
 
-            <ModuleSection
-              title="Informasi Kepala Instansi"
-              description="Data kontak pimpinan untuk koordinasi resmi."
-            >
-              <InfoGrid
-                items={[
-                  { label: 'Nama Kepala', value: data.principalName, emphasize: true },
-                  { label: 'NIP', value: data.principalNip },
-                  {
-                    label: 'Telepon',
-                    value: data.principalPhone,
-                    secondaryLabel: 'Email',
-                    secondaryValue: data.principalEmail,
-                  },
-                ]}
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <InsightCard
+                icon={<Building2 className="h-5 w-5" />}
+                label="Identitas Instansi"
+                value={data.name}
+                hint={data.npsn ? `NPSN ${data.npsn}` : 'NPSN belum tersedia'}
+                accent="from-slate-50 via-white to-slate-50"
               />
-            </ModuleSection>
+              <InsightCard
+                icon={<GraduationCap className="h-5 w-5" />}
+                label="Jenjang & Kurikulum"
+                value={data.jenjang || 'Belum dipilih'}
+                hint={data.kurikulum ? `Kurikulum ${data.kurikulum}` : 'Atur kurikulum untuk melengkapi data'}
+                accent="from-indigo-50 via-white to-sky-50"
+              />
+              <InsightCard
+                icon={<CalendarCheck className="h-5 w-5" />}
+                label="Tahun Pelajaran Aktif"
+                value={data.tahunPelajaranAktif || 'Belum diset'}
+                hint="Gunakan modul Tahun Pelajaran untuk memperbarui"
+                accent="from-cyan-50 via-white to-emerald-50"
+              />
+              <InsightCard
+                icon={<Medal className="h-5 w-5" />}
+                label="Akreditasi"
+                value={data.accreditation || 'Belum ada data'}
+                hint={
+                  data.accreditationDate ? `Berlaku sejak ${formatDate(data.accreditationDate)}` : 'Tanggal akreditasi belum tersedia'
+                }
+                accent="from-amber-50 via-white to-orange-50"
+              />
+            </div>
 
-            <ModuleSection
-              title="Visi & Misi"
-              description="Gambaran arah dan tujuan jangka panjang instansi."
-              className="lg:col-span-2"
-            >
-              <div className="grid gap-6 md:grid-cols-2">
-                <ModuleCard tone="subtle">
-                  <p className="text-sm font-semibold text-slate-600">Visi</p>
-                  <p className="mt-2 text-sm text-slate-800 whitespace-pre-line">{data.vision || '-'}</p>
-                </ModuleCard>
-                <ModuleCard tone="subtle">
-                  <p className="text-sm font-semibold text-slate-600">Misi</p>
-                  <p className="mt-2 text-sm text-slate-800 whitespace-pre-line">{data.mission || '-'}</p>
-                </ModuleCard>
+            <div className="mt-8 space-y-8">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <ModuleSection
+                  title="Informasi Dasar"
+                  description="Detail identitas instansi dan informasi kontak."
+                  className="rounded-3xl border-0 bg-white/90 shadow-xl shadow-slate-900/5 ring-1 ring-slate-100 backdrop-blur"
+                >
+                  <InfoGrid
+                    items={[
+                      { label: 'NPSN', value: data.npsn },
+                      { label: 'Nama Instansi', value: data.name, emphasize: true },
+                      {
+                        label: 'Tipe',
+                        value: data.type,
+                        secondaryLabel: 'Jenjang',
+                        secondaryValue: data.jenjang,
+                      },
+                      {
+                        label: 'Kurikulum',
+                        value: data.kurikulum,
+                        secondaryLabel: 'Tahun Pelajaran Aktif',
+                        secondaryValue: data.tahunPelajaranAktif,
+                      },
+                      { label: 'Alamat', value: data.address, fullRow: true },
+                      {
+                        label: 'Desa/Kelurahan',
+                        value: data.village,
+                        secondaryLabel: 'Kecamatan',
+                        secondaryValue: data.subDistrict,
+                      },
+                      {
+                        label: 'Kabupaten/Kota',
+                        value: data.district || data.city,
+                        secondaryLabel: 'Provinsi',
+                        secondaryValue: data.province,
+                      },
+                      { label: 'Kode Pos', value: data.postalCode },
+                      {
+                        label: 'Telepon',
+                        value: data.phone,
+                        secondaryLabel: 'Email',
+                        secondaryValue: data.email,
+                      },
+                      { label: 'Website', value: data.website },
+                      {
+                        label: 'Tanggal Berdiri',
+                        value: data.establishedDate ? formatDate(data.establishedDate) : undefined,
+                      },
+                    ]}
+                  />
+                </ModuleSection>
+
+                <ModuleSection
+                  title="Informasi Kepala Instansi"
+                  description="Data kontak pimpinan untuk koordinasi resmi."
+                  className="rounded-3xl border-0 bg-white/90 shadow-xl shadow-slate-900/5 ring-1 ring-slate-100 backdrop-blur"
+                >
+                  <InfoGrid
+                    items={[
+                      { label: 'Nama Kepala', value: data.principalName, emphasize: true },
+                      { label: 'NIP', value: data.principalNip },
+                      {
+                        label: 'Telepon',
+                        value: data.principalPhone,
+                        secondaryLabel: 'Email',
+                        secondaryValue: data.principalEmail,
+                      },
+                    ]}
+                  />
+                </ModuleSection>
               </div>
-            </ModuleSection>
 
-            <ModuleSection
-              title="Akreditasi & Lisensi"
-              description="Status perizinan dan kualitas instansi."
-            >
-              <InfoGrid
-                items={[
-                  { label: 'Akreditasi', value: data.accreditation, emphasize: true },
-                  {
-                    label: 'Tanggal Akreditasi',
-                    value: data.accreditationDate ? formatDate(data.accreditationDate) : undefined,
-                  },
-                  { label: 'Nomor Lisensi', value: data.licenseNumber },
-                  {
-                    label: 'Tanggal Lisensi',
-                    value: data.licenseDate ? formatDate(data.licenseDate) : undefined,
-                  },
-                ]}
-              />
-            </ModuleSection>
-
-            {(data.description || data.notes) && (
               <ModuleSection
-                title="Deskripsi & Catatan"
-                description="Informasi tambahan terkait instansi."
-                className="lg:col-span-2"
+                title="Visi & Misi"
+                description="Gambaran arah dan tujuan jangka panjang instansi."
+                className="rounded-3xl border-0 bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-2xl shadow-slate-900/30"
               >
                 <div className="grid gap-6 md:grid-cols-2">
-                  {data.description && (
-                    <ModuleCard tone="subtle">
-                      <p className="text-sm font-semibold text-slate-600">Deskripsi</p>
-                      <p className="mt-2 whitespace-pre-line text-sm text-slate-800">{data.description}</p>
-                    </ModuleCard>
-                  )}
-                  {data.notes && (
-                    <ModuleCard tone="subtle">
-                      <p className="text-sm font-semibold text-slate-600">Catatan</p>
-                      <p className="mt-2 whitespace-pre-line text-sm text-slate-800">{data.notes}</p>
-                    </ModuleCard>
-                  )}
+                  <NarrativePanel
+                    title="Visi"
+                    content={data.vision}
+                    placeholder="Belum ada visi yang dituliskan."
+                    variant="dark"
+                  />
+                  <NarrativePanel
+                    title="Misi"
+                    content={data.mission}
+                    placeholder="Belum ada misi yang dituliskan."
+                    variant="dark"
+                  />
                 </div>
               </ModuleSection>
-            )}
-          </div>
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <ModuleSection
+                  title="Akreditasi & Lisensi"
+                  description="Status perizinan dan kualitas instansi."
+                  className="rounded-3xl border-0 bg-white/90 shadow-xl shadow-slate-900/5 ring-1 ring-slate-100 backdrop-blur"
+                >
+                  <div className="space-y-4">
+                    <MilestoneItem
+                      icon={<Medal className="h-5 w-5" />}
+                      label="Status Akreditasi"
+                      value={data.accreditation || 'Belum ditentukan'}
+                      meta={
+                        data.accreditationDate
+                          ? `Ditetapkan pada ${formatDate(data.accreditationDate)}`
+                          : 'Tanggal akreditasi belum tersedia'
+                      }
+                    />
+                    <MilestoneItem
+                      icon={<CalendarCheck className="h-5 w-5" />}
+                      label="Lisensi Operasional"
+                      value={data.licenseNumber || 'Belum ada nomor lisensi'}
+                      meta={
+                        data.licenseDate
+                          ? `Berlaku sejak ${formatDate(data.licenseDate)}`
+                          : 'Tanggal lisensi belum tersedia'
+                      }
+                    />
+                  </div>
+                </ModuleSection>
+
+                {(data.description || data.notes) && (
+                  <ModuleSection
+                      title="Deskripsi & Catatan"
+                      description="Informasi tambahan terkait instansi."
+                      className="rounded-3xl border-0 bg-white/90 shadow-xl shadow-slate-900/5 ring-1 ring-slate-100 backdrop-blur"
+                    >
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {data.description && (
+                        <NarrativePanel
+                          title="Deskripsi"
+                          content={data.description}
+                          placeholder="Belum ada deskripsi tambahan."
+                        />
+                      )}
+                      {data.notes && (
+                        <NarrativePanel
+                          title="Catatan"
+                          content={data.notes}
+                          placeholder="Belum ada catatan."
+                        />
+                      )}
+                    </div>
+                  </ModuleSection>
+                )}
+              </div>
+            </div>
+          </>
         ) : (
           <ModuleEmptyState
             title="Belum ada data pokok"
@@ -377,9 +449,12 @@ export default function DataPokokPage() {
                       <input
                         type="text"
                         value={formData.npsn}
-                        onChange={(e) => setFormData({ ...formData, npsn: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        NPSN merupakan identitas sekolah dan tidak dapat diubah dari menu ini.
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -414,13 +489,53 @@ export default function DataPokokPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Jenjang</label>
-                      <input
-                        type="text"
+                      <select
                         value={formData.jenjang}
                         onChange={(e) => setFormData({ ...formData, jenjang: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="SD, SMP, SMA, SMK, dll"
+                      >
+                        <option value="">Pilih Jenjang</option>
+                        <option value="SD/MI">SD/MI</option>
+                        <option value="SMP/MTs">SMP/MTs</option>
+                        <option value="SMA/MA">SMA/MA</option>
+                        <option value="SMK">SMK</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Kurikulum</label>
+                      <select
+                        value={formData.kurikulum}
+                        onChange={(e) => setFormData({ ...formData, kurikulum: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Pilih Kurikulum</option>
+                        <option value="K13">K13</option>
+                        <option value="Merdeka">Merdeka</option>
+                        <option value="Mandiri">Mandiri</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Kurikulum yang dipilih akan menentukan mata pelajaran yang tersedia
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Pelajaran Aktif</label>
+                      <input
+                        type="text"
+                        value={formData.tahunPelajaranAktif || ''}
+                        disabled
+                        placeholder={
+                          academicYearOptions.length === 0
+                            ? 'Belum ada tahun pelajaran'
+                            : 'Tahun pelajaran aktif belum diset'
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Pengaturan dilakukan dari modul Tahun Pelajaran. Aktifkan tahun pelajaran di modul tersebut
+                        untuk memperbarui nilai di sini.
+                      </p>
                     </div>
                   </div>
                   <div>
@@ -675,6 +790,141 @@ export default function DataPokokPage() {
   );
 }
 
+interface TagBadgeProps {
+  icon: ReactNode;
+  text: string;
+}
+
+interface ContactChipProps {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}
+
+interface ProfileHeroProps {
+  data: DataPokok;
+}
+
+function ProfileHero({ data }: ProfileHeroProps) {
+  const location = [data.district || data.city, data.province].filter(Boolean).join(', ');
+  const locationDisplay = location || data.address || 'Lokasi belum diatur';
+  const accreditationDate = data.accreditationDate ? formatDate(data.accreditationDate) : null;
+  const lastUpdated = data.updatedAt ? formatDate(data.updatedAt) : null;
+
+  const tags = [
+    data.type && {
+      icon: <Building2 className="h-3.5 w-3.5" />,
+      text: data.type.toUpperCase(),
+    },
+    data.jenjang && {
+      icon: <GraduationCap className="h-3.5 w-3.5" />,
+      text: data.jenjang,
+    },
+    data.kurikulum && {
+      icon: <Layers className="h-3.5 w-3.5" />,
+      text: `Kurikulum ${data.kurikulum}`,
+    },
+  ].filter((tag): tag is TagBadgeProps => Boolean(tag));
+
+  const contacts = [
+    data.phone && {
+      icon: <Phone className="h-4 w-4" />,
+      label: 'Telepon',
+      value: data.phone,
+    },
+    data.email && {
+      icon: <Mail className="h-4 w-4" />,
+      label: 'Email',
+      value: data.email,
+    },
+    data.website && {
+      icon: <Globe className="h-4 w-4" />,
+      label: 'Website',
+      value: data.website,
+    },
+  ].filter((item): item is ContactChipProps => Boolean(item));
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-800 via-slate-900 to-slate-950 text-white shadow-2xl shadow-indigo-500/30">
+      <div className="relative isolate">
+        <div className="absolute inset-0 opacity-60">
+          <div className="absolute -top-16 right-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute bottom-0 left-16 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
+        </div>
+        <div className="relative z-10 space-y-6 p-6 md:p-10">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/60">Data Pokok Tenant</p>
+              <h2 className="mt-3 text-3xl font-semibold md:text-4xl">{data.name || 'Nama Instansi'}</h2>
+              <p className="mt-3 flex items-center gap-2 text-sm text-white/85">
+                <MapPin className="h-4 w-4" />
+                {locationDisplay}
+              </p>
+              {tags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {tags.map((tag, index) => (
+                    <TagBadge key={`${tag.text}-${index}`} icon={tag.icon} text={tag.text} />
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="w-full rounded-2xl bg-white/10 p-4 text-sm text-white/90 shadow-inner shadow-black/20 sm:w-auto">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/60">Status Akreditasi</p>
+              <p className="mt-2 text-2xl font-semibold">{data.accreditation || 'Belum ditentukan'}</p>
+              <p className="text-xs text-white/70">
+                {accreditationDate
+                  ? `Sejak ${accreditationDate}`
+                  : 'Perbarui data akreditasi untuk menampilkan status terbaru'}
+              </p>
+              {lastUpdated && (
+                <p className="mt-3 flex items-center gap-2 text-xs text-white/70">
+                  <CalendarCheck className="h-4 w-4" />
+                  Terakhir diperbarui {lastUpdated}
+                </p>
+              )}
+            </div>
+          </div>
+          {contacts.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {contacts.map((contact, index) => (
+                <ContactChip
+                  key={`${contact.label}-${index}`}
+                  icon={contact.icon}
+                  label={contact.label}
+                  value={contact.value}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TagBadge({ icon, text }: TagBadgeProps) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-white">
+      <span className="text-white/80">{icon}</span>
+      {text}
+    </span>
+  );
+}
+
+function ContactChip({ icon, label, value }: ContactChipProps) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-slate-900 shadow-lg shadow-slate-900/10">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/5 text-slate-600">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{label}</p>
+        <p className="break-words text-sm font-medium text-slate-900">{value}</p>
+      </div>
+    </div>
+  );
+}
+
 interface InfoItem {
   label: string;
   value?: string | null;
@@ -737,6 +987,84 @@ function InfoField({ label, value, emphasize, fullRow }: InfoFieldProps) {
       >
         {value || '-'}
       </p>
+    </div>
+  );
+}
+
+interface InsightCardProps {
+  icon: ReactNode;
+  label: string;
+  value?: string | null;
+  hint?: string;
+  accent?: string;
+}
+
+function InsightCard({ icon, label, value, hint, accent }: InsightCardProps) {
+  return (
+    <div
+      className={cn(
+        'relative overflow-hidden rounded-2xl border border-white/60 p-5 shadow-lg shadow-slate-900/5 backdrop-blur',
+        accent ? `bg-gradient-to-br ${accent}` : 'bg-white/80',
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900">{value || '-'}</p>
+          {hint && <p className="mt-1 text-xs text-slate-600">{hint}</p>}
+        </div>
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/70 text-slate-600 shadow-inner ring-1 ring-white/60">
+          {icon}
+        </div>
+      </div>
+      <div className="pointer-events-none absolute right-2 top-2 h-16 w-16 rounded-full bg-white/30 blur-3xl" />
+    </div>
+  );
+}
+
+interface MilestoneItemProps {
+  icon: ReactNode;
+  label: string;
+  value?: string | null;
+  meta?: string;
+}
+
+function MilestoneItem({ icon, label, value, meta }: MilestoneItemProps) {
+  return (
+    <div className="flex items-start gap-4 rounded-2xl border border-slate-100 bg-gradient-to-br from-white via-slate-50/50 to-white p-4 shadow-inner shadow-slate-900/5">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-600 shadow ring-1 ring-slate-100">
+        {icon}
+      </div>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className="mt-1 text-base font-semibold text-slate-900">{value || '-'}</p>
+        {meta && <p className="mt-1 text-xs text-slate-500">{meta}</p>}
+      </div>
+    </div>
+  );
+}
+
+interface NarrativePanelProps {
+  title: string;
+  content?: string | null;
+  placeholder: string;
+  variant?: 'default' | 'dark';
+}
+
+function NarrativePanel({ title, content, placeholder, variant = 'default' }: NarrativePanelProps) {
+  const isEmpty = !content;
+  const baseClass =
+    variant === 'dark'
+      ? 'rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 shadow-xl shadow-slate-900/30'
+      : 'rounded-2xl border border-dashed border-slate-200 bg-white/80 p-5 shadow-inner shadow-slate-900/5';
+  const titleClass = variant === 'dark' ? 'text-sm font-semibold text-slate-100' : 'text-sm font-semibold text-slate-700';
+  const textClass = variant === 'dark' ? 'text-sm text-slate-100/90' : 'text-sm text-slate-700';
+  const placeholderClass = variant === 'dark' ? 'text-slate-500' : 'text-slate-400';
+
+  return (
+    <div className={baseClass}>
+      <p className={titleClass}>{title}</p>
+      <p className={cn('mt-2 whitespace-pre-line', textClass, isEmpty && placeholderClass)}>{content || placeholder}</p>
     </div>
   );
 }

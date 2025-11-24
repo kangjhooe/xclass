@@ -162,7 +162,94 @@ export default function TeachersPage() {
     specialization: '',
     isActive: true,
     positionId: undefined,
+    // Data Pribadi Tambahan
+    pageId: '',
+    npk: '',
+    motherName: '',
+    // Detail Alamat
+    province: '',
+    cityDistrict: '',
+    subDistrict: '',
+    village: '',
+    postalCode: '',
+    // Data Pendidikan
+    educationLevel: '',
+    studyProgramGroup: '',
+    // Status Kepegawaian
+    employmentStatusPtk: '',
+    employmentStatus: '',
+    employmentRank: '',
+    tmtSkCpns: '',
+    tmtSkAwal: '',
+    tmtSkTerakhir: '',
+    appointingInstitution: '',
+    assignmentStatus: '',
+    baseSalary: undefined,
+    workLocationStatus: '',
+    satminkalType: '',
+    satminkalNpsn: '',
+    satminkalIdentity: '',
+    inpassingStatus: '',
+    tmtInpassing: '',
+    // Tugas dan Mengajar
+    mainDutyEducator: '',
+    additionalDuty: '',
+    mainDutySchool: '',
+    mainSubject: '',
+    totalTeachingHours: undefined,
+    dutyType: '',
+    teachingHoursEquivalent: undefined,
+    teachOtherSchool: false,
+    otherWorkLocationType: '',
+    otherWorkLocationNpsn: '',
+    otherSchoolSubject: '',
+    otherSchoolHours: undefined,
+    // Informasi Sertifikasi
+    certificationParticipationStatus: '',
+    certificationPassStatus: '',
+    certificationYear: undefined,
+    certifiedSubject: '',
+    nrg: '',
+    nrgSkNumber: '',
+    nrgSkDate: '',
+    certificationParticipantNumber: '',
+    certificationType: '',
+    certificationPassDate: '',
+    educatorCertificateNumber: '',
+    certificateIssueDate: '',
+    lptkName: '',
+    // Informasi Tunjangan
+    tpgRecipientStatus: '',
+    tpgStartYear: undefined,
+    tpgAmount: undefined,
+    tfgRecipientStatus: '',
+    tfgStartYear: undefined,
+    tfgAmount: undefined,
+    // Penghargaan dan Pelatihan
+    hasReceivedAward: false,
+    highestAward: '',
+    awardField: '',
+    awardLevel: '',
+    awardYear: undefined,
+    competencyTraining: '',
+    trainingParticipation1: '',
+    trainingYear1: undefined,
+    trainingParticipation2: '',
+    trainingYear2: undefined,
+    trainingParticipation3: '',
+    trainingYear3: undefined,
+    trainingParticipation4: '',
+    trainingYear4: undefined,
+    trainingParticipation5: '',
+    trainingYear5: undefined,
+    // Kompetensi Kepala Madrasah
+    personalityCompetency: undefined,
+    managerialCompetency: undefined,
+    entrepreneurshipCompetency: undefined,
+    supervisionCompetency: undefined,
+    socialCompetency: undefined,
   });
+  const [activeTab, setActiveTab] = useState('basic');
 
   const queryClient = useQueryClient();
 
@@ -365,9 +452,96 @@ export default function TeachersPage() {
       specialization: '',
       isActive: true,
       positionId: undefined,
+      // Data Pribadi Tambahan
+      pageId: '',
+      npk: '',
+      motherName: '',
+      // Detail Alamat
+      province: '',
+      cityDistrict: '',
+      subDistrict: '',
+      village: '',
+      postalCode: '',
+      // Data Pendidikan
+      educationLevel: '',
+      studyProgramGroup: '',
+      // Status Kepegawaian
+      employmentStatusPtk: '',
+      employmentStatus: '',
+      employmentRank: '',
+      tmtSkCpns: '',
+      tmtSkAwal: '',
+      tmtSkTerakhir: '',
+      appointingInstitution: '',
+      assignmentStatus: '',
+      baseSalary: undefined,
+      workLocationStatus: '',
+      satminkalType: '',
+      satminkalNpsn: '',
+      satminkalIdentity: '',
+      inpassingStatus: '',
+      tmtInpassing: '',
+      // Tugas dan Mengajar
+      mainDutyEducator: '',
+      additionalDuty: '',
+      mainDutySchool: '',
+      mainSubject: '',
+      totalTeachingHours: undefined,
+      dutyType: '',
+      teachingHoursEquivalent: undefined,
+      teachOtherSchool: false,
+      otherWorkLocationType: '',
+      otherWorkLocationNpsn: '',
+      otherSchoolSubject: '',
+      otherSchoolHours: undefined,
+      // Informasi Sertifikasi
+      certificationParticipationStatus: '',
+      certificationPassStatus: '',
+      certificationYear: undefined,
+      certifiedSubject: '',
+      nrg: '',
+      nrgSkNumber: '',
+      nrgSkDate: '',
+      certificationParticipantNumber: '',
+      certificationType: '',
+      certificationPassDate: '',
+      educatorCertificateNumber: '',
+      certificateIssueDate: '',
+      lptkName: '',
+      // Informasi Tunjangan
+      tpgRecipientStatus: '',
+      tpgStartYear: undefined,
+      tpgAmount: undefined,
+      tfgRecipientStatus: '',
+      tfgStartYear: undefined,
+      tfgAmount: undefined,
+      // Penghargaan dan Pelatihan
+      hasReceivedAward: false,
+      highestAward: '',
+      awardField: '',
+      awardLevel: '',
+      awardYear: undefined,
+      competencyTraining: '',
+      trainingParticipation1: '',
+      trainingYear1: undefined,
+      trainingParticipation2: '',
+      trainingYear2: undefined,
+      trainingParticipation3: '',
+      trainingYear3: undefined,
+      trainingParticipation4: '',
+      trainingYear4: undefined,
+      trainingParticipation5: '',
+      trainingYear5: undefined,
+      // Kompetensi Kepala Madrasah
+      personalityCompetency: undefined,
+      managerialCompetency: undefined,
+      entrepreneurshipCompetency: undefined,
+      supervisionCompetency: undefined,
+      socialCompetency: undefined,
     });
     setSelectedTeacher(null);
     setFormErrors({});
+    setActiveTab('basic');
   };
 
   const handleEdit = (teacher: Teacher) => {
@@ -388,8 +562,95 @@ export default function TeachersPage() {
       specialization: teacher.specialization || '',
       isActive: teacher.isActive ?? true,
       positionId: teacher.positionId,
+      // Data Pribadi Tambahan
+      pageId: teacher.pageId || '',
+      npk: teacher.npk || '',
+      motherName: teacher.motherName || '',
+      // Detail Alamat
+      province: teacher.province || '',
+      cityDistrict: teacher.cityDistrict || '',
+      subDistrict: teacher.subDistrict || '',
+      village: teacher.village || '',
+      postalCode: teacher.postalCode || '',
+      // Data Pendidikan
+      educationLevel: teacher.educationLevel || '',
+      studyProgramGroup: teacher.studyProgramGroup || '',
+      // Status Kepegawaian
+      employmentStatusPtk: teacher.employmentStatusPtk || '',
+      employmentStatus: teacher.employmentStatus || '',
+      employmentRank: teacher.employmentRank || '',
+      tmtSkCpns: teacher.tmtSkCpns || '',
+      tmtSkAwal: teacher.tmtSkAwal || '',
+      tmtSkTerakhir: teacher.tmtSkTerakhir || '',
+      appointingInstitution: teacher.appointingInstitution || '',
+      assignmentStatus: teacher.assignmentStatus || '',
+      baseSalary: teacher.baseSalary,
+      workLocationStatus: teacher.workLocationStatus || '',
+      satminkalType: teacher.satminkalType || '',
+      satminkalNpsn: teacher.satminkalNpsn || '',
+      satminkalIdentity: teacher.satminkalIdentity || '',
+      inpassingStatus: teacher.inpassingStatus || '',
+      tmtInpassing: teacher.tmtInpassing || '',
+      // Tugas dan Mengajar
+      mainDutyEducator: teacher.mainDutyEducator || '',
+      additionalDuty: teacher.additionalDuty || '',
+      mainDutySchool: teacher.mainDutySchool || '',
+      mainSubject: teacher.mainSubject || '',
+      totalTeachingHours: teacher.totalTeachingHours,
+      dutyType: teacher.dutyType || '',
+      teachingHoursEquivalent: teacher.teachingHoursEquivalent,
+      teachOtherSchool: teacher.teachOtherSchool || false,
+      otherWorkLocationType: teacher.otherWorkLocationType || '',
+      otherWorkLocationNpsn: teacher.otherWorkLocationNpsn || '',
+      otherSchoolSubject: teacher.otherSchoolSubject || '',
+      otherSchoolHours: teacher.otherSchoolHours,
+      // Informasi Sertifikasi
+      certificationParticipationStatus: teacher.certificationParticipationStatus || '',
+      certificationPassStatus: teacher.certificationPassStatus || '',
+      certificationYear: teacher.certificationYear,
+      certifiedSubject: teacher.certifiedSubject || '',
+      nrg: teacher.nrg || '',
+      nrgSkNumber: teacher.nrgSkNumber || '',
+      nrgSkDate: teacher.nrgSkDate || '',
+      certificationParticipantNumber: teacher.certificationParticipantNumber || '',
+      certificationType: teacher.certificationType || '',
+      certificationPassDate: teacher.certificationPassDate || '',
+      educatorCertificateNumber: teacher.educatorCertificateNumber || '',
+      certificateIssueDate: teacher.certificateIssueDate || '',
+      lptkName: teacher.lptkName || '',
+      // Informasi Tunjangan
+      tpgRecipientStatus: teacher.tpgRecipientStatus || '',
+      tpgStartYear: teacher.tpgStartYear,
+      tpgAmount: teacher.tpgAmount,
+      tfgRecipientStatus: teacher.tfgRecipientStatus || '',
+      tfgStartYear: teacher.tfgStartYear,
+      tfgAmount: teacher.tfgAmount,
+      // Penghargaan dan Pelatihan
+      hasReceivedAward: teacher.hasReceivedAward || false,
+      highestAward: teacher.highestAward || '',
+      awardField: teacher.awardField || '',
+      awardLevel: teacher.awardLevel || '',
+      awardYear: teacher.awardYear,
+      competencyTraining: teacher.competencyTraining || '',
+      trainingParticipation1: teacher.trainingParticipation1 || '',
+      trainingYear1: teacher.trainingYear1,
+      trainingParticipation2: teacher.trainingParticipation2 || '',
+      trainingYear2: teacher.trainingYear2,
+      trainingParticipation3: teacher.trainingParticipation3 || '',
+      trainingYear3: teacher.trainingYear3,
+      trainingParticipation4: teacher.trainingParticipation4 || '',
+      trainingYear4: teacher.trainingYear4,
+      trainingParticipation5: teacher.trainingParticipation5 || '',
+      trainingYear5: teacher.trainingYear5,
+      // Kompetensi Kepala Madrasah
+      personalityCompetency: teacher.personalityCompetency,
+      managerialCompetency: teacher.managerialCompetency,
+      entrepreneurshipCompetency: teacher.entrepreneurshipCompetency,
+      supervisionCompetency: teacher.supervisionCompetency,
+      socialCompetency: teacher.socialCompetency,
     });
     setIsModalOpen(true);
+    setActiveTab('basic');
   };
 
   const validateForm = (): boolean => {
@@ -1071,6 +1332,543 @@ export default function TeachersPage() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
+
+                      <div className="col-span-2">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Detail Alamat</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Provinsi</label>
+                            <input
+                              type="text"
+                              value={formData.province}
+                              onChange={(e) => setFormData({ ...formData, province: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Kabupaten/Kota</label>
+                            <input
+                              type="text"
+                              value={formData.cityDistrict}
+                              onChange={(e) => setFormData({ ...formData, cityDistrict: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Kecamatan</label>
+                            <input
+                              type="text"
+                              value={formData.subDistrict}
+                              onChange={(e) => setFormData({ ...formData, subDistrict: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Desa/Kelurahan</label>
+                            <input
+                              type="text"
+                              value={formData.village}
+                              onChange={(e) => setFormData({ ...formData, village: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Kode Pos</label>
+                            <input
+                              type="text"
+                              value={formData.postalCode}
+                              onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Data Pendidikan Tambahan</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Jenjang Pendidikan</label>
+                            <input
+                              type="text"
+                              value={formData.educationLevel}
+                              onChange={(e) => setFormData({ ...formData, educationLevel: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Kelompok Program Studi</label>
+                            <input
+                              type="text"
+                              value={formData.studyProgramGroup}
+                              onChange={(e) => setFormData({ ...formData, studyProgramGroup: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Status Kepegawaian</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Status PTK</label>
+                            <input
+                              type="text"
+                              value={formData.employmentStatusPtk}
+                              onChange={(e) => setFormData({ ...formData, employmentStatusPtk: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Status Kepegawaian</label>
+                            <input
+                              type="text"
+                              value={formData.employmentStatus}
+                              onChange={(e) => setFormData({ ...formData, employmentStatus: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Golongan / Pangkat</label>
+                            <input
+                              type="text"
+                              value={formData.employmentRank}
+                              onChange={(e) => setFormData({ ...formData, employmentRank: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Instansi Pengangkat</label>
+                            <input
+                              type="text"
+                              value={formData.appointingInstitution}
+                              onChange={(e) => setFormData({ ...formData, appointingInstitution: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Status Penugasan</label>
+                            <input
+                              type="text"
+                              value={formData.assignmentStatus}
+                              onChange={(e) => setFormData({ ...formData, assignmentStatus: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Gaji Pokok (Rp)</label>
+                            <input
+                              type="number"
+                              value={formData.baseSalary ?? ''}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  baseSalary: e.target.value ? Number(e.target.value) : undefined,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">TMT SK CPNS</label>
+                            <input
+                              type="date"
+                              value={formData.tmtSkCpns}
+                              onChange={(e) => setFormData({ ...formData, tmtSkCpns: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">TMT SK Awal</label>
+                            <input
+                              type="date"
+                              value={formData.tmtSkAwal}
+                              onChange={(e) => setFormData({ ...formData, tmtSkAwal: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">TMT SK Terakhir</label>
+                            <input
+                              type="date"
+                              value={formData.tmtSkTerakhir}
+                              onChange={(e) => setFormData({ ...formData, tmtSkTerakhir: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Status Tempat Tugas</label>
+                            <input
+                              type="text"
+                              value={formData.workLocationStatus}
+                              onChange={(e) => setFormData({ ...formData, workLocationStatus: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Tugas dan Mengajar</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tugas Utama (Pendidik)</label>
+                            <input
+                              type="text"
+                              value={formData.mainDutyEducator}
+                              onChange={(e) => setFormData({ ...formData, mainDutyEducator: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tugas Tambahan</label>
+                            <input
+                              type="text"
+                              value={formData.additionalDuty}
+                              onChange={(e) => setFormData({ ...formData, additionalDuty: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tugas Utama di Madrasah</label>
+                            <input
+                              type="text"
+                              value={formData.mainDutySchool}
+                              onChange={(e) => setFormData({ ...formData, mainDutySchool: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Mapel Utama</label>
+                            <input
+                              type="text"
+                              value={formData.mainSubject}
+                              onChange={(e) => setFormData({ ...formData, mainSubject: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Total Jam Tatap Muka/Minggu</label>
+                            <input
+                              type="number"
+                              value={formData.totalTeachingHours ?? ''}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  totalTeachingHours: e.target.value ? Number(e.target.value) : undefined,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Tugas</label>
+                            <input
+                              type="text"
+                              value={formData.dutyType}
+                              onChange={(e) => setFormData({ ...formData, dutyType: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Ekuivalensi Jam Tatap Muka</label>
+                            <input
+                              type="number"
+                              value={formData.teachingHoursEquivalent ?? ''}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  teachingHoursEquivalent: e.target.value ? Number(e.target.value) : undefined,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Mengajar di Sekolah Lain?</label>
+                            <div className="flex items-center space-x-4">
+                              <label className="inline-flex items-center">
+                                <input
+                                  type="radio"
+                                  className="h-4 w-4 text-blue-600 border-gray-300"
+                                  checked={formData.teachOtherSchool === true}
+                                  onChange={() => setFormData({ ...formData, teachOtherSchool: true })}
+                                />
+                                <span className="ml-2 text-sm text-gray-700">Ya</span>
+                              </label>
+                              <label className="inline-flex items-center">
+                                <input
+                                  type="radio"
+                                  className="h-4 w-4 text-blue-600 border-gray-300"
+                                  checked={formData.teachOtherSchool === false}
+                                  onChange={() => setFormData({ ...formData, teachOtherSchool: false })}
+                                />
+                                <span className="ml-2 text-sm text-gray-700">Tidak</span>
+                              </label>
+                            </div>
+                          </div>
+                          {formData.teachOtherSchool && (
+                            <>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Tempat Tugas Lain</label>
+                                <input
+                                  type="text"
+                                  value={formData.otherWorkLocationType}
+                                  onChange={(e) => setFormData({ ...formData, otherWorkLocationType: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">NPSN Tempat Tugas Lain</label>
+                                <input
+                                  type="text"
+                                  value={formData.otherWorkLocationNpsn}
+                                  onChange={(e) => setFormData({ ...formData, otherWorkLocationNpsn: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Mapel di Sekolah Lain</label>
+                                <input
+                                  type="text"
+                                  value={formData.otherSchoolSubject}
+                                  onChange={(e) => setFormData({ ...formData, otherSchoolSubject: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Jam Tatap Muka/Minggu (Sekolah Lain)</label>
+                                <input
+                                  type="number"
+                                  value={formData.otherSchoolHours ?? ''}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      otherSchoolHours: e.target.value ? Number(e.target.value) : undefined,
+                                    })
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                  <div className="col-span-2">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Informasi Sertifikasi</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status Kepesertaan</label>
+                        <input
+                          type="text"
+                          value={formData.certificationParticipationStatus}
+                          onChange={(e) =>
+                            setFormData({ ...formData, certificationParticipationStatus: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status Kelulusan</label>
+                        <input
+                          type="text"
+                          value={formData.certificationPassStatus}
+                          onChange={(e) => setFormData({ ...formData, certificationPassStatus: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Sertifikasi</label>
+                        <input
+                          type="number"
+                          value={formData.certificationYear ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              certificationYear: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mapel Disertifikasi</label>
+                        <input
+                          type="text"
+                          value={formData.certifiedSubject}
+                          onChange={(e) => setFormData({ ...formData, certifiedSubject: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">NRG</label>
+                        <input
+                          type="text"
+                          value={formData.nrg}
+                          onChange={(e) => setFormData({ ...formData, nrg: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nomor SK NRG</label>
+                        <input
+                          type="text"
+                          value={formData.nrgSkNumber}
+                          onChange={(e) => setFormData({ ...formData, nrgSkNumber: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal SK NRG</label>
+                        <input
+                          type="date"
+                          value={formData.nrgSkDate}
+                          onChange={(e) => setFormData({ ...formData, nrgSkDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Peserta</label>
+                        <input
+                          type="text"
+                          value={formData.certificationParticipantNumber}
+                          onChange={(e) =>
+                            setFormData({ ...formData, certificationParticipantNumber: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Jenis/Jalur Sertifikasi</label>
+                        <input
+                          type="text"
+                          value={formData.certificationType}
+                          onChange={(e) => setFormData({ ...formData, certificationType: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kelulusan</label>
+                        <input
+                          type="date"
+                          value={formData.certificationPassDate}
+                          onChange={(e) => setFormData({ ...formData, certificationPassDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Sertifikat Pendidik</label>
+                        <input
+                          type="text"
+                          value={formData.educatorCertificateNumber}
+                          onChange={(e) =>
+                            setFormData({ ...formData, educatorCertificateNumber: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Sertifikat</label>
+                        <input
+                          type="date"
+                          value={formData.certificateIssueDate}
+                          onChange={(e) => setFormData({ ...formData, certificateIssueDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nama LPTK</label>
+                        <input
+                          type="text"
+                          value={formData.lptkName}
+                          onChange={(e) => setFormData({ ...formData, lptkName: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-span-2">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Informasi Tunjangan</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status Penerima TPG</label>
+                        <input
+                          type="text"
+                          value={formData.tpgRecipientStatus}
+                          onChange={(e) => setFormData({ ...formData, tpgRecipientStatus: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mulai Tahun Menerima TPG</label>
+                        <input
+                          type="number"
+                          value={formData.tpgStartYear ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              tpgStartYear: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Besaran TPG per Bulan (Rp)</label>
+                        <input
+                          type="number"
+                          value={formData.tpgAmount ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              tpgAmount: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status Penerima TFG</label>
+                        <input
+                          type="text"
+                          value={formData.tfgRecipientStatus}
+                          onChange={(e) => setFormData({ ...formData, tfgRecipientStatus: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mulai Tahun Menerima TFG</label>
+                        <input
+                          type="number"
+                          value={formData.tfgStartYear ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              tfgStartYear: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Besaran TFG per Bulan (Rp)</label>
+                        <input
+                          type="number"
+                          value={formData.tfgAmount ?? ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              tfgAmount: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Jabatan</label>
