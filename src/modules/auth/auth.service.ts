@@ -12,6 +12,7 @@ import { Student } from '../students/entities/student.entity';
 import { Teacher } from '../teachers/entities/teacher.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import * as bcrypt from 'bcrypt';
+import { parseFrontendUrls } from '../../common/utils/frontend-url.util';
 
 @Injectable()
 export class AuthService {
@@ -440,8 +441,9 @@ export class AuthService {
     await this.userRepository.save(user);
 
     // Get frontend URL from config or use default
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
-    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+    const frontendConfig = parseFrontendUrls(this.configService.get<string>('FRONTEND_URL'));
+    const baseFrontendUrl = frontendConfig.primaryUrl.replace(/\/+$/, '');
+    const resetUrl = `${baseFrontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
     // Prepare email content
     const emailSubject = 'Reset Password - XClass';

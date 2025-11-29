@@ -4,13 +4,15 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import { parseFrontendUrls, normalizeOrigin } from './common/utils/frontend-url.util';
 
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
     const configService = app.get(ConfigService);
     const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
-    const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
+    const frontendConfig = parseFrontendUrls(configService.get<string>('FRONTEND_URL'));
+    const { primaryUrl: frontendUrl, origins: frontendOrigins } = frontendConfig;
     
     // Security headers dengan helmet
     app.use(helmet({
@@ -20,7 +22,7 @@ async function bootstrap() {
           styleSrc: ["'self'", "'unsafe-inline'"],
           scriptSrc: ["'self'"],
           imgSrc: ["'self'", 'data:', 'https:'],
-          connectSrc: ["'self'", frontendUrl],
+          connectSrc: ["'self'", ...frontendOrigins],
           fontSrc: ["'self'"],
           objectSrc: ["'none'"],
           mediaSrc: ["'self'"],
@@ -32,15 +34,22 @@ async function bootstrap() {
     }));
     
     // Enable CORS dengan konfigurasi yang lebih ketat
+    const devOrigins = Array.from(new Set([
+      'http://localhost:3001',
+      'http://localhost:3000',
+      'http://127.0.0.1:3001',
+      'http://127.0.0.1:3000',
+      ...frontendOrigins,
+    ]));
     const allowedOrigins = nodeEnv === 'production' 
-      ? [frontendUrl] // Only allow frontend URL in production
-      : [
-          'http://localhost:3001',
-          'http://localhost:3000',
-          'http://127.0.0.1:3001',
-          'http://127.0.0.1:3000',
-          frontendUrl,
-        ]; // Allow specific origins in development
+      ? frontendOrigins // Only allow configured frontend origins in production
+      : devOrigins; // Allow specific origins in development
+
+    const allowedOriginSet = new Set(
+      allowedOrigins
+        .map((origin) => normalizeOrigin(origin))
+        .filter((origin): origin is string => Boolean(origin)),
+    );
     
     app.enableCors({
       origin: (origin, callback) => {
@@ -57,7 +66,8 @@ async function bootstrap() {
         }
         
         // Check if origin is in allowed list
-        if (allowedOrigins.includes(origin)) {
+        const normalizedOrigin = normalizeOrigin(origin);
+        if (normalizedOrigin && allowedOriginSet.has(normalizedOrigin)) {
           return callback(null, true);
         }
         

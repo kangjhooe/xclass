@@ -49,8 +49,10 @@ export function useWebSocket(
       return;
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    const socketUrl = `${apiUrl}${namespace}`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+    const websocketBase = apiUrl.replace(/\/api\/?$/, '');
+    const normalizedNamespace = namespace.startsWith('/') ? namespace : `/${namespace}`;
+    const socketUrl = `${websocketBase}${normalizedNamespace}`;
 
     setIsConnecting(true);
     setError(null);

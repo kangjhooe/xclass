@@ -10,6 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { parseFrontendUrls } from '../../common/utils/frontend-url.util';
 
 interface AuthenticatedSocket extends Socket {
   userId?: number;
@@ -29,9 +30,11 @@ interface MessageNotification {
   created_at: Date;
 }
 
+const { origins: messageOrigins } = parseFrontendUrls(process.env.FRONTEND_URL);
+
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: messageOrigins,
     credentials: true,
   },
   namespace: '/messages',

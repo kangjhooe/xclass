@@ -11,15 +11,18 @@ import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { NotificationsService } from './notifications.service';
+import { parseFrontendUrls } from '../../common/utils/frontend-url.util';
 
 interface AuthenticatedSocket extends Socket {
   userId?: number;
   tenantId?: number;
 }
 
+const { origins: notificationOrigins } = parseFrontendUrls(process.env.FRONTEND_URL);
+
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: notificationOrigins,
     credentials: true,
   },
   namespace: '/notifications',

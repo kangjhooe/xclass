@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import * as fs from 'fs';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { StudentsModule } from './modules/students/students.module';
@@ -70,12 +71,28 @@ import { SuperAdminAnnouncementModule } from './modules/super-admin-announcement
 import { CacheModule } from './common/cache/cache.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
+const resolvedNodeEnv = process.env.NODE_ENV?.trim() || 'development';
+const envFileCandidates = [
+  `.env.${resolvedNodeEnv}.local`,
+  `.env.${resolvedNodeEnv}`,
+  '.env.local',
+  '.env',
+];
+const existingEnvFiles = envFileCandidates.filter((filePath) => {
+  try {
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
+});
+
 @Module({
   imports: [
     CacheModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: existingEnvFiles.length > 0 ? existingEnvFiles : undefined,
+      expandVariables: true,
     }),
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
